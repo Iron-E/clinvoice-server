@@ -75,7 +75,6 @@
 
 mod args;
 mod dyn_result;
-mod fmt;
 mod utils;
 
 use args::Args;

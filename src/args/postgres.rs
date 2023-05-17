@@ -1,0 +1,47 @@
+use std::path::PathBuf;
+
+use clap::Args;
+use sqlx::postgres::PgSslMode;
+
+/// Spawn a CLInvoice Server which interacts which a Postgres Database.
+#[derive(Args, Clone, Debug)]
+pub struct Postgres
+{
+	/// The name of the database where CLInvoice should perform its operations.
+	database: String,
+
+	/// This changes the default precision of floating-point values.
+	#[arg(long, short)]
+	extra_float_digits: Option<i8>,
+
+	/// Sets the name of the host to connect to.
+	///
+	/// If a host name begins with a slash, it specifies Unix-domain communication rather than
+	/// TCP/IP communication; the value is the name of the directory in which the socket file is
+	/// stored.
+	///
+	/// The default behavior when host is not specified, or is empty, is to connect to a Unix-domain
+	/// socket
+	#[arg(default_value_t, hide_default_value = true, long, short = 'o')]
+	host: String,
+
+	/// Sets the port to connect to at the server host.
+	#[arg(long, short)]
+	port: Option<u16>,
+
+	/// Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated.
+	#[arg(default_value = "prefer", long, short = 'm')]
+	ssl_mode: PgSslMode,
+
+	/// Sets the name of a file containing a list of trusted SSL Certificate Authorities.
+	#[arg(long, short = 'r')]
+	ssl_root_cert: Option<PathBuf>,
+
+	/// Sets the capacity of the connection’s statement cache in a number of stored distinct
+	/// statements.
+	///
+	/// Caching is handled using LRU, meaning when the amount of queries hits the defined limit,
+	/// the oldest statement will get dropped.
+	#[arg(long, short = 'c')]
+	statement_cache_capacity: Option<usize>,
+}
