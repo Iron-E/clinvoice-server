@@ -88,8 +88,9 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(capacity);
 		}
 
-		Server { address, connect_options, tls }
-			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
+		Server { address, tls }
+			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses, _>(
+				connect_options,
 			)
 			.await
 	}
