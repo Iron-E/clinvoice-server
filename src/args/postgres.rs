@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::{net::SocketAddr, path::PathBuf};
 
+use axum_server::tls_rustls::RustlsConfig;
 use clap::Args;
 use clinvoice_adapter_postgres::schema::{
 	PgContact,
@@ -59,7 +60,7 @@ pub struct Postgres
 
 impl Postgres
 {
-	pub async fn run(self) -> DynResult<()>
+	pub async fn run(self, address: SocketAddr, tls: RustlsConfig) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()
 			.application_name("clinvoice-server")
@@ -87,7 +88,7 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(capacity);
 		}
 
-		CLInvoiceServer { connect_options }
+		CLInvoiceServer { address, connect_options, tls }
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
 			.await

@@ -12,15 +12,3 @@ pub enum Command
 	#[cfg(feature = "postgres")]
 	Postgres(Postgres),
 }
-
-impl Command
-{
-	pub async fn run(self) -> DynResult<()>
-	{
-		match self
-		{
-			Self::Postgres(p) => p.run(),
-		}
-		.await
-	}
-}

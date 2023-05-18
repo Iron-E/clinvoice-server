@@ -22,6 +22,10 @@ money2 = "0.8"
 serde = "1"
 thiserror = "1"
 
+[dependencies.axum-server]
+features = ["tls-rustls"]
+version = "0.5"
+
 [dependencies.clap]
 features = ["derive"]
 version = "4"

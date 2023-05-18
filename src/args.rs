@@ -2,6 +2,9 @@ mod command;
 #[cfg(feature = "postgres")]
 mod postgres;
 
+use std::{net::SocketAddr, path::PathBuf};
+
+use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use command::Command;
 
@@ -15,15 +18,32 @@ use crate::DynResult;
 #[command(version = "0.1.0-alpha.1")]
 pub struct Args
 {
-	/// The specific CLInvoice subcommand to run.
+	/// The IP address to bind the CLInvoice server to.
+	#[arg(default_value = "127.0.0.1:3000", long, short)]
+	address: SocketAddr,
+
+	/// The file containing the certificate to use for TLS. Must be in PEM format.
+	#[arg(long, short)]
+	certificate: PathBuf,
+
+	/// The CLInvoice adapter which will be used for this server.
 	#[command(subcommand)]
 	command: Command,
+
+	/// The file containing the key to use for TLS. Must be in PEM format.
+	#[arg(long, short)]
+	key: PathBuf,
 }
 
 impl Args
 {
 	pub async fn run(self) -> DynResult<()>
 	{
-		self.command.run().await
+		let tls = RustlsConfig::from_pem_file(self.certificate, self.key).await?;
+		match self.command
+		{
+			Command::Postgres(p) => p.run(self.address, tls),
+		}
+		.await
 	}
 }

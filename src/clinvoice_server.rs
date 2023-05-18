@@ -1,4 +1,7 @@
+use std::net::SocketAddr;
+
 use axum::{routing, Router, Server};
+use axum_server::tls_rustls::RustlsConfig;
 use clinvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -19,8 +22,14 @@ pub struct CLInvoiceServer<Db>
 where
 	Db: Database,
 {
+	/// The IP address to bind the CLInvoice server to.
+	pub address: SocketAddr,
+
 	/// The [`ConnectOptions`](sqlx::ConnectOptions) used to connect to the database.
 	pub connect_options: <Db::Connection as Connection>::Options,
+
+	/// The configuration for the TLS protocol via [rustls](axum_server::tls_rustls).
+	pub tls: RustlsConfig,
 }
 
 impl<Db> CLInvoiceServer<Db>
@@ -45,7 +54,7 @@ where
 	{
 		let router = Router::new().route("/", routing::get(|| async { "Hello World!" }));
 
-		Server::bind(&"0.0.0.0:3000".parse().unwrap()).serve(router.into_make_service()).await?;
+		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
 }
