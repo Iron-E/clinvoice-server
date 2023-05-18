@@ -5,7 +5,7 @@ mod postgres;
 use clap::Parser;
 use command::Command;
 
-use crate::DynResult;
+use crate::{DynResult, Run};
 
 /// CLInvoice is a tool to track and generate invoices from the command line. Pass --help for more.
 ///
@@ -20,19 +20,12 @@ pub struct Args
 	command: Command,
 }
 
-impl Args
+#[async_trait::async_trait]
+impl Run for Args
 {
-	pub async fn run(self) -> DynResult<()>
+	async fn run(self) -> DynResult<()>
 	{
-		match self.command
-		{
-			#[cfg(feature = "postgres")]
-			Command::Postgres(args) =>
-			{
-				println!("{args:?}");
-			},
-		};
-
+		self.command.run().await?;
 		Ok(())
 	}
 }

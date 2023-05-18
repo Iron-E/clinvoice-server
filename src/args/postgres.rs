@@ -1,7 +1,18 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use sqlx::postgres::PgSslMode;
+use clinvoice_adapter_postgres::schema::{
+	PgContact,
+	PgEmployee,
+	PgExpenses,
+	PgJob,
+	PgLocation,
+	PgOrganization,
+	PgTimesheet,
+};
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
+
+use crate::{clinvoice_server::CLInvoiceServer, DynResult, Run};
 
 /// Spawn a CLInvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
@@ -20,8 +31,8 @@ pub struct Postgres
 	/// TCP/IP communication; the value is the name of the directory in which the socket file is
 	/// stored.
 	///
-	/// The default behavior when host is not specified, or is empty, is to connect to a Unix-domain
-	/// socket
+	/// The default behavior when host is not specified, or is empty, is to connect to a
+	/// Unix-domain socket
 	#[arg(default_value_t, hide_default_value = true, long, short = 'o')]
 	host: String,
 
@@ -44,4 +55,23 @@ pub struct Postgres
 	/// the oldest statement will get dropped.
 	#[arg(long, short = 'c')]
 	statement_cache_capacity: Option<usize>,
+}
+
+#[async_trait::async_trait]
+impl Run for Postgres
+{
+	async fn run(self) -> DynResult<()>
+	{
+		let connect_options =
+			PgConnectOptions::new().application_name("clinvoice-server").database(&self.database);
+
+		// TODO: other args
+
+		CLInvoiceServer::new(connect_options)
+			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
+			)
+			.await?;
+
+		Ok(())
+	}
 }
