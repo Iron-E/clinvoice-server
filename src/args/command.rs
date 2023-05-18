@@ -3,7 +3,7 @@ use clap::Subcommand;
 #[cfg(feature = "postgres")]
 use super::postgres::Postgres;
 
-/// The specific command that CLInvoice should run.
+/// The specific command that Winvoice should run.
 #[derive(Clone, Debug, Subcommand)]
 pub enum Command
 {

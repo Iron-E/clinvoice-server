@@ -1,7 +1,7 @@
 use std::{fmt::Display, time::Duration};
 
 use axum::{routing, Router as AxumRouter};
-use clinvoice_adapter::{
+use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
 		EmployeeAdapter,

@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use axum_server::tls_rustls::RustlsConfig;
-use clinvoice_adapter::{
+use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
 		EmployeeAdapter,
@@ -19,7 +19,7 @@ use crate::{login::Login, router::Router, DynResult};
 
 pub struct Server
 {
-	/// The IP address to bind the CLInvoice server to.
+	/// The IP address to bind the Winvoice server to.
 	pub address: SocketAddr,
 
 	/// The configuration for the TLS protocol via [rustls](axum_server::tls_rustls).

@@ -2,7 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Args;
-use clinvoice_adapter_postgres::schema::{
+use winvoice_adapter_postgres::schema::{
 	PgContact,
 	PgEmployee,
 	PgExpenses,
@@ -15,11 +15,11 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 use crate::{server::Server, DynResult};
 
-/// Spawn a CLInvoice Server which interacts which a Postgres Database.
+/// Spawn a Winvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
 pub struct Postgres
 {
-	/// The name of the database where CLInvoice should perform its operations.
+	/// The name of the database where Winvoice should perform its operations.
 	database: String,
 
 	/// This changes the default precision of floating-point values.
@@ -63,7 +63,7 @@ impl Postgres
 	pub async fn run(self, address: SocketAddr, tls: RustlsConfig) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()
-			.application_name("clinvoice-server")
+			.application_name("winvoice-server")
 			.database(&self.database)
 			.host(&self.host)
 			.ssl_mode(self.ssl_mode);

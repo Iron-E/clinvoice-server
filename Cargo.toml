@@ -1,16 +1,16 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
-name = "clinvoice-server"
+name = "winvoice-server"
 version = "0.1.0-alpha.1"
 authors = ["Iron-E <code.iron.e@gmail.com>"]
-description = "HTTP server to run CLInvoice commands on from any frontend"
+description = "HTTP server to run Winvoice commands on from any frontend"
 
 categories = ["command-line-utilities", "database", "web-programming::http-server"]
 edition = "2021"
-keywords = ["invoice", "freelance", "cli", "command", "line", "command-line"]
+keywords = ["backend", "cli", "command", "command-line", "freelance", "invoice", "line", "server"]
 license = "GPL3"
 readme = "README.md"
-repository = "https://www.github.com/Iron-E/clinvoice"
+repository = "https://www.github.com/Iron-E/winvoice-server"
 
 [dependencies]
 async-trait = "0.1"
@@ -30,34 +30,34 @@ version = "0.5"
 features = ["derive"]
 version = "4"
 
-[dependencies.clinvoice-adapter]
-branch = "release/0.18"
+[dependencies.winvoice-adapter]
+branch = "release/0.19"
 default-features = false
-git = "https://github.com/Iron-E/clinvoice-adapter"
+git = "https://github.com/Iron-E/winvoice-adapter"
 
-[dependencies.clinvoice-adapter-postgres]
-branch = "release/0.8"
-git = "https://github.com/Iron-E/clinvoice-adapter-postgres"
+[dependencies.winvoice-adapter-postgres]
+branch = "release/0.9"
+git = "https://github.com/Iron-E/winvoice-adapter-postgres"
 optional = true
 
-[dependencies.clinvoice-config]
-branch = "release/0.7"
-git = "https://github.com/Iron-E/clinvoice-config"
-
-[dependencies.clinvoice-export]
-branch = "release/0.2"
-features = ["markdown"]
-git = "https://github.com/Iron-E/clinvoice-export"
-
-[dependencies.clinvoice-match]
+[dependencies.winvoice-config]
 branch = "release/0.8"
-features = ["serde"]
-git = "https://github.com/Iron-E/clinvoice-match"
+git = "https://github.com/Iron-E/winvoice-config"
 
-[dependencies.clinvoice-schema]
-branch = "release/0.11"
+[dependencies.winvoice-export]
+branch = "release/0.3"
+features = ["markdown"]
+git = "https://github.com/Iron-E/winvoice-export"
+
+[dependencies.winvoice-match]
+branch = "release/0.9"
 features = ["serde"]
-git = "https://github.com/Iron-E/clinvoice-schema"
+git = "https://github.com/Iron-E/winvoice-match"
+
+[dependencies.winvoice-schema]
+branch = "release/0.12"
+features = ["serde"]
+git = "https://github.com/Iron-E/winvoice-schema"
 
 [dependencies.sqlx]
 features = ["runtime-tokio-rustls", "tls"]
@@ -73,4 +73,4 @@ pretty_assertions = "1"
 
 [features]
 default = ["postgres"]
-postgres = ["clinvoice-adapter-postgres", "sqlx/postgres"]
+postgres = ["winvoice-adapter-postgres", "sqlx/postgres"]

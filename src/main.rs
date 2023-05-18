@@ -1,5 +1,5 @@
-//! `clinvoice-server` is WIP backend for CLInvoice libraries. It aims to allow any
-//! number of different frontends, such as [CLInvoice](https://github.com/Iron-E/clinvoice) or
+//! `winvoice-server` is WIP backend for Winvoice libraries. It aims to allow any
+//! number of different frontends, such as [Winvoice](https://github.com/Iron-E/winvoice) or
 //! [GUInvoice](https://github.com/Iron-E/guinvoice), to communicate with it without having to be
 //! written in Rust or re-implement common procedures.
 //!
@@ -12,14 +12,14 @@
 //! ```sh
 //! cargo install \
 //!   --features <adapters> \
-//!   --git https://github.com/Iron-E/clinvoice-server \
+//!   --git https://github.com/Iron-E/winvoice-server \
 //!   --root=<desired install folder>
 //! ```
 //!
 //! # Usage
 //!
-//! * For basic information, run `clinvoice-server help` from the command line.
-//! * For an in-depth guide, see the [wiki](https://github.com/Iron-E/clinvoice-server/wiki/Usage).
+//! * For basic information, run `winvoice-server help` from the command line.
+//! * For an in-depth guide, see the [wiki](https://github.com/Iron-E/winvoice-server/wiki/Usage).
 
 #![allow(clippy::drop_non_drop)]
 #![forbid(unsafe_code)]
@@ -97,7 +97,7 @@ use args::Args;
 use clap::Parser;
 use dyn_result::DynResult;
 
-/// Interprets arguments `clinvoice` (if any) and executes the implied instruction.
+/// Interprets arguments `winvoice` (if any) and executes the implied instruction.
 #[tokio::main]
 async fn main() -> DynResult<()>
 {
