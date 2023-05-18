@@ -87,8 +87,8 @@
 )]
 
 mod args;
-mod clinvoice_server;
 mod dyn_result;
+mod server;
 mod utils;
 
 use args::Args;

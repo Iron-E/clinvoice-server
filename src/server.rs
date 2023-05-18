@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use axum::{routing, Router, Server};
+use axum::{routing, Router};
 use axum_server::tls_rustls::RustlsConfig;
 use clinvoice_adapter::{
 	schema::{
@@ -18,7 +18,7 @@ use sqlx::{Connection, Database, Executor, Transaction};
 
 use crate::DynResult;
 
-pub struct CLInvoiceServer<Db>
+pub struct Server<Db>
 where
 	Db: Database,
 {
@@ -32,7 +32,7 @@ where
 	pub tls: RustlsConfig,
 }
 
-impl<Db> CLInvoiceServer<Db>
+impl<Db> Server<Db>
 where
 	Db: Database,
 	<Db::Connection as Connection>::Options: Clone,
@@ -52,7 +52,19 @@ where
 		for<'connection> &'connection mut Transaction<'connection, Db>:
 			Executor<'connection, Database = Db>,
 	{
-		let router = Router::new().route("/", routing::get(|| async { "Hello World!" }));
+		async fn todo()
+		{
+			todo!()
+		}
+
+		let router = Router::new()
+			.route("/contact", routing::delete(todo).get(todo).post(todo).put(todo))
+			.route("/employee", routing::delete(todo).get(todo).post(todo).put(todo))
+			.route("/job", routing::delete(todo).get(todo).post(todo).put(todo))
+			.route("/location", routing::delete(todo).get(todo).post(todo).put(todo))
+			.route("/organization", routing::delete(todo).get(todo).post(todo).put(todo))
+			.route("/timesheet", routing::delete(todo).get(todo).post(todo).put(todo))
+			.route("/expense", routing::delete(todo).get(todo).post(todo).put(todo));
 
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())

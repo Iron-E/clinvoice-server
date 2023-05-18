@@ -13,7 +13,7 @@ use clinvoice_adapter_postgres::schema::{
 };
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
-use crate::{clinvoice_server::CLInvoiceServer, DynResult};
+use crate::{server::Server, DynResult};
 
 /// Spawn a CLInvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
@@ -88,7 +88,7 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(capacity);
 		}
 
-		CLInvoiceServer { address, connect_options, tls }
+		Server { address, connect_options, tls }
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
 			.await
