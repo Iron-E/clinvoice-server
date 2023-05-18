@@ -2,6 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Args;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use winvoice_adapter_postgres::schema::{
 	PgContact,
 	PgEmployee,
@@ -11,7 +12,6 @@ use winvoice_adapter_postgres::schema::{
 	PgOrganization,
 	PgTimesheet,
 };
-use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 use crate::{server::Server, DynResult};
 

@@ -1,6 +1,11 @@
 use std::{fmt::Display, time::Duration};
 
-use axum::{routing, Router as AxumRouter};
+use axum::{
+	http::StatusCode,
+	routing::{self, MethodRouter},
+	Router as AxumRouter,
+};
+use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Transaction};
 use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -12,10 +17,10 @@ use winvoice_adapter::{
 		TimesheetAdapter,
 	},
 	Deletable,
+	Updatable,
 };
-use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Transaction};
 
-use crate::{dyn_result::DynResult, login::Login};
+use crate::login::Login;
 
 static IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -36,14 +41,6 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	async fn delete<T>(&self) -> DynResult<()>
-	where
-		T: Deletable<Db = Db>,
-		<T as Deletable>::Entity: Clone + Display + Sync,
-	{
-		todo!("Implement delete method")
-	}
-
 	fn login(&self, username: &str, password: &str) -> Pool<Db>
 	{
 		PoolOptions::new()
@@ -67,55 +64,64 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
+		let contact_route = self.route::<C>();
+		let employee_route = self.route::<E>();
+		let expense_route = self.route::<X>();
+		let location_route = self.route::<L>();
+		let job_route = self.route::<J>();
+		let organization_route = self.route::<O>();
+		let timesheet_route = self.route::<T>();
+
 		AxumRouter::new()
 			.route(
 				"/contact",
-				routing::delete(|| async { todo!("contact delete") })
+				contact_route
 					.get(|| async { todo!("contact retrieve") })
-					.patch(|| async { todo!("contact update") })
 					.post(|| async { todo!("contact create") }),
 			)
 			.route(
 				"/employee",
-				routing::delete(|| async { todo!("employee delete") })
+				employee_route
 					.get(|| async { todo!("employee retrieve") })
-					.patch(|| async { todo!("employee update") })
 					.post(|| async { todo!("employee create") }),
 			)
 			.route(
 				"/expense",
-				routing::delete(|| async { todo!("expense delete") })
+				expense_route
 					.get(|| async { todo!("expense retrieve") })
-					.patch(|| async { todo!("expense update") })
 					.post(|| async { todo!("expense create") }),
 			)
 			.route(
 				"/job",
-				routing::delete(|| async { todo!("job delete") })
+				job_route
 					.get(|| async { todo!("job retrieve") })
-					.patch(|| async { todo!("job update") })
 					.post(|| async { todo!("job create") }),
 			)
 			.route(
 				"/location",
-				routing::delete(|| async { todo!("locationg delete") })
-					.get(|| async { todo!("locationg retrieve") })
-					.patch(|| async { todo!("locationg update") })
-					.post(|| async { todo!("locationg create") }),
+				location_route
+					.get(|| async { todo!("location retrieve") })
+					.post(|| async { todo!("location create") }),
 			)
 			.route(
 				"/organization",
-				routing::delete(|| async { todo!("organization delete") })
+				organization_route
 					.get(|| async { todo!("organization retrieve") })
-					.patch(|| async { todo!("organization update") })
 					.post(|| async { todo!("organization create") }),
 			)
 			.route(
 				"/timesheet",
-				routing::delete(|| async { todo!("timesheet delete") })
+				timesheet_route
 					.get(|| async { todo!("timesheet retrieve") })
-					.patch(|| async { todo!("timesheet update") })
 					.post(|| async { todo!("timesheet create") }),
 			)
+	}
+
+	fn route<T>(&self) -> MethodRouter
+	where
+		T: Deletable<Db = Db> + Updatable<Db = Db>,
+	{
+		routing::delete(|| async { todo!("Implement delete method") })
+			.patch(|| async { todo!("Implement delete method") })
 	}
 }

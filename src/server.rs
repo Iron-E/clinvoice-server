@@ -1,6 +1,7 @@
 use std::net::SocketAddr;
 
 use axum_server::tls_rustls::RustlsConfig;
+use sqlx::{Connection, Database, Executor, Transaction};
 use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -13,7 +14,6 @@ use winvoice_adapter::{
 	},
 	Deletable,
 };
-use sqlx::{Connection, Database, Executor, Transaction};
 
 use crate::{login::Login, router::Router, DynResult};
 
