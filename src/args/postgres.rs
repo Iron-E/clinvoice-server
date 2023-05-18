@@ -62,16 +62,35 @@ impl Run for Postgres
 {
 	async fn run(self) -> DynResult<()>
 	{
-		let connect_options =
-			PgConnectOptions::new().application_name("clinvoice-server").database(&self.database);
+		let mut connect_options = PgConnectOptions::new()
+			.application_name("clinvoice-server")
+			.database(&self.database)
+			.host(&self.host)
+			.ssl_mode(self.ssl_mode);
 
-		// TODO: other args
+		if let Some(digits) = self.extra_float_digits
+		{
+			connect_options = connect_options.extra_float_digits(digits);
+		}
+
+		if let Some(number) = self.port
+		{
+			connect_options = connect_options.port(number);
+		}
+
+		if let Some(root_cert) = self.ssl_root_cert
+		{
+			connect_options = connect_options.ssl_root_cert(root_cert);
+		}
+
+		if let Some(capacity) = self.statement_cache_capacity
+		{
+			connect_options = connect_options.statement_cache_capacity(capacity);
+		}
 
 		CLInvoiceServer { connect_options }
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
-			.await?;
-
-		Ok(())
+			.await
 	}
 }
