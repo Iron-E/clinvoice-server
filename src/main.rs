@@ -3,6 +3,19 @@
 //! [GUInvoice](https://github.com/Iron-E/guinvoice), to communicate with it without having to be
 //! written in Rust or re-implement common procedures.
 //!
+//! # Installation
+//!
+//! Requirements:
+//!
+//! * [`cargo`](https://github.com/rust-lang/cargo)
+//!
+//! ```sh
+//! cargo install \
+//!   --features <adapters> \
+//!   --git https://github.com/Iron-E/clinvoice-server \
+//!   --root=<desired install folder>
+//! ```
+//!
 //! # Usage
 //!
 //! * For basic information, run `clinvoice-server help` from the command line.
