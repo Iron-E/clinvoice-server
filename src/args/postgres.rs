@@ -12,7 +12,7 @@ use clinvoice_adapter_postgres::schema::{
 };
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
-use crate::{clinvoice_server::CLInvoiceServer, DynResult, Run};
+use crate::{clinvoice_server::CLInvoiceServer, DynResult};
 
 /// Spawn a CLInvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
@@ -57,10 +57,9 @@ pub struct Postgres
 	statement_cache_capacity: Option<usize>,
 }
 
-#[async_trait::async_trait]
-impl Run for Postgres
+impl Postgres
 {
-	async fn run(self) -> DynResult<()>
+	pub async fn run(self) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()
 			.application_name("clinvoice-server")

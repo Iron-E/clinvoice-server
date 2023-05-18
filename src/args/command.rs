@@ -2,7 +2,7 @@ use clap::Subcommand;
 
 #[cfg(feature = "postgres")]
 use super::postgres::Postgres;
-use crate::{DynResult, Run};
+use crate::DynResult;
 
 /// The specific command that CLInvoice should run.
 #[derive(Clone, Debug, Subcommand)]
@@ -13,10 +13,9 @@ pub enum Command
 	Postgres(Postgres),
 }
 
-#[async_trait::async_trait]
-impl Run for Command
+impl Command
 {
-	async fn run(self) -> DynResult<()>
+	pub async fn run(self) -> DynResult<()>
 	{
 		match self
 		{

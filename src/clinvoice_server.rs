@@ -1,3 +1,4 @@
+use axum::{routing, Router, Server};
 use clinvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -42,6 +43,9 @@ where
 		for<'connection> &'connection mut Transaction<'connection, Db>:
 			Executor<'connection, Database = Db>,
 	{
-		todo!("Start the server with axum")
+		let router = Router::new().route("/", routing::get(|| async { "Hello World!" }));
+
+		Server::bind(&"0.0.0.0:3000".parse().unwrap()).serve(router.into_make_service()).await?;
+		Ok(())
 	}
 }
