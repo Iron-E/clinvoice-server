@@ -96,7 +96,7 @@ use clap::Parser;
 use dyn_result::DynResult;
 
 /// Interprets arguments `clinvoice` (if any) and executes the implied instruction.
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() -> DynResult<()>
 {
 	Args::parse().run().await
