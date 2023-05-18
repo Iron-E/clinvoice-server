@@ -58,13 +58,55 @@ where
 		}
 
 		let router = Router::new()
-			.route("/contact", routing::delete(todo).get(todo).post(todo).put(todo))
-			.route("/employee", routing::delete(todo).get(todo).post(todo).put(todo))
-			.route("/job", routing::delete(todo).get(todo).post(todo).put(todo))
-			.route("/location", routing::delete(todo).get(todo).post(todo).put(todo))
-			.route("/organization", routing::delete(todo).get(todo).post(todo).put(todo))
-			.route("/timesheet", routing::delete(todo).get(todo).post(todo).put(todo))
-			.route("/expense", routing::delete(todo).get(todo).post(todo).put(todo));
+			.route(
+				"/contact",
+				routing::delete(|| async { todo!("contact delete") })
+					.get(|| async { todo!("contact retrieve") })
+					.patch(|| async { todo!("contact update") })
+					.post(|| async { todo!("contact create") }),
+			)
+			.route(
+				"/employee",
+				routing::delete(|| async { todo!("employee delete") })
+					.get(|| async { todo!("employee retrieve") })
+					.patch(|| async { todo!("employee update") })
+					.post(|| async { todo!("employee create") }),
+			)
+			.route(
+				"/expense",
+				routing::delete(|| async { todo!("expense delete") })
+					.get(|| async { todo!("expense retrieve") })
+					.patch(|| async { todo!("expense update") })
+					.post(|| async { todo!("expense create") }),
+			)
+			.route(
+				"/job",
+				routing::delete(|| async { todo!("job delete") })
+					.get(|| async { todo!("job retrieve") })
+					.patch(|| async { todo!("job update") })
+					.post(|| async { todo!("job create") }),
+			)
+			.route(
+				"/location",
+				routing::delete(|| async { todo!("locationg delete") })
+					.get(|| async { todo!("locationg retrieve") })
+					.patch(|| async { todo!("locationg update") })
+					.post(|| async { todo!("locationg create") }),
+			)
+			.route(
+				"/organization",
+				routing::delete(|| async { todo!("organization delete") })
+					.get(|| async { todo!("organization retrieve") })
+					.patch(|| async { todo!("organization update") })
+					.post(|| async { todo!("organization create") }),
+			)
+			.route(
+				"/timesheet",
+				routing::delete(|| async { todo!("timesheet delete") })
+					.get(|| async { todo!("timesheet retrieve") })
+					.patch(|| async { todo!("timesheet update") })
+					.post(|| async { todo!("timesheet create") }),
+			);
 
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
