@@ -19,18 +19,13 @@ where
 	Db: Database,
 {
 	/// The [`ConnectOptions`](sqlx::ConnectOptions) used to connect to the database.
-	connect_options: <<Db as Database>::Connection as Connection>::Options,
+	pub connect_options: <Db::Connection as Connection>::Options,
 }
 
 impl<Db> CLInvoiceServer<Db>
 where
 	Db: Database,
 {
-	pub fn new(connect_options: <<Db as Database>::Connection as Connection>::Options) -> Self
-	{
-		Self { connect_options }
-	}
-
 	pub async fn serve<CAdapter, EAdapter, JAdapter, LAdapter, OAdapter, TAdapter, XAdapter>(
 		self,
 	) -> DynResult<()>

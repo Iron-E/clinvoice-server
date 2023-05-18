@@ -67,7 +67,7 @@ impl Run for Postgres
 
 		// TODO: other args
 
-		CLInvoiceServer::new(connect_options)
+		CLInvoiceServer { connect_options }
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
 			.await?;
