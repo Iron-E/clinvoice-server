@@ -20,9 +20,8 @@ impl Run for Command
 	{
 		match self
 		{
-			Self::Postgres(p) => p.run().await?,
-		};
-
-		Ok(())
+			Self::Postgres(p) => p.run(),
+		}
+		.await
 	}
 }

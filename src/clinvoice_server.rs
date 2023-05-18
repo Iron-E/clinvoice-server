@@ -25,6 +25,7 @@ where
 impl<Db> CLInvoiceServer<Db>
 where
 	Db: Database,
+	<Db::Connection as Connection>::Options: Clone,
 {
 	pub async fn serve<CAdapter, EAdapter, JAdapter, LAdapter, OAdapter, TAdapter, XAdapter>(
 		self,

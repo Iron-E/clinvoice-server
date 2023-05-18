@@ -25,7 +25,6 @@ impl Run for Args
 {
 	async fn run(self) -> DynResult<()>
 	{
-		self.command.run().await?;
-		Ok(())
+		self.command.run().await
 	}
 }
