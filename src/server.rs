@@ -1,6 +1,6 @@
 //! The `server` module functions to spawn an [`axum_server`] which communicates over TLS.
 
-mod session;
+mod sessions;
 
 use core::time::Duration;
 use std::net::SocketAddr;
@@ -13,7 +13,7 @@ use axum::{
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use session::{Login, SessionManager};
+use sessions::{Login, SessionManager};
 use sqlx::{Connection, Database, Executor, Transaction};
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, validate_request::ValidateRequestHeaderLayer};

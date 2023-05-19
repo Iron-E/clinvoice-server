@@ -1,6 +1,4 @@
-//! Manages active connections, log-ins, etc.
-
-mod login;
+//! Contains code which manages connections, log-ins, etc.
 
 use core::time::Duration;
 use std::collections::HashMap;
@@ -14,24 +12,10 @@ use axum::{
 	TypedHeader,
 };
 use headers::authorization::{Authorization, Basic};
-pub use login::Login;
 use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Result, Transaction};
 use uuid::Uuid;
-use winvoice_schema::chrono::{DateTime, Local};
 
-/// Represents a user who has successfully logged in, and may *stay* logged in.
-struct Session
-{
-	/// The [`DateTime`] that this session was created. Stored for the purposes of ensuring expiry
-	/// is done on time.
-	date: DateTime<Local>,
-
-	/// The username of the user who has logged in.
-	username: String,
-
-	/// The password of the user who has logged in.
-	password: String,
-}
+use super::{session::Session, Login};
 
 /// A manager for active
 pub struct SessionManager<Db>
