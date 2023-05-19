@@ -14,7 +14,7 @@ use winvoice_adapter_postgres::schema::{
 	PgTimesheet,
 };
 
-use crate::{server::Server, DynResult};
+use crate::{server, DynResult};
 
 /// Spawn a Winvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
@@ -95,10 +95,16 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		Server { address, tls, timeout }
-			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses, _>(
-				connect_options,
-			)
-			.await
+		server::serve::<
+			PgContact,
+			PgEmployee,
+			PgJob,
+			PgLocation,
+			PgOrganization,
+			PgTimesheet,
+			PgExpenses,
+			_,
+		>(address, connect_options, timeout, tls)
+		.await
 	}
 }
