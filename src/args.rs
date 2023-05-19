@@ -43,11 +43,25 @@ pub struct Args
 		default_missing_value = "1month",
 		num_args = 0..=1,
 		long,
-		short,
+		short = 'x',
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
 	session_expire: Option<Duration>,
+
+	/// The amount of time that a connection may be held open by an idle user before it is closed.
+	///
+	/// When this argument is passed without a value, (e.g. `--session-idle`), a duration of 5
+	/// minutes is set.
+	#[arg(
+		default_missing_value = "5min",
+		num_args = 0..=1,
+		long,
+		short = 'i',
+		value_name = "DURATION",
+		value_parser = humantime::parse_duration,
+	)]
+	session_idle: Option<Duration>,
 
 	/// The maximum duration to run commands server before timing out (e.g. "5s", "15min").
 	///
@@ -72,7 +86,10 @@ impl Args
 		let tls = RustlsConfig::from_pem_file(self.certificate, self.key).await?;
 		match self.command
 		{
-			Command::Postgres(p) => p.run(self.address, self.session_expire, tls, self.timeout),
+			Command::Postgres(p) =>
+			{
+				p.run(self.address, self.session_expire, self.session_idle, self.timeout, tls)
+			},
 		}
 		.await
 	}

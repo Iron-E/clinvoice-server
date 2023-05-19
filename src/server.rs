@@ -72,6 +72,7 @@ where
 		address: SocketAddr,
 		connect_options: <Db::Connection as Connection>::Options,
 		session_expire: Option<Duration>,
+		session_idle: Option<Duration>,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> Self
@@ -80,7 +81,7 @@ where
 			address,
 			session_manager: Arc::new(RwLock::new(SessionManager::new(
 				connect_options,
-				Duration::from_secs(300).into(),
+				session_idle,
 				session_expire,
 			))),
 			timeout,

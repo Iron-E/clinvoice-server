@@ -66,8 +66,9 @@ impl Postgres
 		self,
 		address: SocketAddr,
 		session_expire: Option<Duration>,
-		tls: RustlsConfig,
+		session_idle: Option<Duration>,
 		timeout: Option<Duration>,
+		tls: RustlsConfig,
 	) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()
@@ -96,7 +97,7 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		Server::new(address, connect_options, session_expire, timeout, tls)
+		Server::new(address, connect_options, session_expire, session_idle, timeout, tls)
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
 			.await
