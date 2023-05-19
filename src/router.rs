@@ -1,4 +1,4 @@
-use std::{fmt::Display, time::Duration};
+use core::time::Duration;
 
 use axum::{
 	http::StatusCode,
