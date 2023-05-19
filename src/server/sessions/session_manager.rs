@@ -3,7 +3,7 @@
 mod clone;
 
 use core::time::Duration;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
 	http::{Request, StatusCode},
@@ -15,9 +15,12 @@ use axum::{
 };
 use headers::authorization::{Authorization, Basic};
 use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Result, Transaction};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{session::Session, Login};
+
+type SyncUuidMap<T> = Arc<RwLock<HashMap<Uuid, T>>>;
 
 /// A manager for active
 #[derive(Debug)]
@@ -29,7 +32,7 @@ where
 	connect_options: <Db::Connection as Connection>::Options,
 
 	/// The active connections with the [`Database`].
-	connections: HashMap<Uuid, Pool<Db>>,
+	connections: SyncUuidMap<Pool<Db>>,
 
 	/// The amount of time that an active connection should be idle before it is shut down.
 	idle_timeout: Option<Duration>,
@@ -38,7 +41,7 @@ where
 	session_expire: Option<Duration>,
 
 	/// The currently logged in users.
-	sessions: HashMap<Uuid, Session>,
+	sessions: SyncUuidMap<Session>,
 }
 
 impl<Db> SessionManager<Db>
@@ -57,10 +60,10 @@ where
 	{
 		Self {
 			connect_options,
-			connections: HashMap::new(),
+			connections: Arc::new(RwLock::new(HashMap::new())),
 			idle_timeout,
 			session_expire,
-			sessions: HashMap::new(),
+			sessions: Arc::new(RwLock::new(HashMap::new())),
 		}
 	}
 

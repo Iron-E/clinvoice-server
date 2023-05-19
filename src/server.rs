@@ -3,7 +3,7 @@
 mod sessions;
 
 use core::time::Duration;
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 use axum::{
 	error_handling::HandleErrorLayer,
@@ -15,7 +15,6 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use sessions::{Login, SessionManager};
 use sqlx::{Connection, Database, Executor, Transaction};
-use tokio::sync::RwLock;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, validate_request::ValidateRequestHeaderLayer};
 use winvoice_adapter::{
@@ -34,8 +33,6 @@ use winvoice_adapter::{
 
 use crate::DynResult;
 
-type SyncSessionManager<Db> = Arc<RwLock<SessionManager<Db>>>;
-
 /// A Winvoice server.
 #[derive(Clone, Debug)]
 pub struct Server<Db>
@@ -49,7 +46,7 @@ where
 
 	/// The [`SessionManager`] which keeps track of active connections and logins while the server
 	/// is open.
-	session_manager: SyncSessionManager<Db>,
+	session_manager: SessionManager<Db>,
 
 	/// The amount of time to run operations on the server before cancelling them.
 	timeout: Option<Duration>,
@@ -79,11 +76,7 @@ where
 	{
 		Self {
 			address,
-			session_manager: Arc::new(RwLock::new(SessionManager::new(
-				connect_options,
-				session_idle,
-				session_expire,
-			))),
+			session_manager: SessionManager::new(connect_options, session_idle, session_expire),
 			timeout,
 			tls,
 		}
@@ -102,7 +95,7 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut stateless_router = Router::<SyncSessionManager<Db>>::new()
+		let mut stateless_router = Router::<SessionManager<Db>>::new()
 			.layer(CompressionLayer::new())
 			.layer(ValidateRequestHeaderLayer::accept("application/json"));
 
@@ -176,7 +169,7 @@ where
 
 	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
 	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<T>(&self) -> MethodRouter<SyncSessionManager<Db>>
+	fn route<T>(&self) -> MethodRouter<SessionManager<Db>>
 	where
 		T: Deletable<Db = Db> + Updatable<Db = Db>,
 	{
