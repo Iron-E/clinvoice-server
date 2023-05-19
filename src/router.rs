@@ -1,11 +1,18 @@
 use core::time::Duration;
 
 use axum::{
+	error_handling::HandleErrorLayer,
 	http::StatusCode,
 	routing::{self, MethodRouter},
+	BoxError,
 	Router as AxumRouter,
 };
-use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Transaction};
+use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Result, Transaction};
+use tower::{
+	timeout::{self, TimeoutLayer},
+	ServiceBuilder,
+};
+use tower_http::compression::CompressionLayer;
 use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -41,6 +48,7 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
+	/// Create an [`axum::Router`] based on the `connect_options`.
 	pub fn axum<C, E, J, L, O, T, X>(
 		connect_options: <Db::Connection as Connection>::Options,
 	) -> AxumRouter
@@ -64,6 +72,22 @@ where
 		let timesheet_route = this.route::<T>();
 
 		AxumRouter::new()
+			.layer(CompressionLayer::new())
+			.layer(
+				ServiceBuilder::new()
+					.layer(HandleErrorLayer::new(|err: BoxError| async move {
+						match err.is::<timeout::error::Elapsed>()
+						{
+							#[rustfmt::skip]
+							true => (StatusCode::REQUEST_TIMEOUT, "Request took too long".to_owned()),
+							false => (
+								StatusCode::INTERNAL_SERVER_ERROR,
+								format!("Unhandled internal error: {}", err),
+							),
+						}
+					}))
+					.layer(TimeoutLayer::new(Duration::from_secs(30))),
+			)
 			.route("/", routing::get(|| async { (StatusCode::NOT_FOUND, "CUSTOM ERROR") }))
 			.route(
 				"/contact",
@@ -109,14 +133,21 @@ where
 			)
 	}
 
-	fn login(&self, username: &str, password: &str) -> Pool<Db>
+	/// Create a new [`Pool`] which attempts to establish a connection with the database that this
+	/// [`Router`] has been instructed to communicate with.
+	///
+	/// Uses `username` and `password` as credentials for the new connection.
+	async fn login(&self, username: &str, password: &str) -> Result<Pool<Db>>
 	{
 		PoolOptions::new()
 			.idle_timeout(IDLE_TIMEOUT)
 			.max_connections(1)
-			.connect_lazy_with(self.connect_options.clone().login(username, password))
+			.connect_with(self.connect_options.clone().login(username, password))
+			.await
 	}
 
+	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
+	/// preconfigured, since those are common among all Winvoice entities.
 	fn route<T>(&self) -> MethodRouter
 	where
 		T: Deletable<Db = Db> + Updatable<Db = Db>,

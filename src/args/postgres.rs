@@ -60,6 +60,7 @@ pub struct Postgres
 
 impl Postgres
 {
+	/// Run the Winvoice postgres server.
 	pub async fn run(self, address: SocketAddr, tls: RustlsConfig) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()

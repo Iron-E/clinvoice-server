@@ -28,6 +28,7 @@ pub struct Server
 
 impl Server
 {
+	/// Start a [`Server`](axum::Server) using the `connect_options`.
 	pub async fn serve<C, E, J, L, O, T, X, Db>(
 		self,
 		connect_options: <Db::Connection as Connection>::Options,

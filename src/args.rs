@@ -37,6 +37,7 @@ pub struct Args
 
 impl Args
 {
+	/// Run the Winvoice server.
 	pub async fn run(self) -> DynResult<()>
 	{
 		let tls = RustlsConfig::from_pem_file(self.certificate, self.key).await?;
