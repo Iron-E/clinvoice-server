@@ -3,6 +3,7 @@
 use winvoice_schema::chrono::{DateTime, Local};
 
 /// Represents a user who has successfully logged in, and may *stay* logged in.
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) struct Session
 {
 	/// The [`DateTime`] that this session was created. Stored for the purposes of ensuring expiry

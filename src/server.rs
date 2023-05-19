@@ -34,9 +34,12 @@ use winvoice_adapter::{
 use crate::DynResult;
 
 /// A Winvoice server.
+#[derive(Clone, Debug)]
 pub struct Server<Db>
 where
 	Db: Database,
+	Db::Connection: core::fmt::Debug,
+	<Db::Connection as Connection>::Options: Clone,
 {
 	/// The [`SocketAddr`] that self server is bound to.
 	address: SocketAddr,
@@ -55,7 +58,8 @@ where
 impl<Db> Server<Db>
 where
 	Db: Database,
-	<Db::Connection as Connection>::Options: Login + Clone,
+	Db::Connection: core::fmt::Debug,
+	<Db::Connection as Connection>::Options: Clone + Login,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,

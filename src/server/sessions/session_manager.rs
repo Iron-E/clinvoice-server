@@ -1,5 +1,7 @@
 //! Contains code which manages connections, log-ins, etc.
 
+mod clone;
+
 use core::time::Duration;
 use std::collections::HashMap;
 
@@ -18,6 +20,7 @@ use uuid::Uuid;
 use super::{session::Session, Login};
 
 /// A manager for active
+#[derive(Debug)]
 pub struct SessionManager<Db>
 where
 	Db: Database,
