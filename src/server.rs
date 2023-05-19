@@ -1,7 +1,14 @@
+//! The `server` module functions to spawn an [`axum_server`] which communicates over TLS.
+
+mod router;
+mod session;
+
 use core::time::Duration;
 use std::net::SocketAddr;
 
 use axum_server::tls_rustls::RustlsConfig;
+use router::Router;
+use session::Login;
 use sqlx::{Connection, Database, Executor, Transaction};
 use winvoice_adapter::{
 	schema::{
@@ -16,12 +23,12 @@ use winvoice_adapter::{
 	Deletable,
 };
 
-use crate::{login::Login, router::Router, DynResult};
+use crate::DynResult;
 
-/// Start a [`Server`](axum::Server) using the `connect_options`.
-/// The IP address to bind the Winvoice server to.
-/// The configuration for the TLS protocol via [rustls](axum_server::tls_rustls).
-/// If [`Some`], the amount of time to run commands on the server before timing out.
+/// Bind a [`Server`](axum::Server) to the `address` which communicates over `tls`.
+///
+/// * Connection to the Winvoice database is managed by the `connect_options`.
+/// * Operations `timeout`, if [`Some`] value is specified.
 pub async fn serve<C, E, J, L, O, T, X, Db>(
 	address: SocketAddr,
 	connect_options: <Db::Connection as Connection>::Options,

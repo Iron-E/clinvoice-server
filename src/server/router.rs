@@ -1,3 +1,5 @@
+//! Manages routing requests to API endpoints to the various internal handlers.
+
 use core::time::Duration;
 
 use axum::{
@@ -12,7 +14,7 @@ use tower::{
 	timeout::{self, TimeoutLayer},
 	ServiceBuilder,
 };
-use tower_http::compression::CompressionLayer;
+use tower_http::{compression::CompressionLayer, validate_request::ValidateRequestHeaderLayer};
 use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -27,10 +29,11 @@ use winvoice_adapter::{
 	Updatable,
 };
 
-use crate::login::Login;
+use super::Login;
 
 static IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 
+/// A router for the Winvoice server, which handles operations on all the API endpoints.
 pub struct Router<Db>
 where
 	Db: Database,
@@ -49,6 +52,8 @@ where
 		Executor<'connection, Database = Db>,
 {
 	/// Create an [`axum::Router`] based on the `connect_options`.
+	///
+	/// Operations `timeout`, if specified.
 	pub fn axum<C, E, J, L, O, T, X>(
 		connect_options: <Db::Connection as Connection>::Options,
 		timeout: Option<Duration>,
@@ -62,7 +67,9 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut router = AxumRouter::new().layer(CompressionLayer::new());
+		let mut router = AxumRouter::new()
+			.layer(CompressionLayer::new())
+			.layer(ValidateRequestHeaderLayer::accept("application/json"));
 
 		if let Some(t) = timeout
 		{
@@ -85,48 +92,48 @@ where
 
 		let this = Self { connect_options };
 		router
-			.route("/", routing::get(|| async { (StatusCode::NOT_FOUND, "CUSTOM ERROR") }))
+			.route("/login", routing::get(|| async { todo("login") }))
 			.route(
 				"/contact",
 				this.route::<C>()
-					.get(|| async { todo!("contact retrieve") })
-					.post(|| async { todo!("contact create") }),
+					.get(|| async { todo("contact retrieve") })
+					.post(|| async { todo("contact create") }),
 			)
 			.route(
 				"/employee",
 				this.route::<E>()
-					.get(|| async { todo!("employee retrieve") })
-					.post(|| async { todo!("employee create") }),
+					.get(|| async { todo("employee retrieve") })
+					.post(|| async { todo("employee create") }),
 			)
 			.route(
 				"/expense",
 				this.route::<X>()
-					.get(|| async { todo!("expense retrieve") })
-					.post(|| async { todo!("expense create") }),
+					.get(|| async { todo("expense retrieve") })
+					.post(|| async { todo("expense create") }),
 			)
 			.route(
 				"/job",
-				this.route::<L>()
-					.get(|| async { todo!("job retrieve") })
-					.post(|| async { todo!("job create") }),
+				this.route::<J>()
+					.get(|| async { todo("job retrieve") })
+					.post(|| async { todo("job create") }),
 			)
 			.route(
 				"/location",
-				this.route::<J>()
-					.get(|| async { todo!("location retrieve") })
-					.post(|| async { todo!("location create") }),
+				this.route::<L>()
+					.get(|| async { todo("location retrieve") })
+					.post(|| async { todo("location create") }),
 			)
 			.route(
 				"/organization",
 				this.route::<O>()
-					.get(|| async { todo!("organization retrieve") })
-					.post(|| async { todo!("organization create") }),
+					.get(|| async { todo("organization retrieve") })
+					.post(|| async { todo("organization create") }),
 			)
 			.route(
 				"/timesheet",
 				this.route::<T>()
-					.get(|| async { todo!("timesheet retrieve") })
-					.post(|| async { todo!("timesheet create") }),
+					.get(|| async { todo("timesheet retrieve") })
+					.post(|| async { todo("timesheet create") }),
 			)
 	}
 
@@ -149,7 +156,12 @@ where
 	where
 		T: Deletable<Db = Db> + Updatable<Db = Db>,
 	{
-		routing::delete(|| async { todo!("Implement delete method") })
-			.patch(|| async { todo!("Implement delete method") })
+		routing::delete(|| async { todo("Delete method not implemented") })
+			.patch(|| async { todo("Update method not implemented") })
 	}
+}
+
+const fn todo(msg: &'static str) -> (StatusCode, &'static str)
+{
+	(StatusCode::NOT_IMPLEMENTED, msg)
 }

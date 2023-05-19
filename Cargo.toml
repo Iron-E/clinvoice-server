@@ -22,10 +22,14 @@ headers = {optional = true, version = "0.3"}
 humantime = {optional = true, version = "2"}
 money2 = {features = ["serde"], version = "0.8"}
 serde = "1"
-tower = {features = ["timeout"], optional = true, version = "0.4"}
-tower-http = {features = ["compression-br", "compression-deflate", "compression-gzip", "compression-zstd"], optional = true, version = "0.4"}
 sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
 tokio = {features = ["macros", "rt-multi-thread"], optional = true, version = "1"}
+tower = {features = ["timeout"], optional = true, version = "0.4"}
+
+[dependencies.tower-http]
+features = ["compression-br", "compression-deflate", "compression-gzip", "compression-zstd", "validate-request"]
+optional = true
+version = "0.4"
 
 [dependencies.winvoice-adapter]
 branch = "release/0.19"

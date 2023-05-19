@@ -20,6 +20,20 @@
 //!
 //! * For basic information, run `winvoice-server help` from the command line.
 //! * For an in-depth guide, see the [wiki](https://github.com/Iron-E/winvoice-server/wiki/Usage).
+//!
+//! # API
+//!
+//! You can add `winvoice-server` to your `[dependencies]` to access the `winvoice_server::api`
+//! directly:
+//!
+//! ```toml
+//! [dependencies.winvoice-server]
+//! branch = "master"
+//! default-features = false
+//! git = "https://github.com/Iron-E/winvoice-server"
+//! ```
+//!
+//! If you are working with another language, see [the docs](TODO).
 
 #![allow(clippy::drop_non_drop)]
 #![forbid(unsafe_code)]
@@ -86,10 +100,9 @@
 	clippy::wildcard_imports
 )]
 
+mod api;
 mod args;
 mod dyn_result;
-mod login;
-mod router;
 mod server;
 mod utils;
 
