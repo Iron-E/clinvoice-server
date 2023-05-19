@@ -47,7 +47,7 @@ impl Server
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
 		axum_server::bind_rustls(self.address, self.tls)
-			.serve(Router::new(connect_options).route::<C, E, J, L, O, T, X>().into_make_service())
+			.serve(Router::axum::<C, E, J, L, O, T, X>(connect_options).into_make_service())
 			.await?;
 
 		Ok(())

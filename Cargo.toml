@@ -13,22 +13,19 @@ readme = "README.md"
 repository = "https://www.github.com/Iron-E/winvoice-server"
 
 [dependencies]
-async-trait = "0.1"
-axum = "0.6"
-futures = "0.3"
-headers = "0.3"
+async-trait = {optional = true, version = "0.1"}
+axum = {optional = true, version = "0.6"}
+axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
+clap = {features = ["derive"], optional = true, version = "4"}
+futures = {optional = true, version = "0.3"}
+headers = {optional = true, version = "0.3"}
 humantime = "2"
-money2 = "0.8"
+money2 = {features = ["serde"], version = "0.8"}
 serde = "1"
-thiserror = "1"
-
-[dependencies.axum-server]
-features = ["tls-rustls"]
-version = "0.5"
-
-[dependencies.clap]
-features = ["derive"]
-version = "4"
+tower = {features = ["timeout"], optional = true, version = "0.4"}
+tower-http = {features = ["compression-zstd"], optional = true, version = "0.4"}
+sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
+tokio = {features = ["macros", "rt-multi-thread"], optional = true, version = "1"}
 
 [dependencies.winvoice-adapter]
 branch = "release/0.19"
@@ -59,18 +56,11 @@ branch = "release/0.12"
 features = ["serde"]
 git = "https://github.com/Iron-E/winvoice-schema"
 
-[dependencies.sqlx]
-features = ["runtime-tokio-rustls", "tls"]
-version = "0.5"
-
-[dependencies.tokio]
-features = ["macros", "rt-multi-thread"]
-version = "1"
-
 [dev-dependencies]
 dotenvy = "0.15"
 pretty_assertions = "1"
 
 [features]
 default = ["postgres"]
-postgres = ["winvoice-adapter-postgres", "sqlx/postgres"]
+bin = ["async-trait", "axum", "axum-server", "clap", "futures", "headers", "sqlx", "tokio", "tower", "tower-http"]
+postgres = ["bin", "winvoice-adapter-postgres", "sqlx/postgres"]

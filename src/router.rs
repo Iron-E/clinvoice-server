@@ -41,20 +41,9 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	fn login(&self, username: &str, password: &str) -> Pool<Db>
-	{
-		PoolOptions::new()
-			.idle_timeout(IDLE_TIMEOUT)
-			.max_connections(1)
-			.connect_lazy_with(self.connect_options.clone().login(username, password))
-	}
-
-	pub fn new(connect_options: <Db::Connection as Connection>::Options) -> Self
-	{
-		Self { connect_options }
-	}
-
-	pub fn route<C, E, J, L, O, T, X>(self) -> AxumRouter
+	pub fn axum<C, E, J, L, O, T, X>(
+		connect_options: <Db::Connection as Connection>::Options,
+	) -> AxumRouter
 	where
 		C: Deletable<Db = Db> + ContactAdapter,
 		E: Deletable<Db = Db> + EmployeeAdapter,
@@ -64,15 +53,18 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let contact_route = self.route::<C>();
-		let employee_route = self.route::<E>();
-		let expense_route = self.route::<X>();
-		let location_route = self.route::<L>();
-		let job_route = self.route::<J>();
-		let organization_route = self.route::<O>();
-		let timesheet_route = self.route::<T>();
+		let this = Self { connect_options };
+
+		let contact_route = this.route::<C>();
+		let employee_route = this.route::<E>();
+		let expense_route = this.route::<X>();
+		let location_route = this.route::<L>();
+		let job_route = this.route::<J>();
+		let organization_route = this.route::<O>();
+		let timesheet_route = this.route::<T>();
 
 		AxumRouter::new()
+			.route("/", routing::get(|| async { (StatusCode::NOT_FOUND, "CUSTOM ERROR") }))
 			.route(
 				"/contact",
 				contact_route
@@ -115,6 +107,14 @@ where
 					.get(|| async { todo!("timesheet retrieve") })
 					.post(|| async { todo!("timesheet create") }),
 			)
+	}
+
+	fn login(&self, username: &str, password: &str) -> Pool<Db>
+	{
+		PoolOptions::new()
+			.idle_timeout(IDLE_TIMEOUT)
+			.max_connections(1)
+			.connect_lazy_with(self.connect_options.clone().login(username, password))
 	}
 
 	fn route<T>(&self) -> MethodRouter
