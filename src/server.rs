@@ -1,3 +1,4 @@
+use core::time::Duration;
 use std::net::SocketAddr;
 
 use axum_server::tls_rustls::RustlsConfig;
@@ -24,6 +25,9 @@ pub struct Server
 
 	/// The configuration for the TLS protocol via [rustls](axum_server::tls_rustls).
 	pub tls: RustlsConfig,
+
+	/// If [`Some`], the amount of time to run commands on the server before timing out.
+	pub timeout: Option<Duration>,
 }
 
 impl Server
@@ -48,7 +52,10 @@ impl Server
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
 		axum_server::bind_rustls(self.address, self.tls)
-			.serve(Router::axum::<C, E, J, L, O, T, X>(connect_options).into_make_service())
+			.serve(
+				Router::axum::<C, E, J, L, O, T, X>(connect_options, self.timeout)
+					.into_make_service(),
+			)
 			.await?;
 
 		Ok(())

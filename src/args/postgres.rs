@@ -1,3 +1,4 @@
+use core::time::Duration;
 use std::{net::SocketAddr, path::PathBuf};
 
 use axum_server::tls_rustls::RustlsConfig;
@@ -24,7 +25,7 @@ pub struct Postgres
 
 	/// This changes the default precision of floating-point values.
 	#[arg(long, short)]
-	extra_float_digits: Option<i8>,
+	float_digits: Option<i8>,
 
 	/// Sets the name of the host to connect to.
 	///
@@ -38,7 +39,7 @@ pub struct Postgres
 	host: String,
 
 	/// Sets the port to connect to at the server host.
-	#[arg(long, short)]
+	#[arg(long, short, value_name = "NUMBER")]
 	port: Option<u16>,
 
 	/// Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated.
@@ -46,7 +47,7 @@ pub struct Postgres
 	ssl_mode: PgSslMode,
 
 	/// Sets the name of a file containing a list of trusted SSL Certificate Authorities.
-	#[arg(long, short = 'r')]
+	#[arg(long, short = 'r', value_name = "FILE")]
 	ssl_root_cert: Option<PathBuf>,
 
 	/// Sets the capacity of the connection’s statement cache in a number of stored distinct
@@ -54,14 +55,19 @@ pub struct Postgres
 	///
 	/// Caching is handled using LRU, meaning when the amount of queries hits the defined limit,
 	/// the oldest statement will get dropped.
-	#[arg(long, short = 'c')]
+	#[arg(long, short = 'c', value_name = "COUNT")]
 	statement_cache_capacity: Option<usize>,
 }
 
 impl Postgres
 {
 	/// Run the Winvoice postgres server.
-	pub async fn run(self, address: SocketAddr, tls: RustlsConfig) -> DynResult<()>
+	pub async fn run(
+		self,
+		address: SocketAddr,
+		tls: RustlsConfig,
+		timeout: Option<Duration>,
+	) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()
 			.application_name("winvoice-server")
@@ -69,27 +75,27 @@ impl Postgres
 			.host(&self.host)
 			.ssl_mode(self.ssl_mode);
 
-		if let Some(digits) = self.extra_float_digits
+		if let Some(d) = self.float_digits
 		{
-			connect_options = connect_options.extra_float_digits(digits);
+			connect_options = connect_options.extra_float_digits(d);
 		}
 
-		if let Some(number) = self.port
+		if let Some(p) = self.port
 		{
-			connect_options = connect_options.port(number);
+			connect_options = connect_options.port(p);
 		}
 
-		if let Some(root_cert) = self.ssl_root_cert
+		if let Some(c) = self.ssl_root_cert
 		{
-			connect_options = connect_options.ssl_root_cert(root_cert);
+			connect_options = connect_options.ssl_root_cert(c);
 		}
 
-		if let Some(capacity) = self.statement_cache_capacity
+		if let Some(c) = self.statement_cache_capacity
 		{
-			connect_options = connect_options.statement_cache_capacity(capacity);
+			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		Server { address, tls }
+		Server { address, tls, timeout }
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses, _>(
 				connect_options,
 			)

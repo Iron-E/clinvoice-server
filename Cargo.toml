@@ -19,7 +19,7 @@ axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
 clap = {features = ["derive"], optional = true, version = "4"}
 futures = {optional = true, version = "0.3"}
 headers = {optional = true, version = "0.3"}
-humantime = "2"
+humantime = {optional = true, version = "2"}
 money2 = {features = ["serde"], version = "0.8"}
 serde = "1"
 tower = {features = ["timeout"], optional = true, version = "0.4"}
@@ -62,5 +62,5 @@ pretty_assertions = "1"
 
 [features]
 default = ["postgres"]
-bin = ["async-trait", "axum", "axum-server", "clap", "futures", "headers", "sqlx", "tokio", "tower", "tower-http"]
+bin = ["async-trait", "axum", "axum-server", "clap", "futures", "headers", "humantime", "sqlx", "tokio", "tower", "tower-http"]
 postgres = ["bin", "winvoice-adapter-postgres", "sqlx/postgres"]

@@ -51,6 +51,7 @@ where
 	/// Create an [`axum::Router`] based on the `connect_options`.
 	pub fn axum<C, E, J, L, O, T, X>(
 		connect_options: <Db::Connection as Connection>::Options,
+		timeout: Option<Duration>,
 	) -> AxumRouter
 	where
 		C: Deletable<Db = Db> + ContactAdapter,
@@ -61,19 +62,11 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let this = Self { connect_options };
+		let mut router = AxumRouter::new().layer(CompressionLayer::new());
 
-		let contact_route = this.route::<C>();
-		let employee_route = this.route::<E>();
-		let expense_route = this.route::<X>();
-		let location_route = this.route::<L>();
-		let job_route = this.route::<J>();
-		let organization_route = this.route::<O>();
-		let timesheet_route = this.route::<T>();
-
-		AxumRouter::new()
-			.layer(CompressionLayer::new())
-			.layer(
+		if let Some(t) = timeout
+		{
+			router = router.layer(
 				ServiceBuilder::new()
 					.layer(HandleErrorLayer::new(|err: BoxError| async move {
 						match err.is::<timeout::error::Elapsed>()
@@ -86,48 +79,52 @@ where
 							),
 						}
 					}))
-					.layer(TimeoutLayer::new(Duration::from_secs(30))),
-			)
+					.layer(TimeoutLayer::new(t)),
+			);
+		}
+
+		let this = Self { connect_options };
+		router
 			.route("/", routing::get(|| async { (StatusCode::NOT_FOUND, "CUSTOM ERROR") }))
 			.route(
 				"/contact",
-				contact_route
+				this.route::<C>()
 					.get(|| async { todo!("contact retrieve") })
 					.post(|| async { todo!("contact create") }),
 			)
 			.route(
 				"/employee",
-				employee_route
+				this.route::<E>()
 					.get(|| async { todo!("employee retrieve") })
 					.post(|| async { todo!("employee create") }),
 			)
 			.route(
 				"/expense",
-				expense_route
+				this.route::<X>()
 					.get(|| async { todo!("expense retrieve") })
 					.post(|| async { todo!("expense create") }),
 			)
 			.route(
 				"/job",
-				job_route
+				this.route::<L>()
 					.get(|| async { todo!("job retrieve") })
 					.post(|| async { todo!("job create") }),
 			)
 			.route(
 				"/location",
-				location_route
+				this.route::<J>()
 					.get(|| async { todo!("location retrieve") })
 					.post(|| async { todo!("location create") }),
 			)
 			.route(
 				"/organization",
-				organization_route
+				this.route::<O>()
 					.get(|| async { todo!("organization retrieve") })
 					.post(|| async { todo!("organization create") }),
 			)
 			.route(
 				"/timesheet",
-				timesheet_route
+				this.route::<T>()
 					.get(|| async { todo!("timesheet retrieve") })
 					.post(|| async { todo!("timesheet create") }),
 			)
