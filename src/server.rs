@@ -3,7 +3,7 @@
 mod sessions;
 
 use core::time::Duration;
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
 	error_handling::HandleErrorLayer,
@@ -15,6 +15,7 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use sessions::{Login, SessionManager};
 use sqlx::{Connection, Database, Executor, Transaction};
+use tokio::sync::RwLock;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, validate_request::ValidateRequestHeaderLayer};
 use winvoice_adapter::{
@@ -33,6 +34,8 @@ use winvoice_adapter::{
 
 use crate::DynResult;
 
+type SyncSessionManager<Db> = Arc<RwLock<SessionManager<Db>>>;
+
 /// A Winvoice server.
 #[derive(Clone, Debug)]
 pub struct Server<Db>
@@ -46,7 +49,7 @@ where
 
 	/// The [`SessionManager`] which keeps track of active connections and logins while the server
 	/// is open.
-	session_manager: SessionManager<Db>,
+	session_manager: SyncSessionManager<Db>,
 
 	/// The amount of time to run operations on the server before cancelling them.
 	timeout: Option<Duration>,
@@ -75,11 +78,11 @@ where
 	{
 		Self {
 			address,
-			session_manager: SessionManager::new(
+			session_manager: Arc::new(RwLock::new(SessionManager::new(
 				connect_options,
 				Duration::from_secs(300).into(),
 				session_expire,
-			),
+			))),
 			timeout,
 			tls,
 		}
@@ -98,13 +101,13 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut router = Router::new()
+		let mut stateless_router = Router::<SyncSessionManager<Db>>::new()
 			.layer(CompressionLayer::new())
 			.layer(ValidateRequestHeaderLayer::accept("application/json"));
 
 		if let Some(t) = self.timeout
 		{
-			router = router.layer(
+			stateless_router = stateless_router.layer(
 				ServiceBuilder::new()
 					.layer(HandleErrorLayer::new(|err: BoxError| async move {
 						match err.is::<timeout::error::Elapsed>()
@@ -121,9 +124,7 @@ where
 			);
 		}
 
-		router = self
-			.session_manager
-			.route_logout(self.session_manager.route_login(router))
+		let router: Router<()> = stateless_router
 			.route(
 				"/contact",
 				self.route::<C>()
@@ -165,7 +166,8 @@ where
 				self.route::<T>()
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
-			);
+			)
+			.with_state(self.session_manager);
 
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
@@ -173,7 +175,7 @@ where
 
 	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
 	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<T>(&self) -> MethodRouter
+	fn route<T>(&self) -> MethodRouter<SyncSessionManager<Db>>
 	where
 		T: Deletable<Db = Db> + Updatable<Db = Db>,
 	{
