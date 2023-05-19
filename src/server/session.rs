@@ -22,8 +22,14 @@ use winvoice_schema::chrono::{DateTime, Local};
 /// Represents a user who has successfully logged in, and may *stay* logged in.
 struct Session
 {
+	/// The [`DateTime`] that this session was created. Stored for the purposes of ensuring expiry
+	/// is done on time.
 	date: DateTime<Local>,
+
+	/// The username of the user who has logged in.
 	username: String,
+
+	/// The password of the user who has logged in.
 	password: String,
 }
 
