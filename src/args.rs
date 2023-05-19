@@ -35,9 +35,23 @@ pub struct Args
 	#[arg(long, short, value_name = "FILE")]
 	key: PathBuf,
 
+	/// The maximum duration that a user may be logged in before requiring them to log in again.
+	///
+	/// When this argument is passed without a value, (e.g. `--session-expire`), a duration of 1
+	/// month is set.
+	#[arg(
+		default_missing_value = "1month",
+		num_args = 0..=1,
+		long,
+		short,
+		value_name = "DURATION",
+		value_parser = humantime::parse_duration,
+	)]
+	session_expire: Option<Duration>,
+
 	/// The maximum duration to run commands server before timing out (e.g. "5s", "15min").
 	///
-	/// When this argument is passed without a value, (e.g. `--timeout`), a timeout of 30 seconds
+	/// When this argument is passed without a value, (e.g. `--timeout`), a duration of 30 seconds
 	/// is set.
 	#[arg(
 		default_missing_value = "30s",
@@ -58,7 +72,7 @@ impl Args
 		let tls = RustlsConfig::from_pem_file(self.certificate, self.key).await?;
 		match self.command
 		{
-			Command::Postgres(p) => p.run(self.address, tls, self.timeout),
+			Command::Postgres(p) => p.run(self.address, self.session_expire, tls, self.timeout),
 		}
 		.await
 	}

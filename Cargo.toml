@@ -13,6 +13,7 @@ readme = "README.md"
 repository = "https://www.github.com/Iron-E/winvoice-server"
 
 [dependencies]
+uuid = {features = ["v4"], version = "1"}
 async-trait = {optional = true, version = "0.1"}
 axum = {optional = true, version = "0.6"}
 axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
@@ -21,6 +22,7 @@ futures = {optional = true, version = "0.3"}
 headers = {optional = true, version = "0.3"}
 humantime = {optional = true, version = "2"}
 money2 = {features = ["serde"], version = "0.8"}
+once_cell = "1"
 serde = "1"
 sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
 tokio = {features = ["macros", "rt-multi-thread"], optional = true, version = "1"}

@@ -56,6 +56,7 @@ where
 	/// Operations `timeout`, if specified.
 	pub fn axum<C, E, J, L, O, T, X>(
 		connect_options: <Db::Connection as Connection>::Options,
+		session_expire: Option<Duration>,
 		timeout: Option<Duration>,
 	) -> AxumRouter
 	where

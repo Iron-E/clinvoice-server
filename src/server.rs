@@ -32,6 +32,7 @@ use crate::DynResult;
 pub async fn serve<C, E, J, L, O, T, X, Db>(
 	address: SocketAddr,
 	connect_options: <Db::Connection as Connection>::Options,
+	session_expire: Option<Duration>,
 	timeout: Option<Duration>,
 	tls: RustlsConfig,
 ) -> DynResult<()>
@@ -50,7 +51,10 @@ where
 	X: Deletable<Db = Db> + ExpensesAdapter,
 {
 	axum_server::bind_rustls(address, tls)
-		.serve(Router::axum::<C, E, J, L, O, T, X>(connect_options, timeout).into_make_service())
+		.serve(
+			Router::axum::<C, E, J, L, O, T, X>(connect_options, session_expire, timeout)
+				.into_make_service(),
+		)
 		.await?;
 
 	Ok(())

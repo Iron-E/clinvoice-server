@@ -65,6 +65,7 @@ impl Postgres
 	pub async fn run(
 		self,
 		address: SocketAddr,
+		session_expire: Option<Duration>,
 		tls: RustlsConfig,
 		timeout: Option<Duration>,
 	) -> DynResult<()>
@@ -104,7 +105,7 @@ impl Postgres
 			PgTimesheet,
 			PgExpenses,
 			_,
-		>(address, connect_options, timeout, tls)
+		>(address, connect_options, session_expire, timeout, tls)
 		.await
 	}
 }
