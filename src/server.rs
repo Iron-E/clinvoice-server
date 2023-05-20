@@ -1,5 +1,6 @@
 //! The `server` module functions to spawn an [`axum_server`] which communicates over TLS.
 
+mod response;
 mod sessions;
 
 use core::time::Duration;
@@ -15,7 +16,8 @@ use axum::{
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use sessions::{Login, SessionManager};
+pub use response::Response;
+use sessions::SessionManager;
 use sqlx::{Connection, Database, Executor, Transaction};
 use tower::{timeout, ServiceBuilder};
 use tower_http::compression::CompressionLayer;
@@ -34,7 +36,7 @@ use winvoice_adapter::{
 };
 
 use crate::{
-	api::{Status, StatusCode as WinvoiceCode},
+	api::{response::Login, Status, StatusCode as WinvoiceCode},
 	DynResult,
 };
 
@@ -64,7 +66,7 @@ impl<Db> Server<Db>
 where
 	Db: Database,
 	Db::Connection: core::fmt::Debug,
-	<Db::Connection as Connection>::Options: Clone + Login,
+	<Db::Connection as Connection>::Options: Clone + sessions::Login,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
@@ -122,18 +124,14 @@ where
 		}
 
 		let router = stateless_router
-			.route("/login", routing::put(|| async { (
+			.route("/login", routing::put(|| async { Response::new(
 				StatusCode::OK,
-				Json(Status::new(WinvoiceCode::LoggedIn, None)),
+				Login::new(WinvoiceCode::LoggedIn, None),
 			)}))
-			.route_layer(middleware::from_fn_with_state(
-				self.session_manager.clone(),
-				sessions::login_layer,
-			))
-			.route("/logout", routing::put(|| async { (
-				StatusCode::OK,
-				Json(Status::new(WinvoiceCode::LoggedOut, None)),
-			)}))
+			.route_layer(middleware::from_fn_with_state(self.session_manager.clone(), sessions::login))
+			.route("/login", routing::put(|| async {
+				Response::new(StatusCode::OK, Status::new(WinvoiceCode::LoggedIn, None))
+			}))
 			// .route_layer(middleware::from_fn_with_state(
 			// 	self.session_manager.clone(),
 			// 	sessions::logout_layer,

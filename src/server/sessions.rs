@@ -10,8 +10,8 @@ pub use login::Login;
 pub use session_manager::SessionManager;
 use sqlx::{Connection, Database, Executor, Transaction};
 
-pub async fn login_layer<Db, TBody>(
-	State(sessions): State<SessionManager<Db>>,
+pub async fn login<Db, TBody>(
+	State(session_manager): State<SessionManager<Db>>,
 	TypedHeader(auth): TypedHeader<Authorization<Basic>>,
 	request: Request<TBody>,
 	next: Next<TBody>,
@@ -23,11 +23,10 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	// do something with `request`...
+	if let Err(r) = session_manager.login(auth.username(), auth.password()).await
+	{
+		return r.into_response();
+	}
 
-	let response = next.run(request).await;
-
-	// do something with `response`...
-
-	response
+	next.run(request).await
 }

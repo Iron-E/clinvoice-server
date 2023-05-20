@@ -5,11 +5,16 @@ mod clone;
 use core::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
-use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Result, Transaction};
+use axum::http::StatusCode;
+use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Transaction};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{session::Session, Login};
+use crate::{
+	api::{response, Status, StatusCode as WinvoiceCode},
+	server::response::Response,
+};
 
 type SyncUuidMap<T> = Arc<RwLock<HashMap<Uuid, T>>>;
 
@@ -47,13 +52,23 @@ where
 	/// [`Router`] has been instructed to communicate with.
 	///
 	/// Uses `username` and `password` as credentials for the new connection.
-	pub(super) async fn login(&self, username: &str, password: &str) -> Result<Pool<Db>>
+	pub(super) async fn login(
+		&self,
+		username: &str,
+		password: &str,
+	) -> Result<(), Response<response::Login>>
 	{
-		PoolOptions::new()
+		let pool = match PoolOptions::<Db>::new()
 			.idle_timeout(self.idle_timeout)
 			.max_connections(1)
 			.connect_with(self.connect_options.clone().login(username, password))
 			.await
+		{
+			Ok(p) => p,
+			Err(e) => todo!(),
+		};
+
+		todo!()
 	}
 
 	pub fn new(
