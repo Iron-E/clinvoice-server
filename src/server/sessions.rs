@@ -5,6 +5,7 @@ mod session;
 mod session_manager;
 
 use axum::{extract::State, http::Request, middleware::Next, response::IntoResponse, TypedHeader};
+use futures::{FutureExt, TryFutureExt};
 use headers::{authorization::Basic, Authorization};
 pub use login::Login;
 pub use session_manager::SessionManager;
@@ -23,10 +24,9 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	if let Err(r) = session_manager.login(auth.username(), auth.password()).await
-	{
-		return r.into_response();
-	}
-
-	next.run(request).await
+	session_manager
+		.login(auth.username(), auth.password())
+		.map_err(IntoResponse::into_response)
+		.then(|_| next.run(request))
+		.await
 }

@@ -10,8 +10,8 @@ pub struct Response<T>(StatusCode, Json<T>);
 impl<T> Response<T>
 {
 	/// Create a new [`Response`]
-	pub fn new(status_code: StatusCode, content: T) -> Self
+	pub const fn new(status_code: StatusCode, content: T) -> Self
 	{
-		Response(status_code, Json(content))
+		Self(status_code, Json(content))
 	}
 }

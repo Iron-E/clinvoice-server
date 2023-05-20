@@ -12,7 +12,6 @@ use axum::{
 	middleware,
 	routing::{self, MethodRouter},
 	BoxError,
-	Json,
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;

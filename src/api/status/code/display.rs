@@ -1,10 +1,10 @@
-use core::fmt::{Display, Formatter};
+use core::fmt::{Display, Formatter, Result};
 
 use super::Code;
 
 impl Display for Code
 {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+	fn fmt(&self, f: &mut Formatter<'_>) -> Result
 	{
 		match self
 		{

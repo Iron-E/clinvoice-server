@@ -5,16 +5,12 @@ mod clone;
 use core::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
-use axum::http::StatusCode;
 use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Transaction};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{session::Session, Login};
-use crate::{
-	api::{response, Status, StatusCode as WinvoiceCode},
-	server::response::Response,
-};
+use crate::{api::response, server::response::Response};
 
 type SyncUuidMap<T> = Arc<RwLock<HashMap<Uuid, T>>>;
 

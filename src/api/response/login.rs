@@ -21,7 +21,7 @@ impl Login
 	}
 
 	/// The [`Status`] of the login request.
-	pub fn status(&self) -> &Status
+	pub const fn status(&self) -> &Status
 	{
 		&self.status
 	}
