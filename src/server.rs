@@ -100,8 +100,7 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut stateless_router =
-			Router::<SessionManager<Db>>::new().layer(CompressionLayer::new());
+		let mut stateless_router = Router::new().layer(CompressionLayer::new());
 
 		if let Some(t) = self.timeout
 		{
@@ -122,7 +121,7 @@ where
 			);
 		}
 
-		let router: Router<()> = stateless_router
+		let router = stateless_router
 			.route("/login", routing::put(|| async { (
 				StatusCode::OK,
 				Json(Status::new(WinvoiceCode::LoggedIn, None)),
