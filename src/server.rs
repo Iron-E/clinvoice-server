@@ -8,15 +8,17 @@ use std::net::SocketAddr;
 use axum::{
 	error_handling::HandleErrorLayer,
 	http::StatusCode,
+	middleware,
 	routing::{self, MethodRouter},
 	BoxError,
+	Json,
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
 use sessions::{Login, SessionManager};
 use sqlx::{Connection, Database, Executor, Transaction};
 use tower::{timeout, ServiceBuilder};
-use tower_http::{compression::CompressionLayer, validate_request::ValidateRequestHeaderLayer};
+use tower_http::compression::CompressionLayer;
 use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -31,7 +33,10 @@ use winvoice_adapter::{
 	Updatable,
 };
 
-use crate::DynResult;
+use crate::{
+	api::{Status, StatusCode as WinvoiceCode},
+	DynResult,
+};
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -95,9 +100,8 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut stateless_router = Router::<SessionManager<Db>>::new()
-			.layer(CompressionLayer::new())
-			.layer(ValidateRequestHeaderLayer::accept("application/json"));
+		let mut stateless_router =
+			Router::<SessionManager<Db>>::new().layer(CompressionLayer::new());
 
 		if let Some(t) = self.timeout
 		{
@@ -119,6 +123,22 @@ where
 		}
 
 		let router: Router<()> = stateless_router
+			.route("/login", routing::put(|| async { (
+				StatusCode::OK,
+				Json(Status::new(WinvoiceCode::LoggedIn, None)),
+			)}))
+			.route_layer(middleware::from_fn_with_state(
+				self.session_manager.clone(),
+				sessions::login_layer,
+			))
+			.route("/logout", routing::put(|| async { (
+				StatusCode::OK,
+				Json(Status::new(WinvoiceCode::LoggedOut, None)),
+			)}))
+			// .route_layer(middleware::from_fn_with_state(
+			// 	self.session_manager.clone(),
+			// 	sessions::logout_layer,
+			// ))
 			.route(
 				"/contact",
 				self.route::<C>()

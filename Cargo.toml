@@ -28,7 +28,7 @@ tower = {features = ["timeout"], optional = true, version = "0.4"}
 uuid = {features = ["v4"], optional = true, version = "1"}
 
 [dependencies.tower-http]
-features = ["compression-br", "compression-deflate", "compression-gzip", "compression-zstd", "validate-request"]
+features = ["compression-br", "compression-deflate", "compression-gzip", "compression-zstd"]
 optional = true
 version = "0.4"
 
