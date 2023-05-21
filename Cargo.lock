@@ -2657,7 +2657,6 @@ dependencies = [
  "clap",
  "dotenvy",
  "futures",
- "headers",
  "humantime",
  "money2",
  "pretty_assertions",

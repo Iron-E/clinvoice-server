@@ -4,10 +4,14 @@ mod login;
 mod session;
 mod session_manager;
 
-use axum::{extract::State, response::IntoResponse, TypedHeader};
-use headers::{
-	authorization::{Basic, Bearer},
-	Authorization,
+use axum::{
+	extract::State,
+	headers::{
+		authorization::{Basic, Bearer},
+		Authorization,
+	},
+	response::IntoResponse,
+	TypedHeader,
 };
 pub use login::Login;
 pub use session_manager::SessionManager;
