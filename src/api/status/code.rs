@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 )]
 pub enum Code
 {
+	/// Specific arguments that were used to start the server were not accepted by the
+	/// database.
+	BadArguments = 5,
+
 	/// There was an attempt to log in, but it failed because the credentials provided were not
 	/// accepted by the database.
 	InvalidCredentials = 2,

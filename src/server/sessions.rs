@@ -25,7 +25,7 @@ where
 		Executor<'connection, Database = Db>,
 {
 	session_manager
-		.login(auth.username(), auth.password())
+		.new_session(auth.username().to_owned(), auth.password().to_owned())
 		.map_err(IntoResponse::into_response)
 		.then(|_| next.run(request))
 		.await

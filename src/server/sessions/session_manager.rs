@@ -3,14 +3,18 @@
 mod clone;
 
 use core::time::Duration;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, io, sync::Arc};
 
-use sqlx::{pool::PoolOptions, Connection, Database, Executor, Pool, Transaction};
+use axum::http::StatusCode;
+use sqlx::{pool::PoolOptions, Connection, Database, Error, Executor, Pool, Transaction};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{session::Session, Login};
-use crate::{api::response, server::response::Response};
+use crate::{
+	api::{response, StatusCode as WinvoiceCode},
+	server::response::Response,
+};
 
 type SyncUuidMap<T> = Arc<RwLock<HashMap<Uuid, T>>>;
 
@@ -44,29 +48,6 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	/// Create a new [`Pool`] which attempts to establish a connection with the database that this
-	/// [`Router`] has been instructed to communicate with.
-	///
-	/// Uses `username` and `password` as credentials for the new connection.
-	pub(super) async fn login(
-		&self,
-		username: &str,
-		password: &str,
-	) -> Result<(), Response<response::Login>>
-	{
-		let pool = match PoolOptions::<Db>::new()
-			.idle_timeout(self.idle_timeout)
-			.max_connections(1)
-			.connect_with(self.connect_options.clone().login(username, password))
-			.await
-		{
-			Ok(p) => p,
-			Err(e) => todo!(),
-		};
-
-		todo!()
-	}
-
 	pub fn new(
 		connect_options: <Db::Connection as Connection>::Options,
 		idle_timeout: Option<Duration>,
@@ -80,5 +61,67 @@ where
 			session_expire,
 			sessions: Arc::new(RwLock::new(HashMap::new())),
 		}
+	}
+
+	/// Create a new [`Pool`] which attempts to establish a connection with the database that this
+	/// [`Router`] has been instructed to communicate with.
+	///
+	/// Uses `username` and `password` as credentials for the new connection.
+	pub(super) async fn new_session(
+		&self,
+		username: String,
+		password: String,
+	) -> Result<(), Response<response::Login>>
+	{
+		let pool = match PoolOptions::<Db>::new()
+			.idle_timeout(self.idle_timeout)
+			.max_connections(1)
+			.connect_with(self.connect_options.clone().login(&username, &password))
+			.await
+		{
+			Ok(p) => p,
+			Err(Error::Configuration(e)) =>
+			{
+				return Err(Response::new(
+					StatusCode::INTERNAL_SERVER_ERROR,
+					response::Login::new(WinvoiceCode::BadArguments, None),
+				))
+			},
+			#[cfg(feature = "postgres")]
+			Err(Error::Database(e))
+				if matches!(
+					e.try_downcast_ref::<sqlx::postgres::PgDatabaseError>()
+						.and_then(sqlx::postgres::PgDatabaseError::routine),
+					Some("auth_failed" | "InitializeSessionUserId")
+				) =>
+			{
+				return Err(Response::new(
+					StatusCode::UNPROCESSABLE_ENTITY,
+					response::Login::new(WinvoiceCode::InvalidCredentials, None),
+				));
+			},
+			Err(e) =>
+			{
+				return Err(Response::new(
+					StatusCode::INTERNAL_SERVER_ERROR,
+					response::Login::new(WinvoiceCode::Other, Some(e.to_string())),
+				))
+			},
+		};
+
+		let uuid = loop
+		{
+			let uuid = Uuid::new_v4();
+			if self.connections.read().await.contains_key(&uuid)
+			{
+				continue;
+			}
+
+			self.connections.write().await.insert(uuid, pool);
+			break uuid;
+		};
+
+		self.sessions.write().await.insert(uuid, Session::new(username, password));
+		Ok(())
 	}
 }

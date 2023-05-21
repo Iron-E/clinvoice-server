@@ -8,6 +8,10 @@ impl Display for Code
 	{
 		match self
 		{
+			Self::BadArguments => "Specific arguments that were used to start the server were not \
+			                       accepted by the database. If you are a user, please contact an \
+			                       administrator."
+				.fmt(f),
 			Self::InvalidCredentials => "There was an attempt to log in, but it failed because \
 			                             the credentials provided were incorrect"
 				.fmt(f),
