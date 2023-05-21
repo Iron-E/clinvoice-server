@@ -6,6 +6,7 @@ pub use code::Code;
 use serde::{Deserialize, Serialize};
 
 /// The status of an operation.
+/// TODO: `impl From<sqlx::Error>` for `Status` behind #[cfg(feature = "bin")] gate
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Status
 {

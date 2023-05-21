@@ -5,20 +5,19 @@ mod clone;
 use core::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 
+use aes_gcm::{aead::OsRng, Aes256Gcm, KeyInit};
 use axum::{http::StatusCode, response::IntoResponse};
-use sqlx::{pool::PoolOptions, Connection, Database, Error, Executor, Pool, Transaction};
+use sqlx::{pool::PoolOptions, Connection, Database, Error, Executor, Transaction};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{session::Session, Login};
 use crate::{
-	api::{response, StatusCode as WinvoiceCode},
+	api::{response, StatusCode as WinvoiceCode, Token},
 	server::response::Response,
 };
 
-type SyncUuidMap<T> = Arc<RwLock<HashMap<Uuid, T>>>;
-
-/// A manager for active
+/// A manager for active sessions.
 #[derive(Debug)]
 pub struct SessionManager<Db>
 where
@@ -27,9 +26,6 @@ where
 	/// The base options to create new connections with the [`Database`].
 	connect_options: <Db::Connection as Connection>::Options,
 
-	/// The active connections with the [`Database`].
-	connections: SyncUuidMap<Pool<Db>>,
-
 	/// The amount of time that an active connection should be idle before it is shut down.
 	idle_timeout: Option<Duration>,
 
@@ -37,7 +33,7 @@ where
 	session_expire: Option<Duration>,
 
 	/// The currently logged in users.
-	sessions: SyncUuidMap<Session>,
+	sessions: Arc<RwLock<HashMap<Uuid, Session<Db>>>>,
 }
 
 impl<Db> SessionManager<Db>
@@ -48,23 +44,26 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
+	/// Create a new [`SessionManager`], which will use `connect_options` for accessing the
+	/// [`Database`], the `idle_timeout` for closing inactive connections, and `session_expire` for
+	/// pruning old [`Session`]s.
 	pub fn new(
 		connect_options: <Db::Connection as Connection>::Options,
 		idle_timeout: Option<Duration>,
 		session_expire: Option<Duration>,
 	) -> Self
 	{
+		// TODO: spawn session expirer
 		Self {
 			connect_options,
-			connections: Arc::new(RwLock::new(HashMap::new())),
 			idle_timeout,
 			session_expire,
 			sessions: Arc::new(RwLock::new(HashMap::new())),
 		}
 	}
 
-	/// Validate the `username` and `password` by creating a new [`Pool`] that connects to the
-	/// database.
+	/// Validate the `username` and `password` by creating a new [`Pool`](sqlx::Pool) that connects
+	/// to the database.
 	///
 	/// If it success, store the `username` and `password` in a [`Session`].
 	pub(super) async fn insert(&self, username: String, password: String) -> impl IntoResponse
@@ -108,29 +107,47 @@ where
 		let uuid = loop
 		{
 			let uuid = Uuid::new_v4();
-			if self.connections.read().await.contains_key(&uuid)
+			if self.sessions.read().await.contains_key(&uuid)
 			{
 				continue;
 			}
 
-			self.connections.write().await.insert(uuid, pool);
 			break uuid;
 		};
 
-		self.sessions.write().await.insert(uuid, Session::new(username, password));
+		let key = Aes256Gcm::generate_key(OsRng);
+		let session = match Session::new(username, password, &key, pool)
+		{
+			Ok(e) => e,
+			Err(_) =>
+			{
+				return Response::new(
+					StatusCode::INTERNAL_SERVER_ERROR,
+					response::Login::new(WinvoiceCode::EncryptError, None, None),
+				)
+			},
+		};
+
+		self.sessions.write().await.insert(uuid, session);
 		Response::new(
 			StatusCode::OK,
-			response::Login::new(WinvoiceCode::LoggedIn, None, Some(uuid)),
+			response::Login::new(WinvoiceCode::LoggedIn, None, Some(Token::new(uuid, &key))),
 		)
 	}
 
-	/// Validate the `username` and `password` by creating a new [`Pool`] that connects to the
-	/// database.
-	///
-	/// If it success, store the `username` and `password` in a [`Session`]
-	pub(super) async fn remove(&self, uuid: &str) -> impl IntoResponse
+	/// TODO: docs
+	pub(super) async fn remove(&self, token: &[u8]) -> impl IntoResponse
 	{
-		let parsed = match uuid.parse::<Uuid>()
+		/// Indicates that the `token` parameter that was passed is bad.
+		fn session_not_found() -> Response<response::Logout>
+		{
+			Response::new(
+				StatusCode::UNPROCESSABLE_ENTITY,
+				response::Logout::new(WinvoiceCode::SessionNotFound, None),
+			)
+		}
+
+		let parsed = match Token::try_from(token)
 		{
 			Ok(p) => p,
 			Err(e) =>
@@ -142,15 +159,18 @@ where
 			},
 		};
 
-		if self.sessions.write().await.remove(&parsed).is_none()
-		{
-			return Response::new(
-				StatusCode::UNPROCESSABLE_ENTITY,
-				response::Logout::new(WinvoiceCode::SessionNotFound, None),
-			);
-		}
+		self.sessions.write().await.remove(&parsed.uuid()).map_or_else(session_not_found, |_| {
+			Response::new(StatusCode::OK, response::Logout::new(WinvoiceCode::LoggedOut, None))
+		})
+	}
+}
 
-		self.connections.write().await.remove(&parsed);
-		Response::new(StatusCode::OK, response::Logout::new(WinvoiceCode::LoggedOut, None))
+#[cfg(test)]
+mod tests
+{
+	#[tokio::test]
+	async fn insert_remove()
+	{
+		todo!("Write this test")
 	}
 }

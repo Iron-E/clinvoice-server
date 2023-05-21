@@ -4,5 +4,7 @@
 pub mod request;
 pub mod response;
 mod status;
+mod token;
 
 pub use status::{Code as StatusCode, Status};
+pub use token::Token;

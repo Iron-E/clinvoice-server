@@ -14,9 +14,15 @@ pub enum Code
 	/// database.
 	BadArguments = 5,
 
+	/// An error occurred while decrypting sensitive data.
+	DecryptError = 9,
+
 	/// There was an attempt to log in, but it failed because the credentials provided were not
 	/// accepted by the database.
 	InvalidCredentials = 2,
+
+	/// An error occurred while encrypting sensitive data.
+	EncryptError = 8,
 
 	/// A user has successfully logged in.
 	LoggedIn = 1,
@@ -31,7 +37,8 @@ pub enum Code
 	#[default]
 	Other = 0,
 
-	/// A valid [`Uuid`](uuid::Uuid) was sent for authentication but did not exist on the server.
+	/// A valid [`Uuid`](uuid::Uuid) was sent for authentication but did not exist on the
+	/// server.
 	SessionNotFound = 7,
 
 	/// A user has attempted to perform an operation on the database while not having the correct

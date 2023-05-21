@@ -42,5 +42,6 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	sessions.remove(auth.token()).await
+	todo!("Write custom `Bearer` impl that allows for invalid UTF-8")
+	// sessions.remove(auth.token()).await
 }

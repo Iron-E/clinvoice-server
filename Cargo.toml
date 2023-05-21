@@ -13,14 +13,17 @@ readme = "README.md"
 repository = "https://www.github.com/Iron-E/winvoice-server"
 
 [dependencies]
+aes-gcm = "0.10"
 async-trait = {optional = true, version = "0.1"}
 axum = {features = ["headers"], optional = true, version = "0.6"}
 axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
 clap = {features = ["derive"], optional = true, version = "4"}
 futures = {optional = true, version = "0.3"}
 humantime = {optional = true, version = "2"}
-money2 = {features = ["serde"], version = "0.8"}
+money2 = {features = ["serde"], optional = true, version = "0.8"}
+# semver = {optional = true, version = "1"}
 serde = "1"
+serde-big-array = "0.5"
 sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
 tokio = {features = ["macros", "rt-multi-thread"], optional = true, version = "1"}
 tower = {features = ["timeout"], optional = true, version = "0.4"}
@@ -35,20 +38,18 @@ version = "0.4"
 branch = "release/0.19"
 default-features = false
 git = "https://github.com/Iron-E/winvoice-adapter"
+optional = true
 
 [dependencies.winvoice-adapter-postgres]
 branch = "release/0.9"
 git = "https://github.com/Iron-E/winvoice-adapter-postgres"
 optional = true
 
-[dependencies.winvoice-config]
-branch = "release/0.8"
-git = "https://github.com/Iron-E/winvoice-config"
-
 [dependencies.winvoice-export]
 branch = "release/0.3"
 features = ["markdown"]
 git = "https://github.com/Iron-E/winvoice-export"
+optional = true
 
 [dependencies.winvoice-match]
 branch = "release/0.9"
@@ -72,10 +73,14 @@ bin = [
 	"clap",
 	"futures",
 	"humantime",
+	"money2",
+	# "semver",
 	"sqlx",
 	"tokio",
 	"tower",
 	"tower-http",
+	"winvoice-adapter",
+	"winvoice-export",
 ]
 default = ["postgres"]
 postgres = ["bin", "winvoice-adapter-postgres", "sqlx/postgres"]

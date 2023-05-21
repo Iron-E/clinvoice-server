@@ -11,7 +11,6 @@ where
 	{
 		Self {
 			connect_options: self.connect_options.clone(),
-			connections: self.connections.clone(),
 			idle_timeout: self.idle_timeout,
 			session_expire: self.session_expire,
 			sessions: self.sessions.clone(),
