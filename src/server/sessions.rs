@@ -4,8 +4,7 @@ mod login;
 mod session;
 mod session_manager;
 
-use axum::{extract::State, http::Request, middleware::Next, response::IntoResponse, TypedHeader};
-use futures::{FutureExt, TryFutureExt};
+use axum::{extract::State, response::IntoResponse, TypedHeader};
 use headers::{
 	authorization::{Basic, Bearer},
 	Authorization,

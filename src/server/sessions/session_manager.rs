@@ -3,7 +3,7 @@
 mod clone;
 
 use core::time::Duration;
-use std::{collections::HashMap, io, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{http::StatusCode, response::IntoResponse};
 use sqlx::{pool::PoolOptions, Connection, Database, Error, Executor, Pool, Transaction};
@@ -80,7 +80,7 @@ where
 			{
 				return Response::new(
 					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::BadArguments, None, None),
+					response::Login::new(WinvoiceCode::BadArguments, e.to_string().into(), None),
 				);
 			},
 			#[cfg(feature = "postgres")]
@@ -88,7 +88,7 @@ where
 				if matches!(
 					e.try_downcast_ref::<sqlx::postgres::PgDatabaseError>()
 						.and_then(sqlx::postgres::PgDatabaseError::routine),
-					Some("auth_failed" | "InitializeSessionUserId")
+					Some("auth_failed" | "InitializeSessionUserId"),
 				) =>
 			{
 				return Response::new(
@@ -100,7 +100,7 @@ where
 			{
 				return Response::new(
 					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::Other, Some(e.to_string()), None),
+					response::Login::new(WinvoiceCode::Other, e.to_string().into(), None),
 				);
 			},
 		};
@@ -137,7 +137,7 @@ where
 			{
 				return Response::new(
 					StatusCode::BAD_REQUEST,
-					response::Logout::new(WinvoiceCode::MalformedUuid, None),
+					response::Logout::new(WinvoiceCode::MalformedUuid, e.to_string().into()),
 				)
 			},
 		};

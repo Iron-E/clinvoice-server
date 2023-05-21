@@ -9,15 +9,13 @@ use std::net::SocketAddr;
 use axum::{
 	error_handling::HandleErrorLayer,
 	http::StatusCode,
-	middleware,
 	routing::{self, MethodRouter},
 	BoxError,
-	Json,
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
 pub use response::Response;
-use sessions::SessionManager;
+use sessions::{Login, SessionManager};
 use sqlx::{Connection, Database, Executor, Transaction};
 use tower::{timeout, ServiceBuilder};
 use tower_http::compression::CompressionLayer;
@@ -34,12 +32,8 @@ use winvoice_adapter::{
 	Deletable,
 	Updatable,
 };
-use winvoice_server::api::response::Login;
 
-use crate::{
-	api::{Status, StatusCode as WinvoiceCode},
-	DynResult,
-};
+use crate::DynResult;
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -67,7 +61,7 @@ impl<Db> Server<Db>
 where
 	Db: Database,
 	Db::Connection: core::fmt::Debug,
-	<Db::Connection as Connection>::Options: Clone + sessions::Login,
+	<Db::Connection as Connection>::Options: Clone + Login,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
@@ -103,11 +97,45 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut stateless_router = Router::new().layer(CompressionLayer::new());
+		axum_server::bind_rustls(self.address, self.tls)
+			.serve(
+				Self::router::<C, E, J, L, O, T, X>(self.session_manager, self.timeout)
+					.into_make_service(),
+			)
+			.await?;
 
-		if let Some(t) = self.timeout
+		Ok(())
+	}
+
+	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
+	/// preconfigured, since those are common among all Winvoice entities.
+	fn route<T>() -> MethodRouter<SessionManager<Db>>
+	where
+		T: Deletable<Db = Db> + Updatable<Db = Db>,
+	{
+		routing::delete(|| async { todo("Delete method not implemented") })
+			.patch(|| async { todo("Update method not implemented") })
+	}
+
+	/// Create the [`Router`] that will be used by the [`Server`].
+	fn router<C, E, J, L, O, T, X>(
+		session_manager: SessionManager<Db>,
+		timeout: Option<Duration>,
+	) -> Router
+	where
+		C: Deletable<Db = Db> + ContactAdapter,
+		E: Deletable<Db = Db> + EmployeeAdapter,
+		J: Deletable<Db = Db> + JobAdapter,
+		L: Deletable<Db = Db> + LocationAdapter,
+		O: Deletable<Db = Db> + OrganizationAdapter,
+		T: Deletable<Db = Db> + TimesheetAdapter,
+		X: Deletable<Db = Db> + ExpensesAdapter,
+	{
+		let mut router = Router::new().layer(CompressionLayer::new());
+
+		if let Some(t) = timeout
 		{
-			stateless_router = stateless_router.layer(
+			router = router.layer(
 				ServiceBuilder::new()
 					.layer(HandleErrorLayer::new(|err: BoxError| async move {
 						match err.is::<timeout::error::Elapsed>()
@@ -124,65 +152,52 @@ where
 			);
 		}
 
-		let router = stateless_router
+		router
 			.route("/login", routing::put(sessions::login))
 			.route("/logout", routing::put(sessions::logout))
 			.route(
 				"/contact",
-				self.route::<C>()
+				Self::route::<C>()
 					.get(|| async { todo("contact retrieve") })
 					.post(|| async { todo("contact create") }),
 			)
 			.route(
 				"/employee",
-				self.route::<E>()
+				Self::route::<E>()
 					.get(|| async { todo("employee retrieve") })
 					.post(|| async { todo("employee create") }),
 			)
 			.route(
 				"/expense",
-				self.route::<X>()
+				Self::route::<X>()
 					.get(|| async { todo("expense retrieve") })
 					.post(|| async { todo("expense create") }),
 			)
 			.route(
 				"/job",
-				self.route::<J>()
+				Self::route::<J>()
 					.get(|| async { todo("job retrieve") })
 					.post(|| async { todo("job create") }),
 			)
 			.route(
 				"/location",
-				self.route::<L>()
+				Self::route::<L>()
 					.get(|| async { todo("location retrieve") })
 					.post(|| async { todo("location create") }),
 			)
 			.route(
 				"/organization",
-				self.route::<O>()
+				Self::route::<O>()
 					.get(|| async { todo("organization retrieve") })
 					.post(|| async { todo("organization create") }),
 			)
 			.route(
 				"/timesheet",
-				self.route::<T>()
+				Self::route::<T>()
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
 			)
-			.with_state(self.session_manager);
-
-		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
-		Ok(())
-	}
-
-	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
-	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<T>(&self) -> MethodRouter<SessionManager<Db>>
-	where
-		T: Deletable<Db = Db> + Updatable<Db = Db>,
-	{
-		routing::delete(|| async { todo("Delete method not implemented") })
-			.patch(|| async { todo("Update method not implemented") })
+			.with_state(session_manager)
 	}
 }
 
