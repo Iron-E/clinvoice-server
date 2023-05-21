@@ -12,6 +12,7 @@ use axum::{
 	middleware,
 	routing::{self, MethodRouter},
 	BoxError,
+	Json,
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
@@ -33,9 +34,10 @@ use winvoice_adapter::{
 	Deletable,
 	Updatable,
 };
+use winvoice_server::api::response::Login;
 
 use crate::{
-	api::{response::Login, Status, StatusCode as WinvoiceCode},
+	api::{Status, StatusCode as WinvoiceCode},
 	DynResult,
 };
 
@@ -123,18 +125,8 @@ where
 		}
 
 		let router = stateless_router
-			.route("/login", routing::put(|| async { Response::new(
-				StatusCode::OK,
-				Login::new(WinvoiceCode::LoggedIn, None),
-			)}))
-			.route_layer(middleware::from_fn_with_state(self.session_manager.clone(), sessions::login))
-			.route("/login", routing::put(|| async {
-				Response::new(StatusCode::OK, Status::new(WinvoiceCode::LoggedIn, None))
-			}))
-			// .route_layer(middleware::from_fn_with_state(
-			// 	self.session_manager.clone(),
-			// 	sessions::logout_layer,
-			// ))
+			.route("/login", routing::put(sessions::login))
+			.route("/logout", routing::put(sessions::logout))
 			.route(
 				"/contact",
 				self.route::<C>()

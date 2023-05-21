@@ -17,7 +17,14 @@ impl Display for Code
 				.fmt(f),
 			Self::LoggedIn => "A user has been logged in".fmt(f),
 			Self::LoggedOut => "A user has been logged out".fmt(f),
+			Self::MalformedUuid =>
+			{
+				"A uuid was sent with a request that was not formatted correctly".fmt(f)
+			},
 			Self::Other => "An unknown operation occurred".fmt(f),
+			Self::SessionNotFound => "A valid [`Uuid`](uuid::Uuid) was sent for authentication \
+			                          but did not exist on the server"
+				.fmt(f),
 			Self::Unauthorized => "A user has attempted to perform an operation while not having \
 			                       the correct permissions"
 				.fmt(f),

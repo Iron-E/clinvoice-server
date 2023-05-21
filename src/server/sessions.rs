@@ -6,16 +6,17 @@ mod session_manager;
 
 use axum::{extract::State, http::Request, middleware::Next, response::IntoResponse, TypedHeader};
 use futures::{FutureExt, TryFutureExt};
-use headers::{authorization::Basic, Authorization};
+use headers::{
+	authorization::{Basic, Bearer},
+	Authorization,
+};
 pub use login::Login;
 pub use session_manager::SessionManager;
 use sqlx::{Connection, Database, Executor, Transaction};
 
-pub async fn login<Db, TBody>(
-	State(session_manager): State<SessionManager<Db>>,
+pub async fn login<Db>(
+	State(sessions): State<SessionManager<Db>>,
 	TypedHeader(auth): TypedHeader<Authorization<Basic>>,
-	request: Request<TBody>,
-	next: Next<TBody>,
 ) -> impl IntoResponse
 where
 	Db: Database,
@@ -24,9 +25,19 @@ where
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
-	session_manager
-		.new_session(auth.username().to_owned(), auth.password().to_owned())
-		.map_err(IntoResponse::into_response)
-		.then(|_| next.run(request))
-		.await
+	sessions.insert(auth.username().to_owned(), auth.password().to_owned()).await
+}
+
+pub async fn logout<Db>(
+	State(sessions): State<SessionManager<Db>>,
+	TypedHeader(auth): TypedHeader<Authorization<Bearer>>,
+) -> impl IntoResponse
+where
+	Db: Database,
+	<Db::Connection as Connection>::Options: Login + Clone,
+	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
+	for<'connection> &'connection mut Transaction<'connection, Db>:
+		Executor<'connection, Database = Db>,
+{
+	sessions.remove(auth.token()).await
 }

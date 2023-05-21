@@ -5,7 +5,7 @@ mod clone;
 use core::time::Duration;
 use std::{collections::HashMap, io, sync::Arc};
 
-use axum::http::StatusCode;
+use axum::{http::StatusCode, response::IntoResponse};
 use sqlx::{pool::PoolOptions, Connection, Database, Error, Executor, Pool, Transaction};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -63,15 +63,11 @@ where
 		}
 	}
 
-	/// Create a new [`Pool`] which attempts to establish a connection with the database that this
-	/// [`Router`] has been instructed to communicate with.
+	/// Validate the `username` and `password` by creating a new [`Pool`] that connects to the
+	/// database.
 	///
-	/// Uses `username` and `password` as credentials for the new connection.
-	pub(super) async fn new_session(
-		&self,
-		username: String,
-		password: String,
-	) -> Result<(), Response<response::Login>>
+	/// If it success, store the `username` and `password` in a [`Session`].
+	pub(super) async fn insert(&self, username: String, password: String) -> impl IntoResponse
 	{
 		let pool = match PoolOptions::<Db>::new()
 			.idle_timeout(self.idle_timeout)
@@ -82,10 +78,10 @@ where
 			Ok(p) => p,
 			Err(Error::Configuration(e)) =>
 			{
-				return Err(Response::new(
+				return Response::new(
 					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::BadArguments, None),
-				))
+					response::Login::new(WinvoiceCode::BadArguments, None, None),
+				);
 			},
 			#[cfg(feature = "postgres")]
 			Err(Error::Database(e))
@@ -95,17 +91,17 @@ where
 					Some("auth_failed" | "InitializeSessionUserId")
 				) =>
 			{
-				return Err(Response::new(
+				return Response::new(
 					StatusCode::UNPROCESSABLE_ENTITY,
-					response::Login::new(WinvoiceCode::InvalidCredentials, None),
-				));
+					response::Login::new(WinvoiceCode::InvalidCredentials, None, None),
+				);
 			},
 			Err(e) =>
 			{
-				return Err(Response::new(
+				return Response::new(
 					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::Other, Some(e.to_string())),
-				))
+					response::Login::new(WinvoiceCode::Other, Some(e.to_string()), None),
+				);
 			},
 		};
 
@@ -122,6 +118,39 @@ where
 		};
 
 		self.sessions.write().await.insert(uuid, Session::new(username, password));
-		Ok(())
+		Response::new(
+			StatusCode::OK,
+			response::Login::new(WinvoiceCode::LoggedIn, None, Some(uuid)),
+		)
+	}
+
+	/// Validate the `username` and `password` by creating a new [`Pool`] that connects to the
+	/// database.
+	///
+	/// If it success, store the `username` and `password` in a [`Session`]
+	pub(super) async fn remove(&self, uuid: &str) -> impl IntoResponse
+	{
+		let parsed = match uuid.parse::<Uuid>()
+		{
+			Ok(p) => p,
+			Err(e) =>
+			{
+				return Response::new(
+					StatusCode::BAD_REQUEST,
+					response::Logout::new(WinvoiceCode::MalformedUuid, None),
+				)
+			},
+		};
+
+		if self.sessions.write().await.remove(&parsed).is_none()
+		{
+			return Response::new(
+				StatusCode::UNPROCESSABLE_ENTITY,
+				response::Logout::new(WinvoiceCode::SessionNotFound, None),
+			);
+		}
+
+		self.connections.write().await.remove(&parsed);
+		Response::new(StatusCode::OK, response::Logout::new(WinvoiceCode::LoggedOut, None))
 	}
 }
