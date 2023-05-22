@@ -16,9 +16,10 @@ repository = "https://www.github.com/Iron-E/winvoice-server"
 aes-gcm = "0.10"
 async-trait = {optional = true, version = "0.1"}
 axum = {features = ["headers"], optional = true, version = "0.6"}
-axum-extra = {features = ["cookie"], optional = true, version = "0.7"}
+axum-extra = {features = ["cookie-key-expansion", "cookie-private"], optional = true, version = "0.7"}
 axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
-base64-url = {optional = true, version ="2"}
+base64-url = {optional = true, version = "2"}
+time = {optional = true, version = "0.3"}
 clap = {features = ["derive"], optional = true, version = "4"}
 futures = {optional = true, version = "0.3"}
 humantime = {optional = true, version = "2"}
@@ -80,6 +81,7 @@ bin = [
 	"money2",
 	"semver",
 	"sqlx",
+	"time",
 	"tokio",
 	"tower",
 	"tower-http",

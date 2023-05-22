@@ -14,8 +14,25 @@ pub enum Code
 	/// database.
 	BadArguments = 5,
 
+	/// There mau have been an error in an [`sqlx`] adapter, or a [`sqlx::Connection`] became
+	/// corrupted.
+	DbAdapterError = 13,
+
+	/// The connection to the database was unexpectedly cut short.
+	DbConnectionSevered = 15,
+
+	/// The server was unable to establish a connection with the [`Database`](sqlx::Database)
+	/// because the task timed out.
+	DbConnectTimeout = 12,
+
 	/// [`std::io::Error`] while communicating with the [`Database`](sqlx::Database).
-	DatabaseIoError = 10,
+	DbIoError = 10,
+
+	/// An error involving TLS occurred while communicating with the [`Database`](sqlx::Database).
+	DbTlsError = 14,
+
+	/// An error occurred while attempting to decode a value.
+	DecodeError = 11,
 
 	/// An error occurred while decrypting sensitive data.
 	DecryptError = 9,
@@ -33,9 +50,6 @@ pub enum Code
 	/// A user has successfully logged out.
 	LoggedOut = 4,
 
-	/// A [`Uuid`](uuid::Uuid) was sent with a request that was not formatted correctly.
-	MalformedUuid = 6,
-
 	/// An uncategorized type of action was taken.
 	#[default]
 	Other = 0,
@@ -43,6 +57,10 @@ pub enum Code
 	/// A valid [`Uuid`](uuid::Uuid) was sent for authentication but did not exist on the
 	/// server.
 	SessionNotFound = 7,
+
+	/// The SQL which was generated from a [`winvoice_match`] was incorrect. This is likely a bug
+	/// in Winvoice.
+	SqlError = 16,
 
 	/// A user has attempted to perform an operation on the database while not having the correct
 	/// permissions.

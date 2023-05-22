@@ -15,7 +15,8 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 pub use response::Response;
-use sessions::{Login, SessionManager};
+use sessions::Login;
+pub use sessions::SessionManager;
 use sqlx::{Connection, Database, Executor, Transaction};
 use tower::{timeout, ServiceBuilder};
 use tower_http::compression::CompressionLayer;
@@ -67,21 +68,14 @@ where
 		Executor<'connection, Database = Db>,
 {
 	/// Create a new [`Server`]
-	pub fn new(
+	pub const fn new(
 		address: SocketAddr,
-		connect_options: <Db::Connection as Connection>::Options,
-		session_expire: Duration,
-		session_idle: Duration,
+		session_manager: SessionManager<Db>,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> Self
 	{
-		Self {
-			address,
-			session_manager: SessionManager::new(connect_options, session_idle, session_expire),
-			timeout,
-			tls,
-		}
+		Self { address, session_manager, timeout, tls }
 	}
 
 	/// Create an [`Router`] based on the `connect_options`.
@@ -154,7 +148,7 @@ where
 
 		router
 			.route("/login", routing::put(sessions::login))
-			.route("/logout", routing::put(sessions::logout))
+			.route("/refresh/logout", routing::put(sessions::logout))
 			.route(
 				"/contact",
 				Self::route::<C>()

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::api::{Status, StatusCode};
+use crate::api::Status;
 
 /// The logout request response.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -15,9 +15,11 @@ pub struct Logout
 impl Logout
 {
 	/// Create a new [`Logout`] response.
-	pub fn new(code: StatusCode, message: Option<String>) -> Self
+	pub fn new<S>(status: S) -> Self
+	where
+		S: Into<Status>,
 	{
-		Self { status: Status::new(code, message) }
+		Self { status: status.into() }
 	}
 
 	/// The [`Status`] of the logout request.

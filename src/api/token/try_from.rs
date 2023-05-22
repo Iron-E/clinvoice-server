@@ -1,23 +1,23 @@
 //! Allows converting attempting to convert an arbitrary [slice](std::slice) of [bytes](u8) into a
 //! [`Token`].
 
-use core::fmt;
+use core::{array::TryFromSliceError, fmt};
 
 use super::{Token, Uuid, MIDDLE};
 
 /// The [`Error`](core::error::Error) for parsing a [`Token`] from bytes.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Error
 {
-	Aes(aes_gcm::aead::Error),
+	Array(TryFromSliceError),
 	Uuid(uuid::Error),
 }
 
-impl From<aes_gcm::aead::Error> for Error
+impl From<TryFromSliceError> for Error
 {
-	fn from(value: aes_gcm::aead::Error) -> Self
+	fn from(value: TryFromSliceError) -> Self
 	{
-		Self::Aes(value)
+		Self::Array(value)
 	}
 }
 
@@ -35,7 +35,7 @@ impl fmt::Display for Error
 	{
 		match self
 		{
-			Self::Aes(e) => e.fmt(f),
+			Self::Array(e) => e.fmt(f),
 			Self::Uuid(e) => e.fmt(f),
 		}
 	}
@@ -50,7 +50,7 @@ impl TryFrom<&[u8]> for Token
 	fn try_from(bytes: &[u8]) -> Result<Self, Self::Error>
 	{
 		let uuid = Uuid::from_slice(&bytes[..MIDDLE])?;
-		let key: [u8; 32] = bytes[MIDDLE..].try_into().map_err(|_| aes_gcm::aead::Error)?;
+		let key: [u8; 32] = bytes[MIDDLE..].try_into()?;
 		Ok(Self::new(uuid, &key.into()))
 	}
 }

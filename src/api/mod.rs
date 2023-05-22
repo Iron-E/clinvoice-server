@@ -7,4 +7,4 @@ mod status;
 mod token;
 
 pub use status::{Code as StatusCode, Status};
-pub use token::Token;
+pub use token::{Error as TokenParseError, Token};

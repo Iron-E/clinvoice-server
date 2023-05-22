@@ -1,11 +1,13 @@
 //! This module contains data types which are used by [`winvoice-server`](crate) to refer to a
 //! unique user identity.
 
+mod as_ref;
 mod try_from;
 
 use aes_gcm::{Aes256Gcm, Key};
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
+pub use try_from::Error;
 use uuid::Uuid;
 
 /// To the left of this index is the `uuid`, to the right is the `key`.
@@ -17,11 +19,11 @@ pub struct Token(#[serde(with = "BigArray")] [u8; 48]);
 
 impl Token
 {
-	pub fn new(uuid: Uuid, key: &Key<Aes256Gcm>) -> Self
+	pub fn new(refresh_id: Uuid, key: &Key<Aes256Gcm>) -> Self
 	{
 		let mut token: [u8; 48] = [0; 48];
 		let (token_uuid, token_key) = token.split_at_mut(MIDDLE);
-		token_uuid.copy_from_slice(uuid.as_bytes());
+		token_uuid.copy_from_slice(refresh_id.as_bytes());
 		token_key.copy_from_slice(key);
 		Self(token)
 	}

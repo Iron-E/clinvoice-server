@@ -2,9 +2,11 @@
 
 mod into_response;
 mod login_response;
+mod logout_response;
 
 use axum::{http::StatusCode, Json};
 pub use login_response::LoginResponse;
+pub use logout_response::LogoutResponse;
 
 /// Implements [`IntoResponse`](axum::response::IntoResponse) for any `struct` with this structure:
 ///

@@ -1,6 +1,7 @@
 use core::time::Duration;
 use std::{net::SocketAddr, path::PathBuf};
 
+use axum_extra::extract::cookie::Key;
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Args;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
@@ -14,7 +15,10 @@ use winvoice_adapter_postgres::schema::{
 	PgTimesheet,
 };
 
-use crate::{server::Server, DynResult};
+use crate::{
+	server::{Server, SessionManager},
+	DynResult,
+};
 
 /// Spawn a Winvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
@@ -65,8 +69,10 @@ impl Postgres
 	pub async fn run(
 		self,
 		address: SocketAddr,
-		session_expire: Duration,
-		session_idle: Duration,
+		domain: String,
+		refresh_secret: Key,
+		refresh_ttl: time::Duration,
+		session_ttl: Duration,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> DynResult<()>
@@ -97,7 +103,9 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		Server::new(address, connect_options, session_expire, session_idle, timeout, tls)
+		let session_manager =
+			SessionManager::new(connect_options, domain, refresh_secret, refresh_ttl, session_ttl);
+		Server::new(address, session_manager, timeout, tls)
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
 			.await

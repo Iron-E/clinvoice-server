@@ -5,6 +5,7 @@ mod postgres;
 use core::time::Duration;
 use std::{net::SocketAddr, path::PathBuf};
 
+use axum_extra::extract::cookie::Key;
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use command::Command;
@@ -27,6 +28,12 @@ pub struct Args
 	#[arg(long, short, value_name = "FILE")]
 	certificate: PathBuf,
 
+	/// The IP/URL where this server is visibly accessible from.
+	///
+	/// e.g. 'www.my_winvoice.com', 'localhost', '123.4.18.1'
+	#[arg(default_value_t = String::from("localhost"), long, short)]
+	domain: String,
+
 	/// The Winvoice adapter which will be used for this server.
 	#[command(subcommand)]
 	command: Command,
@@ -34,6 +41,13 @@ pub struct Args
 	/// The file containing the key to use for TLS. Must be in PEM format.
 	#[arg(long, short, value_name = "FILE")]
 	key: PathBuf,
+
+	/// A **cryptographically random** key which will be used to sign refresh tokens. Must be at
+	/// least 32-bytes.
+	///
+	/// If one is not provided, a random one will be generated.
+	#[arg(long, short)]
+	refresh_secret: Option<Vec<u8>>,
 
 	/// The maximum duration that a user may be logged in before requiring them to log in again.
 	#[arg(
@@ -44,7 +58,7 @@ pub struct Args
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
-	session_expire: Duration,
+	refresh_ttl: Duration,
 
 	/// The amount of time that a connection may be held open by an idle user before it is closed.
 	#[arg(
@@ -55,7 +69,7 @@ pub struct Args
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
-	session_idle: Duration,
+	session_ttl: Duration,
 
 	/// The maximum duration to run commands server before timing out (e.g. "5s", "15min").
 	///
@@ -77,13 +91,23 @@ impl Args
 	/// Run the Winvoice server.
 	pub async fn run(self) -> DynResult<()>
 	{
+		let refresh_secret =
+			self.refresh_secret.map_or_else(Key::generate, |s| Key::derive_from(&s));
+		let refresh_ttl: time::Duration = (self.session_ttl).try_into()?;
 		let tls = RustlsConfig::from_pem_file(self.certificate, self.key).await?;
+
 		match self.command
 		{
-			Command::Postgres(p) =>
-			{
-				p.run(self.address, self.session_expire, self.session_idle, self.timeout, tls)
-			},
+			#[cfg(feature = "postgres")]
+			Command::Postgres(p) => p.run(
+				self.address,
+				self.domain,
+				refresh_secret,
+				refresh_ttl,
+				self.session_ttl,
+				self.timeout,
+				tls,
+			),
 		}
 		.await
 	}

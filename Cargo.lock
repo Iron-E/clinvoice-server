@@ -458,7 +458,13 @@ version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7efb37c3e1ccb1ff97164ad95ac1606e8ccd35b3fa0a7d99a304c7f4a428cc24"
 dependencies = [
+ "aes-gcm",
+ "base64 0.21.0",
+ "hkdf",
  "percent-encoding",
+ "rand",
+ "sha2",
+ "subtle",
  "time 0.3.13",
  "version_check",
 ]
@@ -2790,6 +2796,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "sqlx",
+ "time 0.3.13",
  "tokio",
  "tower",
  "tower-http",
