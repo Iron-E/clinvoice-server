@@ -16,12 +16,14 @@ repository = "https://www.github.com/Iron-E/winvoice-server"
 aes-gcm = "0.10"
 async-trait = {optional = true, version = "0.1"}
 axum = {features = ["headers"], optional = true, version = "0.6"}
+axum-extra = {features = ["cookie"], optional = true, version = "0.7"}
 axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
+base64-url = {optional = true, version ="2"}
 clap = {features = ["derive"], optional = true, version = "4"}
 futures = {optional = true, version = "0.3"}
 humantime = {optional = true, version = "2"}
 money2 = {features = ["serde"], optional = true, version = "0.8"}
-# semver = {optional = true, version = "1"}
+semver = {optional = true, version = "1"}
 serde = "1"
 serde-big-array = "0.5"
 sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
@@ -69,12 +71,14 @@ pretty_assertions = "1"
 bin = [
 	"async-trait",
 	"axum",
+	"axum-extra",
 	"axum-server",
+	"base64-url",
 	"clap",
 	"futures",
 	"humantime",
 	"money2",
-	# "semver",
+	"semver",
 	"sqlx",
 	"tokio",
 	"tower",
