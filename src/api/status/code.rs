@@ -14,6 +14,9 @@ pub enum Code
 	/// database.
 	BadArguments = 5,
 
+	/// [`std::io::Error`] while communicating with the [`Database`](sqlx::Database).
+	DatabaseIoError = 10,
+
 	/// An error occurred while decrypting sensitive data.
 	DecryptError = 9,
 

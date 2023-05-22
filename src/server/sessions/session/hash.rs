@@ -10,9 +10,9 @@ impl<Db> Hash for Session<Db>
 where
 	Db: Database,
 {
-	fn hash<T>(&self, state: &mut T)
+	fn hash<H>(&self, state: &mut H)
 	where
-		T: Hasher,
+		H: Hasher,
 	{
 		self.date.hash(state);
 		self.password.hash(state);

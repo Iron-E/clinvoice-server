@@ -12,6 +12,10 @@ impl Display for Code
 			                       accepted by the database. If you are a user, please contact an \
 			                       administrator."
 				.fmt(f),
+			Self::DatabaseIoError =>
+			{
+				"An IO error occured while communicating with the database".fmt(f)
+			},
 			Self::DecryptError => "An error occurred while decrypting sensitive data.".fmt(f),
 			Self::InvalidCredentials => "There was an attempt to log in, but it failed because \
 			                             the credentials provided were incorrect"

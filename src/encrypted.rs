@@ -62,9 +62,9 @@ impl std::error::Error for Error {}
 impl Encrypted
 {
 	/// Encrypts the `content` with the `key` using [`Aes256Gcm`].
-	pub fn new<T>(content: T, key: &Key<Aes256Gcm>) -> Result<Self, AeadError>
+	pub fn new<C>(content: C, key: &Key<Aes256Gcm>) -> Result<Self, AeadError>
 	where
-		T: AsRef<[u8]>,
+		C: AsRef<[u8]>,
 	{
 		let cipher = Aes256Gcm::new(key);
 		let nonce = Aes256Gcm::generate_nonce(&mut OsRng);

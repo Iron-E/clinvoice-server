@@ -109,9 +109,9 @@ where
 
 	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
 	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<T>() -> MethodRouter<SessionManager<Db>>
+	fn route<TEntity>() -> MethodRouter<SessionManager<Db>>
 	where
-		T: Deletable<Db = Db> + Updatable<Db = Db>,
+		TEntity: Deletable<Db = Db> + Updatable<Db = Db>,
 	{
 		routing::delete(|| async { todo("Delete method not implemented") })
 			.patch(|| async { todo("Update method not implemented") })

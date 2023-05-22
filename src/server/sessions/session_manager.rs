@@ -7,14 +7,14 @@ use std::{collections::HashMap, sync::Arc};
 
 use aes_gcm::{aead::OsRng, Aes256Gcm, KeyInit};
 use axum::{http::StatusCode, response::IntoResponse};
-use sqlx::{pool::PoolOptions, Connection, Database, Error, Executor, Transaction};
+use sqlx::{pool::PoolOptions, Connection, Database, Executor, Transaction};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use super::{session::Session, Login};
 use crate::{
-	api::{response, StatusCode as WinvoiceCode, Token},
-	server::response::Response,
+	api::{response, Status, StatusCode as WinvoiceCode, Token},
+	server::response::{LoginResponse, Response},
 };
 
 /// A manager for active sessions.
@@ -75,33 +75,7 @@ where
 			.await
 		{
 			Ok(p) => p,
-			Err(Error::Configuration(e)) =>
-			{
-				return Response::new(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::BadArguments, e.to_string().into(), None),
-				);
-			},
-			#[cfg(feature = "postgres")]
-			Err(Error::Database(e))
-				if matches!(
-					e.try_downcast_ref::<sqlx::postgres::PgDatabaseError>()
-						.and_then(sqlx::postgres::PgDatabaseError::routine),
-					Some("auth_failed" | "InitializeSessionUserId"),
-				) =>
-			{
-				return Response::new(
-					StatusCode::UNPROCESSABLE_ENTITY,
-					response::Login::new(WinvoiceCode::InvalidCredentials, None, None),
-				);
-			},
-			Err(e) =>
-			{
-				return Response::new(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::Other, e.to_string().into(), None),
-				);
-			},
+			Err(e) => return LoginResponse::from(&e),
 		};
 
 		let uuid = loop
@@ -121,18 +95,15 @@ where
 			Ok(e) => e,
 			Err(_) =>
 			{
-				return Response::new(
+				return LoginResponse::new(
 					StatusCode::INTERNAL_SERVER_ERROR,
-					response::Login::new(WinvoiceCode::EncryptError, None, None),
-				)
+					Status::new(WinvoiceCode::EncryptError, None),
+				);
 			},
 		};
 
 		self.sessions.write().await.insert(uuid, session);
-		Response::new(
-			StatusCode::OK,
-			response::Login::new(WinvoiceCode::LoggedIn, None, Some(Token::new(uuid, &key))),
-		)
+		LoginResponse::new(StatusCode::OK, Status::new(WinvoiceCode::LoggedIn, None))
 	}
 
 	/// TODO: docs

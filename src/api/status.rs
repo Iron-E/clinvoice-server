@@ -2,11 +2,13 @@
 
 mod code;
 
+#[cfg(feature = "bin")]
+mod from;
+
 pub use code::Code;
 use serde::{Deserialize, Serialize};
 
 /// The status of an operation.
-/// TODO: `impl From<sqlx::Error>` for `Status` behind #[cfg(feature = "bin")] gate
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Status
 {
@@ -33,8 +35,10 @@ impl Status
 
 	/// Create a new [`Status`]. If the `message` is left out, a default message based on the `code`
 	/// will be used.
-	pub fn new(code: Code, message: Option<String>) -> Self
+	pub fn new<M>(code: Code, message: M) -> Self
+	where
+		M: Into<Option<String>>,
 	{
-		Self { code, message: message.unwrap_or_else(|| code.to_string()) }
+		Self { code, message: message.into().unwrap_or_else(|| code.to_string()) }
 	}
 }
