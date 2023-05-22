@@ -26,11 +26,11 @@ where
 	/// The base options to create new connections with the [`Database`].
 	connect_options: <Db::Connection as Connection>::Options,
 
-	/// The amount of time that an active connection should be idle before it is shut down.
-	idle_timeout: Option<Duration>,
-
 	/// The amount of time that it takes before an active session expires.
-	session_expire: Option<Duration>,
+	session_expire: Duration,
+
+	/// The amount of time that an active connection should be idle before it is shut down.
+	session_idle: Duration,
 
 	/// The currently logged in users.
 	sessions: Arc<RwLock<HashMap<Uuid, Session<Db>>>>,
@@ -49,14 +49,14 @@ where
 	/// pruning old [`Session`]s.
 	pub fn new(
 		connect_options: <Db::Connection as Connection>::Options,
-		idle_timeout: Option<Duration>,
-		session_expire: Option<Duration>,
+		session_expire: Duration,
+		session_idle: Duration,
 	) -> Self
 	{
 		// TODO: spawn session expirer
 		Self {
 			connect_options,
-			idle_timeout,
+			session_idle,
 			session_expire,
 			sessions: Arc::new(RwLock::new(HashMap::new())),
 		}
@@ -69,7 +69,7 @@ where
 	pub(super) async fn insert(&self, username: String, password: String) -> impl IntoResponse
 	{
 		let pool = match PoolOptions::<Db>::new()
-			.idle_timeout(self.idle_timeout)
+			.idle_timeout(self.session_idle)
 			.max_connections(1)
 			.connect_with(self.connect_options.clone().login(&username, &password))
 			.await

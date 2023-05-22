@@ -70,8 +70,8 @@ where
 	pub fn new(
 		address: SocketAddr,
 		connect_options: <Db::Connection as Connection>::Options,
-		session_expire: Option<Duration>,
-		session_idle: Option<Duration>,
+		session_expire: Duration,
+		session_idle: Duration,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> Self

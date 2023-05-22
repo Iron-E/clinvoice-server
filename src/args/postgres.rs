@@ -65,8 +65,8 @@ impl Postgres
 	pub async fn run(
 		self,
 		address: SocketAddr,
-		session_expire: Option<Duration>,
-		session_idle: Option<Duration>,
+		session_expire: Duration,
+		session_idle: Duration,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> DynResult<()>

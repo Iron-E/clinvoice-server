@@ -36,36 +36,30 @@ pub struct Args
 	key: PathBuf,
 
 	/// The maximum duration that a user may be logged in before requiring them to log in again.
-	///
-	/// When this argument is passed without a value, (e.g. `--session-expire`), a duration of 1
-	/// month is set.
 	#[arg(
-		default_missing_value = "1month",
+		default_value = "1month",
 		num_args = 0..=1,
 		long,
 		short = 'x',
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
-	session_expire: Option<Duration>,
+	session_expire: Duration,
 
 	/// The amount of time that a connection may be held open by an idle user before it is closed.
-	///
-	/// When this argument is passed without a value, (e.g. `--session-idle`), a duration of 5
-	/// minutes is set.
 	#[arg(
-		default_missing_value = "5min",
+		default_value = "5min",
 		num_args = 0..=1,
 		long,
 		short = 'i',
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
-	session_idle: Option<Duration>,
+	session_idle: Duration,
 
 	/// The maximum duration to run commands server before timing out (e.g. "5s", "15min").
 	///
-	/// When this argument is passed without a value, (e.g. `--timeout`), a duration of 30 seconds
+	/// When this argument is passed without a value (i.e. `--timeout`), a duration of 30 seconds
 	/// is set.
 	#[arg(
 		default_missing_value = "30s",
