@@ -103,7 +103,8 @@
 mod api;
 mod args;
 mod dyn_result;
-mod encrypted;
+mod lock;
+mod permissions;
 mod server;
 mod utils;
 

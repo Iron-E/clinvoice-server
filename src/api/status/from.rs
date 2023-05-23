@@ -1,17 +1,8 @@
 //! Contains the [`From`] implementations for [`Status`].
 
-use base64_url::base64::DecodeError;
+use core::array::TryFromSliceError;
 
 use super::{Code, Status};
-use crate::api::TokenParseError;
-
-impl From<&DecodeError> for Status
-{
-	fn from(error: &DecodeError) -> Self
-	{
-		Self::new(Code::DecodeError, error.to_string())
-	}
-}
 
 impl From<&sqlx::Error> for Status
 {
@@ -50,9 +41,9 @@ impl From<&sqlx::Error> for Status
 	}
 }
 
-impl From<&TokenParseError> for Status
+impl From<&TryFromSliceError> for Status
 {
-	fn from(error: &TokenParseError) -> Self
+	fn from(error: &TryFromSliceError) -> Self
 	{
 		Self::new(Code::DecodeError, error.to_string())
 	}

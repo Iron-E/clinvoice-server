@@ -1,10 +1,12 @@
 use core::time::Duration;
 use std::{net::SocketAddr, path::PathBuf};
 
-use axum_extra::extract::cookie::Key;
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Args;
-use sqlx::postgres::{PgConnectOptions, PgSslMode};
+use sqlx::{
+	pool::PoolOptions,
+	postgres::{PgConnectOptions, PgSslMode},
+};
 use winvoice_adapter_postgres::schema::{
 	PgContact,
 	PgEmployee,
@@ -15,16 +17,14 @@ use winvoice_adapter_postgres::schema::{
 	PgTimesheet,
 };
 
-use crate::{
-	server::{Server, SessionManager},
-	DynResult,
-};
+use crate::{server::Server, DynResult};
 
 /// Spawn a Winvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
 pub struct Postgres
 {
 	/// The name of the database where Winvoice should perform its operations.
+	#[arg(env = "PGDATABASE", long, short)]
 	database: String,
 
 	/// This changes the default precision of floating-point values.
@@ -39,19 +39,23 @@ pub struct Postgres
 	///
 	/// The default behavior when host is not specified, or is empty, is to connect to a
 	/// Unix-domain socket
-	#[arg(default_value_t, hide_default_value = true, long, short = 'o')]
+	#[arg(default_value_t, env = "PGHOST", long, short)]
 	host: String,
 
+	/// The password used to establish a master connection with the database.
+	#[arg(default_value_t, env = "PGPASSWORD", long, short)]
+	password: String,
+
 	/// Sets the port to connect to at the server host.
-	#[arg(long, short, value_name = "NUMBER")]
+	#[arg(env = "PGPORT", long, short, value_name = "NUMBER")]
 	port: Option<u16>,
 
 	/// Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated.
-	#[arg(default_value = "prefer", long, short = 'm')]
+	#[arg(default_value = "prefer", env = "PGSSLMODE", long, short = 'm')]
 	ssl_mode: PgSslMode,
 
 	/// Sets the name of a file containing a list of trusted SSL Certificate Authorities.
-	#[arg(long, short = 'r', value_name = "FILE")]
+	#[arg(env = "PGSSLROOTCERT", long, short = 'r', value_name = "FILE")]
 	ssl_root_cert: Option<PathBuf>,
 
 	/// Sets the capacity of the connection’s statement cache in a number of stored distinct
@@ -61,6 +65,10 @@ pub struct Postgres
 	/// the oldest statement will get dropped.
 	#[arg(long, short = 'c', value_name = "COUNT")]
 	statement_cache_capacity: Option<usize>,
+
+	/// The username used to establish a master connection with the database.
+	#[arg(default_value_t, env = "PGUSER", long, short)]
+	username: String,
 }
 
 impl Postgres
@@ -69,11 +77,9 @@ impl Postgres
 	pub async fn run(
 		self,
 		address: SocketAddr,
-		domain: String,
-		refresh_secret: Key,
-		refresh_ttl: time::Duration,
-		session_idle: Duration,
-		session_ttl: time::Duration,
+		connection_idle: Duration,
+		secret: Vec<u8>,
+		session_ttl: Duration,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> DynResult<()>
@@ -104,16 +110,16 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		let session_manager = SessionManager::new(
-			connect_options,
-			domain,
-			refresh_secret,
-			refresh_ttl,
-			session_idle,
-			session_ttl,
-		);
-		Server::new(address, session_manager, timeout, tls)
+		let pool = PoolOptions::<sqlx::Postgres>::new()
+			.idle_timeout(connection_idle)
+			.connect_with(connect_options)
+			.await?;
+
+		Server::new(address, tls)
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
+				pool,
+				session_ttl,
+				timeout,
 			)
 			.await
 	}

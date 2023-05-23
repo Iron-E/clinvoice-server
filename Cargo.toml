@@ -13,24 +13,24 @@ readme = "README.md"
 repository = "https://www.github.com/Iron-E/winvoice-server"
 
 [dependencies]
-aes-gcm = "0.10"
+argon2 = {optional = true, version = "0.5"}
 async-trait = {optional = true, version = "0.1"}
 axum = {features = ["headers"], optional = true, version = "0.6"}
-axum-extra = {features = ["cookie-key-expansion", "cookie-private"], optional = true, version = "0.7"}
+axum-login = {features = ["sqlx"], optional = true, version = "0.5"}
 axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
-base64-url = {optional = true, version = "2"}
-time = {optional = true, version = "0.3"}
-clap = {features = ["derive"], optional = true, version = "4"}
+axum-sessions = {optional = true, version = "0.5"}
+casbin = {optional = true, version = "2"}
+clap = {features = ["derive", "env"], optional = true, version = "4"}
 futures = {optional = true, version = "0.3"}
 humantime = {optional = true, version = "2"}
 money2 = {features = ["serde"], optional = true, version = "0.8"}
+rand = {optional = true, version = "0.8"}
 semver = {optional = true, version = "1"}
 serde = "1"
-serde-big-array = "0.5"
 sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
 tokio = {features = ["macros", "rt-multi-thread"], optional = true, version = "1"}
 tower = {features = ["timeout"], optional = true, version = "0.4"}
-uuid = {features = ["serde", "v4"], version = "1"}
+watchman_client = {optional = true, version = "0.8"}
 
 [dependencies.tower-http]
 features = ["compression-br", "compression-deflate", "compression-gzip", "compression-zstd"]
@@ -70,23 +70,26 @@ pretty_assertions = "1"
 
 [features]
 bin = [
+	"argon2",
 	"async-trait",
 	"axum",
-	"axum-extra",
+	"axum-login",
 	"axum-server",
-	"base64-url",
+	"axum-sessions",
+	"casbin",
 	"clap",
 	"futures",
 	"humantime",
 	"money2",
 	"semver",
 	"sqlx",
-	"time",
 	"tokio",
+	"rand",
 	"tower",
 	"tower-http",
+	"watchman_client",
 	"winvoice-adapter",
 	"winvoice-export",
 ]
 default = ["postgres"]
-postgres = ["bin", "winvoice-adapter-postgres", "sqlx/postgres"]
+postgres = ["axum-login/postgres", "bin", "winvoice-adapter-postgres", "sqlx/postgres"]

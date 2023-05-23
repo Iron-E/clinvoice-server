@@ -1,9 +1,9 @@
 //! The `server` module functions to spawn an [`axum_server`] which communicates over TLS.
 
 mod response;
-mod sessions;
+mod state;
 
-use core::time::Duration;
+use core::{marker::PhantomData, time::Duration};
 use std::net::SocketAddr;
 
 use axum::{
@@ -14,10 +14,9 @@ use axum::{
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-pub use response::Response;
-use sessions::Login;
-pub use sessions::SessionManager;
-use sqlx::{Connection, Database, Executor, Transaction};
+pub use response::{LoginResponse, LogoutResponse, Response};
+use sqlx::{Connection, Database, Executor, Pool, Transaction};
+use state::State;
 use tower::{timeout, ServiceBuilder};
 use tower_http::compression::CompressionLayer;
 use winvoice_adapter::{
@@ -47,12 +46,7 @@ where
 	/// The [`SocketAddr`] that self server is bound to.
 	address: SocketAddr,
 
-	/// The [`SessionManager`] which keeps track of active connections and logins while the server
-	/// is open.
-	session_manager: SessionManager<Db>,
-
-	/// The amount of time to run operations on the server before cancelling them.
-	timeout: Option<Duration>,
+	phantom: PhantomData<Db>,
 
 	/// The TLS configuration.
 	tls: RustlsConfig,
@@ -62,26 +56,26 @@ impl<Db> Server<Db>
 where
 	Db: Database,
 	Db::Connection: core::fmt::Debug,
-	<Db::Connection as Connection>::Options: Clone + Login,
+	<Db::Connection as Connection>::Options: Clone,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
 {
 	/// Create a new [`Server`]
-	pub const fn new(
-		address: SocketAddr,
-		session_manager: SessionManager<Db>,
-		timeout: Option<Duration>,
-		tls: RustlsConfig,
-	) -> Self
+	pub const fn new(address: SocketAddr, tls: RustlsConfig) -> Self
 	{
-		Self { address, session_manager, timeout, tls }
+		Self { address, phantom: PhantomData, tls }
 	}
 
 	/// Create an [`Router`] based on the `connect_options`.
 	///
 	/// Operations `timeout`, if specified.
-	pub async fn serve<C, E, J, L, O, T, X>(self) -> DynResult<()>
+	pub async fn serve<C, E, J, L, O, T, X>(
+		self,
+		pool: Pool<Db>,
+		session_ttl: Duration,
+		timeout: Option<Duration>,
+	) -> DynResult<()>
 	where
 		C: Deletable<Db = Db> + ContactAdapter,
 		E: Deletable<Db = Db> + EmployeeAdapter,
@@ -93,8 +87,7 @@ where
 	{
 		axum_server::bind_rustls(self.address, self.tls)
 			.serve(
-				Self::router::<C, E, J, L, O, T, X>(self.session_manager, self.timeout)
-					.into_make_service(),
+				Self::router::<C, E, J, L, O, T, X>(pool, session_ttl, timeout).into_make_service(),
 			)
 			.await?;
 
@@ -103,7 +96,7 @@ where
 
 	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
 	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<TEntity>() -> MethodRouter<SessionManager<Db>>
+	fn route<TEntity>() -> MethodRouter<Pool<Db>>
 	where
 		TEntity: Deletable<Db = Db> + Updatable<Db = Db>,
 	{
@@ -113,7 +106,8 @@ where
 
 	/// Create the [`Router`] that will be used by the [`Server`].
 	fn router<C, E, J, L, O, T, X>(
-		session_manager: SessionManager<Db>,
+		pool: Pool<Db>,
+		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> Router
 	where
@@ -147,8 +141,8 @@ where
 		}
 
 		router
-			.route("/login", routing::put(sessions::login))
-			.route("/refresh/logout", routing::put(sessions::logout))
+			.route("/login", routing::put(|| async { todo!() }))
+			.route("/logout", routing::put(|| async { todo!() }))
 			.route(
 				"/contact",
 				Self::route::<C>()
@@ -191,7 +185,7 @@ where
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
 			)
-			.with_state(session_manager)
+			.with_state(pool)
 	}
 }
 

@@ -1,22 +1,15 @@
 //! Contains [`From`] implementations for a [`LoginResponse`].
 
+use core::array::TryFromSliceError;
+
 use axum::http::StatusCode;
-use base64_url::base64::DecodeError;
 
 use super::LogoutResponse;
-use crate::api::{Status, TokenParseError};
+use crate::api::Status;
 
-impl From<&DecodeError> for LogoutResponse
+impl From<&TryFromSliceError> for LogoutResponse
 {
-	fn from(error: &DecodeError) -> Self
-	{
-		Self::new(StatusCode::BAD_REQUEST, Status::from(error))
-	}
-}
-
-impl From<&TokenParseError> for LogoutResponse
-{
-	fn from(error: &TokenParseError) -> Self
+	fn from(error: &TryFromSliceError) -> Self
 	{
 		Self::new(StatusCode::BAD_REQUEST, Status::from(error))
 	}
