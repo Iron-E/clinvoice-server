@@ -20,7 +20,7 @@ where
 			.field("connect_options", &self.connect_options)
 			.field("refresh_by_id", &self.refresh_by_id)
 			.field("refresh_ttl", &self.refresh_ttl)
-			.field("session_ttl", &self.session_ttl_core)
+			.field("session_ttl", &self.session_idle)
 			.field("session_by_id", &self.sessions_by_id)
 			.finish_non_exhaustive()
 	}

@@ -15,8 +15,8 @@ where
 			refresh_by_id: self.refresh_by_id.clone(),
 			refresh_secret: self.refresh_secret.clone(),
 			refresh_ttl: self.refresh_ttl,
-			session_ttl_core: self.session_ttl_core,
-			session_ttl_time: self.session_ttl_time,
+			session_idle: self.session_idle,
+			session_ttl: self.session_ttl,
 			sessions_by_id: self.sessions_by_id.clone(),
 		}
 	}

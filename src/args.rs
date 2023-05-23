@@ -46,26 +46,35 @@ pub struct Args
 	/// least 32-bytes.
 	///
 	/// If one is not provided, a random one will be generated.
-	#[arg(long, short)]
+	#[arg(long, short = 'S', value_name = "KEY")]
 	refresh_secret: Option<Vec<u8>>,
 
 	/// The maximum duration that a user may be logged in before requiring them to log in again.
 	#[arg(
 		default_value = "1month",
-		num_args = 0..=1,
 		long,
-		short = 'x',
+		short,
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
 	refresh_ttl: Duration,
 
-	/// The amount of time that a connection may be held open by an idle user before it is closed.
+	/// The amount of time that a [`Database`](sqlx::Database) connection may be held open by an
+	/// user before it is closed.
 	#[arg(
-		default_value = "5min",
-		num_args = 0..=1,
+		default_value = "1ms",
 		long,
 		short = 'i',
+		value_name = "DURATION",
+		value_parser = humantime::parse_duration,
+	)]
+	session_idle: Duration,
+
+	/// The amount of time that a session is valid for.
+	#[arg(
+		default_value = "5min",
+		long,
+		short,
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
@@ -93,7 +102,8 @@ impl Args
 	{
 		let refresh_secret =
 			self.refresh_secret.map_or_else(Key::generate, |s| Key::derive_from(&s));
-		let refresh_ttl: time::Duration = (self.session_ttl).try_into()?;
+		let refresh_ttl = time::Duration::try_from(self.session_ttl)?;
+		let session_ttl = time::Duration::try_from(self.session_ttl)?;
 		let tls = RustlsConfig::from_pem_file(self.certificate, self.key).await?;
 
 		match self.command
@@ -104,7 +114,8 @@ impl Args
 				self.domain,
 				refresh_secret,
 				refresh_ttl,
-				self.session_ttl,
+				self.session_idle,
+				session_ttl,
 				self.timeout,
 				tls,
 			),

@@ -55,10 +55,10 @@ where
 	/// The amount of time that an active connection should be idle before it is shut down.
 	///
 	/// Stored in [`core::time`] format.
-	session_ttl_core: Duration,
+	session_idle: Duration,
 
 	/// The `session_ttl_core` but with [`time`] format.
-	session_ttl_time: time::Duration,
+	session_ttl: time::Duration,
 
 	/// The users who are currently connected to the database.
 	sessions_by_id: SyncMap<Uuid, Pool<Db>>,
@@ -80,18 +80,18 @@ where
 		domain: String,
 		refresh_secret: Key,
 		refresh_ttl: time::Duration,
-		session_ttl: Duration,
+		session_idle: Duration,
+		session_ttl: time::Duration,
 	) -> Self
 	{
 		Self {
 			connect_options,
 			domain,
-			refresh_secret,
 			refresh_by_id: Arc::new(RwLock::new(HashMap::new())),
+			refresh_secret,
 			refresh_ttl,
-			session_ttl_core: session_ttl,
-			session_ttl_time: time::Duration::try_from(session_ttl)
-				.expect("`core::time::Duration` should form valid `time::Duration`"),
+			session_idle,
+			session_ttl,
 			sessions_by_id: Arc::new(RwLock::new(HashMap::new())),
 		}
 	}
@@ -108,7 +108,7 @@ where
 	) -> impl IntoResponse
 	{
 		let pool = match PoolOptions::<Db>::new()
-			.idle_timeout(self.session_ttl_core)
+			.idle_timeout(self.session_idle)
 			.max_connections(1)
 			.connect_with(self.connect_options.clone().login(username, password))
 			.await
@@ -163,7 +163,7 @@ where
 			SESSION_ID_KEY,
 			session_id.to_string(),
 			self.domain.clone(),
-			OffsetDateTime::now_utc() + self.session_ttl_time,
+			OffsetDateTime::now_utc() + self.session_ttl,
 		);
 
 		futures::join!(

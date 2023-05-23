@@ -72,7 +72,8 @@ impl Postgres
 		domain: String,
 		refresh_secret: Key,
 		refresh_ttl: time::Duration,
-		session_ttl: Duration,
+		session_idle: Duration,
+		session_ttl: time::Duration,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
 	) -> DynResult<()>
@@ -103,8 +104,14 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		let session_manager =
-			SessionManager::new(connect_options, domain, refresh_secret, refresh_ttl, session_ttl);
+		let session_manager = SessionManager::new(
+			connect_options,
+			domain,
+			refresh_secret,
+			refresh_ttl,
+			session_idle,
+			session_ttl,
+		);
 		Server::new(address, session_manager, timeout, tls)
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
 			)
