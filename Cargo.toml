@@ -1,95 +1,103 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
-name = "winvoice-server"
-version = "0.1.0-alpha.1"
-authors = ["Iron-E <code.iron.e@gmail.com>"]
-description = "HTTP server to run Winvoice commands on from any frontend"
+name = 'winvoice-server'
+version = '0.1.0-alpha.1'
+authors = ['Iron-E <code.iron.e@gmail.com>']
+description = 'HTTP server to run Winvoice commands on from any frontend'
 
-categories = ["command-line-utilities", "database", "web-programming::http-server"]
-edition = "2021"
-keywords = ["backend", "cli", "command", "command-line", "freelance", "invoice", "line", "server"]
-license = "GPL3"
-readme = "README.md"
-repository = "https://www.github.com/Iron-E/winvoice-server"
+categories = ['command-line-utilities', 'database', 'web-programming::http-server']
+edition = '2021'
+keywords = ['backend', 'cli', 'command', 'command-line', 'freelance', 'invoice', 'line', 'server']
+license = 'GPL3'
+readme = 'README.md'
+repository = 'https://www.github.com/Iron-E/winvoice-server'
 
 [dependencies]
-argon2 = {optional = true, version = "0.5"}
-async-trait = {optional = true, version = "0.1"}
-axum = {features = ["headers"], optional = true, version = "0.6"}
-axum-login = {features = ["sqlx"], optional = true, version = "0.5"}
-axum-server = {optional = true, features = ["tls-rustls"], version = "0.5"}
-axum-sessions = {optional = true, version = "0.5"}
-casbin = {optional = true, version = "2"}
-clap = {features = ["derive", "env"], optional = true, version = "4"}
-futures = {optional = true, version = "0.3"}
-humantime = {optional = true, version = "2"}
-money2 = {features = ["serde"], optional = true, version = "0.8"}
-rand = {optional = true, version = "0.8"}
-semver = {optional = true, version = "1"}
-serde = "1"
-sqlx = {features = ["runtime-tokio-rustls", "tls"], optional = true, version = "0.5"}
-tokio = {features = ["macros", "rt-multi-thread"], optional = true, version = "1"}
-tower = {features = ["timeout"], optional = true, version = "0.4"}
-watchman_client = {optional = true, version = "0.8"}
+argon2 = {optional = true, version = '0.5'}
+async-trait = {optional = true, version = '0.1'}
+axum = {features = ['headers'], optional = true, version = '0.6'}
+axum-login = {features = ['sqlx'], optional = true, version = '0.5'}
+axum-server = {optional = true, features = ['tls-rustls'], version = '0.5'}
+axum-sessions = {optional = true, version = '0.5'}
+casbin = {optional = true, version = '2'}
+clap = {features = ['derive', 'env'], optional = true, version = '4'}
+dirs = {optional = true, version = '5'}
+futures = {optional = true, version = '0.3'}
+humantime = {optional = true, version = '2'}
+money2 = {features = ['serde'], optional = true, version = '0.8'}
+rand = {optional = true, version = '0.8'}
+semver = {optional = true, version = '1'}
+serde = '1'
+sqlx = {features = ['runtime-tokio-rustls', 'tls'], optional = true, version = '0.5'}
+tokio = {features = ['macros', 'rt-multi-thread'], optional = true, version = '1'}
+tower = {features = ['timeout'], optional = true, version = '0.4'}
+tracing = {optional = true, version = '0.1'}
+tracing-appender = {optional = true, version = '0.2'}
+tracing-subscriber = {optional = true, version = '0.3'}
+watchman_client = {optional = true, version = '0.8'}
 
 [dependencies.tower-http]
-features = ["compression-br", "compression-deflate", "compression-gzip", "compression-zstd"]
+features = ['compression-br', 'compression-deflate', 'compression-gzip', 'compression-zstd', 'trace']
 optional = true
-version = "0.4"
+version = '0.4'
 
 [dependencies.winvoice-adapter]
-branch = "release/0.19"
+branch = 'release/0.19'
 default-features = false
-git = "https://github.com/Iron-E/winvoice-adapter"
+git = 'https://github.com/Iron-E/winvoice-adapter'
 optional = true
 
 [dependencies.winvoice-adapter-postgres]
-branch = "release/0.9"
-git = "https://github.com/Iron-E/winvoice-adapter-postgres"
+branch = 'release/0.9'
+git = 'https://github.com/Iron-E/winvoice-adapter-postgres'
 optional = true
 
 [dependencies.winvoice-export]
-branch = "release/0.3"
-features = ["markdown"]
-git = "https://github.com/Iron-E/winvoice-export"
+branch = 'release/0.3'
+features = ['markdown']
+git = 'https://github.com/Iron-E/winvoice-export'
 optional = true
 
 [dependencies.winvoice-match]
-branch = "release/0.9"
-features = ["serde"]
-git = "https://github.com/Iron-E/winvoice-match"
+branch = 'release/0.9'
+features = ['serde']
+git = 'https://github.com/Iron-E/winvoice-match'
 
 [dependencies.winvoice-schema]
-branch = "release/0.12"
-features = ["serde"]
-git = "https://github.com/Iron-E/winvoice-schema"
+branch = 'release/0.12'
+features = ['serde']
+git = 'https://github.com/Iron-E/winvoice-schema'
 
 [dev-dependencies]
-dotenvy = "0.15"
-pretty_assertions = "1"
+dotenvy = '0.15'
+pretty_assertions = '1'
 
 [features]
 bin = [
-	"argon2",
-	"async-trait",
-	"axum",
-	"axum-login",
-	"axum-server",
-	"axum-sessions",
-	"casbin",
-	"clap",
-	"futures",
-	"humantime",
-	"money2",
-	"semver",
-	"sqlx",
-	"tokio",
-	"rand",
-	"tower",
-	"tower-http",
-	"watchman_client",
-	"winvoice-adapter",
-	"winvoice-export",
+	'argon2',
+	'async-trait',
+	'axum',
+	'axum-login',
+	'axum-server',
+	'axum-sessions',
+	'casbin',
+	'clap',
+	'dirs',
+	'futures',
+	'humantime',
+	'money2',
+	'rand',
+	'semver',
+	'sqlx',
+	'tokio',
+	'tower',
+	'tower-http',
+	'tracing',
+	'tracing-appender',
+	'tracing-subscriber',
+	'watchman_client',
+	'winvoice-adapter',
+	'winvoice-export',
 ]
-default = ["postgres"]
-postgres = ["axum-login/postgres", "bin", "winvoice-adapter-postgres", "sqlx/postgres"]
+default = ['postgres']
+postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/postgres']

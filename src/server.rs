@@ -18,7 +18,7 @@ pub use response::{LoginResponse, LogoutResponse, Response};
 use sqlx::{Connection, Database, Executor, Pool, Transaction};
 use state::State;
 use tower::{timeout, ServiceBuilder};
-use tower_http::compression::CompressionLayer;
+use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use winvoice_adapter::{
 	schema::{
 		ContactAdapter,
@@ -119,7 +119,7 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut router = Router::new().layer(CompressionLayer::new());
+		let mut router = Router::new();
 
 		if let Some(t) = timeout
 		{
@@ -141,8 +141,10 @@ where
 		}
 
 		router
-			.route("/login", routing::put(|| async { todo!() }))
-			.route("/logout", routing::put(|| async { todo!() }))
+			.layer(CompressionLayer::new())
+			.layer(TraceLayer::new_for_http())
+			.route("/login", routing::put(|| async { todo("login") }))
+			.route("/logout", routing::put(|| async { todo("logout") }))
 			.route(
 				"/contact",
 				Self::route::<C>()

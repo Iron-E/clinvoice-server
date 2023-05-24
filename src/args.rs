@@ -16,6 +16,7 @@ use command::Command;
 use futures::TryFutureExt;
 use rand::Rng;
 use tokio::task::JoinHandle;
+use tracing::{level_filters::LevelFilter, Instrument};
 use watchman_client::{
 	expr::{Expr, NameTerm},
 	fields::NameOnly,
@@ -55,7 +56,7 @@ pub struct Args
 	#[arg(
 		default_value = "30s",
 		long,
-		short = 'i',
+		short = 'I',
 		value_name = "DURATION",
 		value_parser = humantime::parse_duration,
 	)]
@@ -65,13 +66,38 @@ pub struct Args
 	#[arg(long, short, value_name = "FILE")]
 	key: PathBuf,
 
+	/// The directory where the log is stored.
+	///
+	/// When unspecified, uses [`dirs::state_dir`] or [`dirs::data_local_dir`]— whichever can be
+	/// resolved.
+	#[arg(long, short = 'D')]
+	log_dir: Option<PathBuf>,
+
+	/// How often new log files will be generated.
+	#[arg(
+		default_value_t = String::from("daily"),
+		long,
+		short = 'R',
+		value_parser = ["daily", "hourly", "minutely", "never"],
+	)]
+	log_rotation: String,
+
+	/// The log level for the server. Any events which occur below this level are not logged.
+	#[arg(
+		default_value_t = LevelFilter::ERROR,
+		long,
+		short,
+		value_parser = ["trace", "debug", "info", "warn", "error", "off"],
+	)]
+	log_level: LevelFilter,
+
 	/// A [`casbin`] model. See [the docs](https://casbin.org/docs/supported-models) for more
 	/// information.
 	///
-	/// If none is passed, the [`DefaultModel`](casbin::DefaultModel)
+	/// If none is passed, the [`DefaultModel`](casbin::DefaultModel) will be used.
 	///
 	/// Should be in the same folder as the `--permissions-policy`.
-	#[arg(long, short = 'm', value_name = "FILE")]
+	#[arg(long, short = 'M', value_name = "FILE")]
 	permissions_model: Option<String>,
 
 	/// A [`casbin`] policy. Try [the editor](https://casbin.org/editor).
@@ -115,11 +141,10 @@ impl Args
 	/// Run the Winvoice server.
 	pub async fn run(self) -> DynResult<()>
 	{
-		let model_path = self.permissions_model.map(|s| {
-			let l: &'static str = Box::leak(s.into_boxed_str());
-			l
-		});
-		let policy_path: &'static str = Box::leak(self.permissions_policy.into_boxed_str());
+		init_tracing(self.log_level, self.log_dir, &self.log_rotation)?;
+
+		let model_path = self.permissions_model.map(leak_string);
+		let policy_path = leak_string(self.permissions_policy);
 
 		let (permissions, tls) = futures::try_join!(
 			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into::<DynError>(),
@@ -146,6 +171,44 @@ impl Args
 		}
 		.await
 	}
+}
+
+/// Initialize [`tracing`] using the [`tracing_appender`] implementation of
+/// [`tracing_subscriber`].
+fn init_tracing(
+	log_level: LevelFilter,
+	log_dir: Option<PathBuf>,
+	log_rotation: &str,
+) -> DynResult<()>
+{
+	let dir = log_dir
+		.or_else(|| {
+			dirs::state_dir().or_else(dirs::data_local_dir).map(|mut d| {
+				d.push("winvoice-server");
+				d
+			})
+		})
+		.ok_or_else(|| {
+			"Could not find suitable `--log-dir`. Please specify it manually.".to_owned()
+		})?;
+
+	let (non_blocking, _) = tracing_appender::non_blocking(match log_rotation
+	{
+		"daily" => tracing_appender::rolling::daily,
+		"hourly" => tracing_appender::rolling::hourly,
+		"minutely" => tracing_appender::rolling::minutely,
+		"never" => tracing_appender::rolling::never,
+		r => unreachable!("`--log-rotation` was an unexpected value: {r}"),
+	}(dir, "server.log"));
+
+	tracing_subscriber::fmt().with_max_level(log_level).with_writer(non_blocking).init();
+	Ok(())
+}
+
+/// Convert `s` into a `'static` [`str`] by [`Box::leak`]ing it.
+fn leak_string(s: String) -> &'static str
+{
+	Box::leak(s.into_boxed_str())
 }
 
 /// Watch the `model_path` and `policy_path` for changes, reloading the `permissions` when they are
@@ -178,6 +241,8 @@ fn watch_permissions(
 				names.paths.push(file_name(p));
 			}
 
+			tracing::info!("Watching for file changes to {names:?}");
+
 			let (mut subscription, _) = client
 				.subscribe::<NameOnly>(&root, SubscribeRequest {
 					expression: Some(Expr::Name(names)),
@@ -192,13 +257,25 @@ fn watch_permissions(
 				{
 					SubscriptionData::Canceled =>
 					{
-						println!("Watchman stopped. Hot reloading of permissions is disabled.");
+						tracing::info!(
+							"Watchman stopped unexpectedly. Hot reloading permissions is disabled."
+						);
 						break;
 					},
-					SubscriptionData::FilesChanged(_) =>
+					SubscriptionData::FilesChanged(query) =>
 					{
+						tracing::trace!("Notified of file change: {query:?}");
+						let enforcer = match Enforcer::new(model_path, policy_path).await
+						{
+							Ok(e) => e,
+							Err(e) =>
+							{
+								tracing::debug!("Could not reload permissions: {e}");
+								continue;
+							},
+						};
 						let mut p = permissions.write().await;
-						*p = Enforcer::new(model_path, policy_path).await?;
+						*p = enforcer;
 					},
 					_ => (),
 				}
@@ -206,6 +283,7 @@ fn watch_permissions(
 
 			Ok(())
 		}
+		.instrument(tracing::info_span!("Hot-reloading Permissions"))
 	})
 }
 
@@ -251,11 +329,8 @@ p, bob, data2, write
 		)
 		.unwrap();
 
-		let model_path_str: &'static str =
-			Box::leak(model_path.to_string_lossy().to_string().into_boxed_str());
-
-		let policy_path_str: &'static str =
-			Box::leak(policy_path.to_string_lossy().to_string().into_boxed_str());
+		let model_path_str = leak_string(model_path.to_string_lossy().to_string());
+		let policy_path_str = leak_string(policy_path.to_string_lossy().to_string());
 
 		let permissions = lock::new(Enforcer::new(model_path_str, policy_path_str).await.unwrap());
 		super::watch_permissions(permissions, Some(model_path_str), policy_path_str);
