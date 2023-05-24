@@ -2,6 +2,7 @@ use core::time::Duration;
 use std::{net::SocketAddr, path::PathBuf};
 
 use axum_server::tls_rustls::RustlsConfig;
+use casbin::Enforcer;
 use clap::Args;
 use sqlx::{
 	pool::PoolOptions,
@@ -17,7 +18,11 @@ use winvoice_adapter_postgres::schema::{
 	PgTimesheet,
 };
 
-use crate::{server::Server, DynResult};
+use crate::{
+	lock::Lock,
+	server::{Server, State},
+	DynResult,
+};
 
 /// Spawn a Winvoice Server which interacts which a Postgres Database.
 #[derive(Args, Clone, Debug)]
@@ -78,6 +83,7 @@ impl Postgres
 		self,
 		address: SocketAddr,
 		connection_idle: Duration,
+		permissions: Lock<Enforcer>,
 		secret: Vec<u8>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
@@ -117,7 +123,7 @@ impl Postgres
 
 		Server::new(address, tls)
 			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgExpenses>(
-				pool,
+				State::new(permissions, pool),
 				session_ttl,
 				timeout,
 			)

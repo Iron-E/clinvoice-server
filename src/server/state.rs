@@ -1,9 +1,14 @@
 //! Contains data and functions for the [`State`] which is shared by the [`Server`](super::Server).
 
+mod clone;
+
 use casbin::{CoreApi, EnforceArgs, Enforcer};
 use sqlx::{Database, Pool};
 
-use crate::permissions::{Action, Object};
+use crate::{
+	lock::Lock,
+	permissions::{Action, Object},
+};
 
 /// The state which is shared by the server.
 pub struct State<Db>
@@ -11,7 +16,7 @@ where
 	Db: Database,
 {
 	/// The user permissions.
-	permissions: Enforcer,
+	permissions: Lock<Enforcer>,
 
 	/// The [`Pool`] of connections to the [`Database`].
 	pool: Pool<Db>,
@@ -22,13 +27,13 @@ where
 	Db: Database,
 {
 	/// Create new [`State`]
-	pub const fn new(permissions: Enforcer, pool: Pool<Db>) -> Self
+	pub const fn new(permissions: Lock<Enforcer>, pool: Pool<Db>) -> Self
 	{
 		Self { pool, permissions }
 	}
 
 	/// Check whether `subject` has permission to `action` on `object`.
-	pub fn has_permission<TSubject>(
+	pub async fn has_permission<TSubject>(
 		&self,
 		subject: TSubject,
 		object: Object,
@@ -37,7 +42,7 @@ where
 	where
 		(TSubject, Object, Action): EnforceArgs,
 	{
-		self.permissions.enforce((subject, object, action))
+		self.permissions.read().await.enforce((subject, object, action))
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].

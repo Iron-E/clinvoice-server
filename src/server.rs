@@ -14,9 +14,10 @@ use axum::{
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
+use casbin::Enforcer;
 pub use response::{LoginResponse, LogoutResponse, Response};
 use sqlx::{Connection, Database, Executor, Pool, Transaction};
-use state::State;
+pub use state::State;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use winvoice_adapter::{
@@ -30,10 +31,11 @@ use winvoice_adapter::{
 		TimesheetAdapter,
 	},
 	Deletable,
+	Retrievable,
 	Updatable,
 };
 
-use crate::DynResult;
+use crate::{lock::Lock, DynResult};
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -72,7 +74,7 @@ where
 	/// Operations `timeout`, if specified.
 	pub async fn serve<C, E, J, L, O, T, X>(
 		self,
-		pool: Pool<Db>,
+		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<()>
@@ -87,7 +89,8 @@ where
 	{
 		axum_server::bind_rustls(self.address, self.tls)
 			.serve(
-				Self::router::<C, E, J, L, O, T, X>(pool, session_ttl, timeout).into_make_service(),
+				Self::router::<C, E, J, L, O, T, X>(state, session_ttl, timeout)
+					.into_make_service(),
 			)
 			.await?;
 
@@ -96,9 +99,9 @@ where
 
 	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
 	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<TEntity>() -> MethodRouter<Pool<Db>>
+	fn route<TEntity>() -> MethodRouter<State<Db>>
 	where
-		TEntity: Deletable<Db = Db> + Updatable<Db = Db>,
+		TEntity: Deletable<Db = Db> + Retrievable<Db = Db> + Updatable<Db = Db>,
 	{
 		routing::delete(|| async { todo("Delete method not implemented") })
 			.patch(|| async { todo("Update method not implemented") })
@@ -106,7 +109,7 @@ where
 
 	/// Create the [`Router`] that will be used by the [`Server`].
 	fn router<C, E, J, L, O, T, X>(
-		pool: Pool<Db>,
+		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> Router
@@ -187,7 +190,7 @@ where
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
 			)
-			.with_state(pool)
+			.with_state(state)
 	}
 }
 

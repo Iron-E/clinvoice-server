@@ -158,6 +158,7 @@ impl Args
 			Command::Postgres(p) => p.run(
 				self.address,
 				self.connection_idle,
+				permissions,
 				self.secret.unwrap_or_else(|| {
 					let mut arr = [0u8; 64];
 					rand::thread_rng().fill(&mut arr);
