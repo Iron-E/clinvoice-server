@@ -20,6 +20,21 @@ impl InitUsersTable for sqlx::Postgres
 	where
 		C: Executor<'conn, Database = Self>,
 	{
+		sqlx::query!(
+			"CREATE TABLE IF NOT EXISTS users
+			(
+				employee_id bigint REFERENCES employees(id),
+				id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+				role text DEFAULT 'guest',
+				password text NOT NULL,
+				username text NOT NULL,
+
+				CONSTRAINT users__username_uq UNIQUE (username)
+			);"
+		)
+		.execute(connection)
+		.await?;
+
 		Ok(())
 	}
 }

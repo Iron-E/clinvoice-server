@@ -2,9 +2,10 @@
 
 mod clone;
 
-use casbin::{CoreApi, EnforceArgs, Enforcer};
+use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
 
+use super::auth::User;
 use crate::{
 	lock::Lock,
 	permissions::{Action, Object},
@@ -33,16 +34,18 @@ where
 	}
 
 	/// Check whether `subject` has permission to `action` on `object`.
-	pub async fn has_permission<TSubject>(
+	pub async fn has_permission(
 		&self,
-		subject: TSubject,
+		user: User,
 		object: Object,
 		action: Action,
 	) -> casbin::Result<bool>
-	where
-		(TSubject, Object, Action): EnforceArgs,
 	{
-		self.permissions.read().await.enforce((subject, object, action))
+		let permissions = self.permissions.read().await;
+		let has_permission = permissions.enforce((user.username(), object, action))? ||
+			permissions.enforce((user.role(), object, action))?;
+
+		Ok(has_permission)
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].
