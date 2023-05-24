@@ -4,7 +4,6 @@ mod postgres;
 
 use core::time::Duration;
 use std::{
-	error::Error,
 	net::SocketAddr,
 	path::{Path, PathBuf},
 };

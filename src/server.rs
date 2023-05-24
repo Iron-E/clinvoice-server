@@ -1,11 +1,13 @@
 //! The `server` module functions to spawn an [`axum_server`] which communicates over TLS.
 
+mod auth;
 mod response;
 mod state;
 
 use core::{marker::PhantomData, time::Duration};
 use std::net::SocketAddr;
 
+use auth::InitUsersTable;
 use axum::{
 	error_handling::HandleErrorLayer,
 	http::StatusCode,
@@ -14,9 +16,8 @@ use axum::{
 	Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use casbin::Enforcer;
 pub use response::{LoginResponse, LogoutResponse, Response};
-use sqlx::{Connection, Database, Executor, Pool, Transaction};
+use sqlx::{Connection, Database, Executor, Transaction};
 pub use state::State;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
@@ -35,15 +36,11 @@ use winvoice_adapter::{
 	Updatable,
 };
 
-use crate::{lock::Lock, DynResult};
+use crate::DynResult;
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
 pub struct Server<Db>
-where
-	Db: Database,
-	Db::Connection: core::fmt::Debug,
-	<Db::Connection as Connection>::Options: Clone,
 {
 	/// The [`SocketAddr`] that self server is bound to.
 	address: SocketAddr,
@@ -56,7 +53,7 @@ where
 
 impl<Db> Server<Db>
 where
-	Db: Database,
+	Db: Database + InitUsersTable,
 	Db::Connection: core::fmt::Debug,
 	<Db::Connection as Connection>::Options: Clone,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
@@ -87,13 +84,8 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		axum_server::bind_rustls(self.address, self.tls)
-			.serve(
-				Self::router::<C, E, J, L, O, T, X>(state, session_ttl, timeout)
-					.into_make_service(),
-			)
-			.await?;
-
+		let router = Self::router::<C, E, J, L, O, T, X>(state, session_ttl, timeout).await?;
+		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
 
@@ -108,11 +100,11 @@ where
 	}
 
 	/// Create the [`Router`] that will be used by the [`Server`].
-	fn router<C, E, J, L, O, T, X>(
+	async fn router<C, E, J, L, O, T, X>(
 		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
-	) -> Router
+	) -> DynResult<Router>
 	where
 		C: Deletable<Db = Db> + ContactAdapter,
 		E: Deletable<Db = Db> + EmployeeAdapter,
@@ -122,8 +114,9 @@ where
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let mut router = Router::new();
+		Db::init_users_table(state.pool()).await?;
 
+		let mut router = Router::new();
 		if let Some(t) = timeout
 		{
 			router = router.layer(
@@ -143,7 +136,7 @@ where
 			);
 		}
 
-		router
+		Ok(router
 			.layer(CompressionLayer::new())
 			.layer(TraceLayer::new_for_http())
 			.route("/login", routing::put(|| async { todo("login") }))
@@ -190,7 +183,7 @@ where
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
 			)
-			.with_state(state)
+			.with_state(state))
 	}
 }
 
