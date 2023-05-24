@@ -15,8 +15,7 @@ use clap::Parser;
 use command::Command;
 use futures::TryFutureExt;
 use rand::Rng;
-use tokio::task::JoinHandle;
-use tracing::{level_filters::LevelFilter, Instrument};
+use tracing::{instrument, level_filters::LevelFilter, Instrument, Level};
 use watchman_client::{
 	expr::{Expr, NameTerm},
 	fields::NameOnly,
@@ -151,7 +150,7 @@ impl Args
 			RustlsConfig::from_pem_file(self.certificate, self.key).err_into::<DynError>(),
 		)?;
 
-		watch_permissions(permissions.clone(), model_path, policy_path);
+		init_watchman(permissions.clone(), model_path, policy_path).await?;
 
 		match self.command
 		{
@@ -216,41 +215,41 @@ fn leak_string(s: String) -> &'static str
 ///
 /// This allows [`winvoice-server`](crate)'s permissions to be hot-reloaded while the server is
 /// running.
-fn watch_permissions(
+#[instrument(level = Level::INFO, fields(permissions, model_path, policy_path))]
+async fn init_watchman(
 	permissions: Lock<Enforcer>,
 	model_path: Option<&'static str>,
 	policy_path: &'static str,
-) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>
+) -> DynResult<()>
 {
-	tokio::spawn({
+	/// Get the [`file_name`](Path::file_name) of the [`str`]
+	fn file_name(s: &str) -> PathBuf
+	{
+		PathBuf::from(Path::new(s).file_name().unwrap())
+	}
+
+	let client = Connector::new().connect().await?;
+
+	let path = CanonicalPath::canonicalize(Path::new(policy_path).parent().unwrap())?;
+	let root = client.resolve_root(path).await?;
+
+	let mut names = NameTerm { paths: vec![file_name(policy_path)], wholename: false };
+	if let Some(p) = model_path
+	{
+		names.paths.push(file_name(p));
+	}
+
+	let (mut subscription, _) = client
+		.subscribe::<NameOnly>(&root, SubscribeRequest {
+			expression: Some(Expr::Name(names)),
+			fields: vec!["name"],
+			..Default::default()
+		})
+		.await?;
+
+	tokio::spawn(
 		async move {
-			/// Get the [`file_name`](Path::file_name) of the [`str`]
-			fn file_name(s: &str) -> PathBuf
-			{
-				PathBuf::from(Path::new(s).file_name().unwrap())
-			}
-
-			let client = Connector::new().connect().await?;
-
-			let path = CanonicalPath::canonicalize(policy_path)?;
-			let root = client.resolve_root(path).await?;
-
-			let mut names = NameTerm { paths: vec![file_name(policy_path)], wholename: false };
-			if let Some(p) = model_path
-			{
-				names.paths.push(file_name(p));
-			}
-
-			tracing::info!("Watching for file changes to {names:?}");
-
-			let (mut subscription, _) = client
-				.subscribe::<NameOnly>(&root, SubscribeRequest {
-					expression: Some(Expr::Name(names)),
-					fields: vec!["name"],
-					..Default::default()
-				})
-				.await?;
-
+			tracing::info!("Watching for file changes");
 			loop
 			{
 				match subscription.next().await?
@@ -264,8 +263,9 @@ fn watch_permissions(
 					},
 					SubscriptionData::FilesChanged(query) =>
 					{
-						tracing::trace!("Notified of file change: {query:?}");
-						let enforcer = match Enforcer::new(model_path, policy_path).await
+						tracing::trace!("Notified of file change: {query:#?}");
+						let mut p = permissions.write().await;
+						*p = match Enforcer::new(model_path, policy_path).await
 						{
 							Ok(e) => e,
 							Err(e) =>
@@ -274,39 +274,43 @@ fn watch_permissions(
 								continue;
 							},
 						};
-						let mut p = permissions.write().await;
-						*p = enforcer;
 					},
 					_ => (),
 				}
 			}
 
-			Ok(())
+			Ok::<_, watchman_client::Error>(())
 		}
-		.instrument(tracing::info_span!("Hot-reloading Permissions"))
-	})
+		.instrument(tracing::info_span!("hot_reload_permissions")),
+	);
+
+	Ok(())
 }
 
 #[cfg(test)]
 mod tests
 {
+	use std::{fs::OpenOptions, io::Write};
+
 	use tokio::fs;
+	use tracing_test::traced_test;
 
 	use super::*;
 	use crate::utils;
 
 	#[tokio::test]
+	#[traced_test]
 	async fn watch_permissions()
 	{
+		let wait = Duration::from_millis(30);
 		let temp_dir = utils::temp_dir("args::watch_permissions");
-		let model_path = temp_dir.with_file_name("model.conf");
-		let policy_path = temp_dir.with_file_name("policy.csv");
+		let model_path = temp_dir.join("model.conf");
+		let policy_path = temp_dir.join("policy.csv");
 
 		futures::try_join!(
 			fs::write(
 				&model_path,
-				r#"
-[request_definition]
+				r#"[request_definition]
 r = sub, obj, act
 
 [policy_definition]
@@ -319,13 +323,7 @@ e = some(where (p.eft == allow))
 m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
 "#,
 			),
-			fs::write(
-				&policy_path,
-				r#"
-p, alice, data1, read
-p, bob, data2, write
-"#,
-			),
+			fs::write(&policy_path, "p, alice, data1, read\n"),
 		)
 		.unwrap();
 
@@ -333,7 +331,82 @@ p, bob, data2, write
 		let policy_path_str = leak_string(policy_path.to_string_lossy().to_string());
 
 		let permissions = lock::new(Enforcer::new(model_path_str, policy_path_str).await.unwrap());
-		super::watch_permissions(permissions, Some(model_path_str), policy_path_str);
-		todo!("Try changing the files to see if the `permissions` change");
+		super::init_watchman(permissions.clone(), Some(model_path_str), policy_path_str)
+			.await
+			.unwrap();
+
+		{
+			// Assert permissions are correct
+			let p = permissions.read().await;
+			assert!(p.enforce(("alice", "data1", "read")).unwrap());
+			assert!(!p.enforce(("bob", "data2", "write")).unwrap());
+		}
+
+		{
+			let mut file = OpenOptions::new().append(true).open(&policy_path).unwrap();
+			writeln!(file, "p, bob, data2, write").unwrap();
+		}
+
+		{
+			// Assert permissions update when policy is written to
+			tokio::time::sleep(wait).await;
+			let p = permissions.read().await;
+			assert!(p.enforce(("alice", "data1", "read")).unwrap());
+			assert!(p.enforce(("bob", "data2", "write")).unwrap());
+		}
+
+		fs::write(
+			&policy_path,
+			r#"p, alice, data1, read
+p, bob, data2, write
+p, data2_admin, data2, read
+p, data2_admin, data2, write
+g, alice, data2_admin
+"#,
+		)
+		.await
+		.unwrap();
+
+		{
+			// Assert permissions remain valid when policy is written to with content that the model
+			// doesn't support
+			tokio::time::sleep(wait).await;
+			let p = permissions.read().await;
+			assert!(p.enforce(("alice", "data1", "read")).unwrap());
+			assert!(p.enforce(("bob", "data2", "write")).unwrap());
+			assert!(!p.enforce(("alice", "data2", "write")).unwrap());
+			assert!(!p.enforce(("data2_admin", "data2", "write")).unwrap());
+		}
+
+		fs::write(
+			&model_path,
+			r#"[request_definition]
+r = sub, obj, act
+
+[policy_definition]
+p = sub, obj, act
+
+[role_definition]
+g = _, _
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
+"#,
+		)
+		.await
+		.unwrap();
+
+		{
+			// Assert update to model can fix bad policy
+			tokio::time::sleep(wait).await;
+			let p = permissions.read().await;
+			assert!(p.enforce(("alice", "data1", "read")).unwrap());
+			assert!(p.enforce(("bob", "data2", "write")).unwrap());
+			assert!(p.enforce(("alice", "data2", "write")).unwrap());
+			assert!(p.enforce(("data2_admin", "data2", "write")).unwrap());
+		}
 	}
 }
