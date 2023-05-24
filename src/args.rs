@@ -208,3 +208,57 @@ fn watch_permissions(
 		}
 	})
 }
+
+#[cfg(test)]
+mod tests
+{
+	use tokio::fs;
+
+	use super::*;
+	use crate::utils;
+
+	#[tokio::test]
+	async fn watch_permissions()
+	{
+		let temp_dir = utils::temp_dir("args::watch_permissions");
+		let model_path = temp_dir.with_file_name("model.conf");
+		let policy_path = temp_dir.with_file_name("policy.csv");
+
+		futures::try_join!(
+			fs::write(
+				&model_path,
+				r#"
+[request_definition]
+r = sub, obj, act
+
+[policy_definition]
+p = sub, obj, act
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
+"#,
+			),
+			fs::write(
+				&policy_path,
+				r#"
+p, alice, data1, read
+p, bob, data2, write
+"#,
+			),
+		)
+		.unwrap();
+
+		let model_path_str: &'static str =
+			Box::leak(model_path.to_string_lossy().to_string().into_boxed_str());
+
+		let policy_path_str: &'static str =
+			Box::leak(policy_path.to_string_lossy().to_string().into_boxed_str());
+
+		let permissions = lock::new(Enforcer::new(model_path_str, policy_path_str).await.unwrap());
+		super::watch_permissions(permissions, Some(model_path_str), policy_path_str);
+		todo!("Try changing the files to see if the `permissions` change");
+	}
+}
