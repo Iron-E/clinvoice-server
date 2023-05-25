@@ -149,7 +149,10 @@ impl Args
 			RustlsConfig::from_pem_file(self.certificate, self.key).err_into::<DynError>(),
 		)?;
 
-		init_watchman(permissions.clone(), model_path, policy_path).await?;
+		if let Err(e) = init_watchman(permissions.clone(), model_path, policy_path).await
+		{
+			tracing::error!("Failed to enable hot-reloading permissions: {e}");
+		}
 
 		match self.command
 		{
@@ -215,7 +218,7 @@ fn leak_string(s: String) -> &'static str
 ///
 /// This allows [`winvoice-server`](crate)'s permissions to be hot-reloaded while the server is
 /// running.
-#[instrument(level = Level::INFO, fields(permissions, model_path, policy_path))]
+#[instrument(level = "trace")]
 async fn init_watchman(
 	permissions: Lock<Enforcer>,
 	model_path: Option<&'static str>,
@@ -252,36 +255,44 @@ async fn init_watchman(
 			tracing::info!("Watching for file changes");
 			loop
 			{
-				match subscription.next().await?
+				match subscription.next().await
 				{
-					SubscriptionData::Canceled =>
+					Ok(SubscriptionData::Canceled) =>
 					{
-						tracing::info!(
+						tracing::error!(
 							"Watchman stopped unexpectedly. Hot reloading permissions is disabled."
 						);
 						break;
 					},
-					SubscriptionData::FilesChanged(query) =>
+					Ok(SubscriptionData::FilesChanged(query)) =>
 					{
-						tracing::trace!("Notified of file change: {query:#?}");
+						tracing::debug!("Notified of file change: {query:#?}");
 						let mut p = permissions.write().await;
 						*p = match Enforcer::new(model_path, policy_path).await
 						{
 							Ok(e) => e,
 							Err(e) =>
 							{
-								tracing::debug!("Could not reload permissions: {e}");
+								tracing::info!("Could not reload permissions: {e}");
 								continue;
 							},
 						};
 					},
-					_ => (),
+					Ok(event) => tracing::trace!("Notified of ignored event: {event}"),
+					Err(e) =>
+					{
+						tracing::error!(
+							"Encountered an error while watching for file changes: {e}. Hot \
+							 reloading permissions is disabled"
+						);
+						break;
+					},
 				}
 			}
 
 			Ok::<_, watchman_client::Error>(())
 		}
-		.instrument(tracing::info_span!("hot_reload_permissions")),
+		.instrument(tracing::error_span!("hot_reload_permissions")),
 	);
 
 	Ok(())
