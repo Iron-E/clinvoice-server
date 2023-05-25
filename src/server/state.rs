@@ -5,8 +5,8 @@ mod clone;
 use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
 
-use super::auth::User;
 use crate::{
+	api::schema::User,
 	lock::Lock,
 	permissions::{Action, Object},
 };

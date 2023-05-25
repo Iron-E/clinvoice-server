@@ -3,6 +3,7 @@
 
 pub mod request;
 pub mod response;
+pub mod schema;
 mod status;
 mod token;
 
