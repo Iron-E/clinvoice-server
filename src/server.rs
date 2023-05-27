@@ -7,7 +7,6 @@ mod state;
 use core::{marker::PhantomData, time::Duration};
 use std::net::SocketAddr;
 
-use auth::InitUsersTable;
 use axum::{
 	error_handling::HandleErrorLayer,
 	http::StatusCode,
@@ -53,7 +52,7 @@ pub struct Server<Db>
 
 impl<Db> Server<Db>
 where
-	Db: Database + InitUsersTable,
+	Db: Database,
 	Db::Connection: core::fmt::Debug,
 	<Db::Connection as Connection>::Options: Clone,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
@@ -69,7 +68,7 @@ where
 	/// Create an [`Router`] based on the `connect_options`.
 	///
 	/// Operations `timeout`, if specified.
-	pub async fn serve<C, E, J, L, O, T, X>(
+	pub async fn serve<C, E, J, L, O, S, T, X>(
 		self,
 		state: State<Db>,
 		session_ttl: Duration,
@@ -81,10 +80,11 @@ where
 		J: Deletable<Db = Db> + JobAdapter,
 		L: Deletable<Db = Db> + LocationAdapter,
 		O: Deletable<Db = Db> + OrganizationAdapter,
+		S: auth::Initializable,
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		let router = Self::router::<C, E, J, L, O, T, X>(state, session_ttl, timeout).await?;
+		let router = Self::router::<C, E, J, L, O, S, T, X>(state, session_ttl, timeout).await?;
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
@@ -100,7 +100,7 @@ where
 	}
 
 	/// Create the [`Router`] that will be used by the [`Server`].
-	async fn router<C, E, J, L, O, T, X>(
+	async fn router<C, E, J, L, O, S, T, X>(
 		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
@@ -111,10 +111,11 @@ where
 		J: Deletable<Db = Db> + JobAdapter,
 		L: Deletable<Db = Db> + LocationAdapter,
 		O: Deletable<Db = Db> + OrganizationAdapter,
+		S: auth::Initializable<Db = Db>,
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		Db::init_users_table(state.pool()).await?;
+		S::init(state.pool()).await?;
 
 		let mut router = Router::new();
 		if let Some(t) = timeout

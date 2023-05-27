@@ -1,4 +1,4 @@
-//! This module contains the template for a response which is sent by the [`winvoice-server`](crate)
+//! This module contains the template for a response which is sent by the [`winvoice_server`]
 
 mod into_response;
 mod login_response;
@@ -30,7 +30,7 @@ macro_rules! new_response {
 	};
 }
 
-/// The response which the [`winvoice-server`](crate) may issue.
+/// The response which the [`winvoice_server`] may issue.
 pub struct Response<T>(StatusCode, Json<T>);
 
 impl<T> Response<T>

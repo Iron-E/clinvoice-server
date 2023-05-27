@@ -216,7 +216,7 @@ fn leak_string(s: String) -> &'static str
 /// Watch the `model_path` and `policy_path` for changes, reloading the `permissions` when they are
 /// changed.
 ///
-/// This allows [`winvoice-server`](crate)'s permissions to be hot-reloaded while the server is
+/// This allows [`winvoice_server`]'s permissions to be hot-reloaded while the server is
 /// running.
 #[instrument(level = "trace")]
 async fn init_watchman(
