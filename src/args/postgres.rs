@@ -74,6 +74,7 @@ pub struct Postgres
 impl Postgres
 {
 	/// Run the Winvoice postgres server.
+	#[allow(clippy::too_many_arguments)]
 	pub async fn run(
 		self,
 		address: SocketAddr,
@@ -117,7 +118,7 @@ impl Postgres
 			.await?;
 
 		Server::new(address, tls)
-			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgTimesheet, PgSchema, PgExpenses>(
+			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgSchema, PgTimesheet, PgExpenses>(
 				State::new(permissions, pool),
 				session_ttl,
 				timeout,

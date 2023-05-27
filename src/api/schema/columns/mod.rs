@@ -1,5 +1,7 @@
 //! Contains extensions to [`winvoice_adapter::schema::columns`] specific to the [server](crate).
 
-mod user_columns;
+mod role;
+mod user;
 
-pub use user_columns::UserColumns;
+pub use role::RoleColumns;
+pub use user::UserColumns;

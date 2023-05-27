@@ -6,15 +6,27 @@ mod table_to_sql;
 use serde::{Deserialize, Serialize};
 use winvoice_adapter::fmt::{TableToSql, WithIdentifier};
 
-/// The names of the columns of the `timesheets` table.
+/// The names of the columns of the `users` table.
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct UserColumns<T>
 {
-	/// The name of the `employee_id` column of the `timesheets` table.
+	/// The name of the `employee_id` column of the `users` table.
 	pub employee_id: T,
 
-	/// The name of the `id` column of the `timesheets` table.
+	/// The name of the `id` column of the `users` table.
 	pub id: T,
+
+	/// The name of the `password` column of the `users` table.
+	pub password: T,
+
+	/// The name of the `password_expires` column of the `users` table.
+	pub password_expires: T,
+
+	/// The name of the `role` column of the `users` table.
+	pub role: T,
+
+	/// The name of the `username` column of the `users` table.
+	pub username: T,
 }
 
 impl<T> UserColumns<T>
@@ -43,10 +55,10 @@ impl<T> UserColumns<T>
 		UserColumns {
 			employee_id: WithIdentifier(alias, self.employee_id),
 			id: WithIdentifier(alias, self.id),
-			job_id: WithIdentifier(alias, self.job_id),
-			time_begin: WithIdentifier(alias, self.time_begin),
-			time_end: WithIdentifier(alias, self.time_end),
-			work_notes: WithIdentifier(alias, self.work_notes),
+			password: WithIdentifier(alias, self.password),
+			password_expires: WithIdentifier(alias, self.password_expires),
+			role: WithIdentifier(alias, self.role),
+			username: WithIdentifier(alias, self.username),
 		}
 	}
 }
@@ -57,12 +69,12 @@ impl UserColumns<&'static str>
 	pub const fn default() -> Self
 	{
 		Self {
-			id: "id",
 			employee_id: "employee_id",
-			job_id: "job_id",
-			time_begin: "time_begin",
-			time_end: "time_end",
-			work_notes: "work_notes",
+			id: "id",
+			password: "password",
+			password_expires: "password_expires",
+			role: "role",
+			username: "usernames",
 		}
 	}
 }

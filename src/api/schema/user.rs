@@ -1,6 +1,6 @@
 //! Contains the definition for what a [`User`] row in the [`Database`](sqlx::Database) is.
 
-#![allow(clippy::std_instead_of_core)]
+#![cfg_attr(feature = "bin", allow(clippy::std_instead_of_core))]
 
 mod auth_user;
 
@@ -10,7 +10,7 @@ use winvoice_schema::{
 	Id,
 };
 
-/// Corresponds to the `users` table in the [`winvoice-server`](crate) database.
+/// Corresponds to the `users` table in the [`winvoice_server`] database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[cfg_attr(feature = "bin", derive(sqlx::FromRow))]
 pub struct User
@@ -21,14 +21,14 @@ pub struct User
 	/// The [`Id`] of the [`User`].
 	id: Id,
 
-	/// The role of the [`User`]. Controls permissions.
-	role: String,
-
 	/// Get the [`User`]'s [`argon2`]-hashed password.
 	password: String,
 
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
 	password_expires: Option<DateTime<Utc>>,
+
+	/// The role of the [`User`]. Controls permissions.
+	role: String,
 
 	/// Get the [`User`]'s username.
 	username: String,
@@ -74,9 +74,9 @@ impl User
 	}
 
 	/// Get the [`DateTime`] that the `password` was set. Used to enforce password rotation.
-	pub fn password_expires(&self) -> Option<DateTime<Utc>>
+	pub const fn password_expires(&self) -> Option<DateTime<Utc>>
 	{
-		self.password_set
+		self.password_expires
 	}
 
 	/// Get the [`User`]'s username.

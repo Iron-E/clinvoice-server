@@ -1,11 +1,11 @@
 use core::fmt::Display;
 
 use sqlx::{Database, QueryBuilder};
+use winvoice_adapter::fmt::{ColumnsToSql, QueryBuilderExt};
 
-use super::TimesheetColumns;
-use crate::fmt::{ColumnsToSql, QueryBuilderExt};
+use super::RoleColumns;
 
-impl<Column> ColumnsToSql for TimesheetColumns<Column>
+impl<Column> ColumnsToSql for RoleColumns<Column>
 where
 	Column: Copy + Display,
 {
@@ -13,14 +13,7 @@ where
 	where
 		Db: Database,
 	{
-		query
-			.separated(',')
-			.push(self.employee_id)
-			.push(self.id)
-			.push(self.job_id)
-			.push(self.time_begin)
-			.push(self.time_end)
-			.push(self.work_notes);
+		query.separated(',').push(self.id).push(self.name).push(self.password_ttl);
 	}
 
 	fn push_set_to<Db, Values>(&self, query: &mut QueryBuilder<Db>, values_alias: Values)
@@ -30,15 +23,11 @@ where
 	{
 		let values_columns = self.scope(values_alias);
 		query
-			.push_equal(self.employee_id, values_columns.employee_id)
+			.push_equal(self.id, values_columns.id)
 			.push(',')
-			.push_equal(self.job_id, values_columns.job_id)
+			.push_equal(self.name, values_columns.name)
 			.push(',')
-			.push_equal(self.time_begin, values_columns.time_begin)
-			.push(',')
-			.push_equal(self.time_end, values_columns.time_end)
-			.push(',')
-			.push_equal(self.work_notes, values_columns.work_notes);
+			.push_equal(self.password_ttl, values_columns.password_ttl);
 	}
 
 	fn push_update_where_to<Db, Table, Values>(

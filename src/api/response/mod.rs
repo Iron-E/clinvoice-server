@@ -1,5 +1,5 @@
 //! This module contains all of the responses to an HTTP [request](super::request) which the
-//! [`winvoice-server`](crate) may issue.
+//! [`winvoice_server`] may issue.
 
 mod login;
 mod logout;

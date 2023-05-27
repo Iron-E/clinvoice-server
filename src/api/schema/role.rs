@@ -1,11 +1,13 @@
 //! Contains information about the [`Role`] of a [`User`](super::User).
 
+#![cfg_attr(feature = "bin", allow(clippy::std_instead_of_core))]
+
 use core::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use winvoice_schema::Id;
 
-/// Corresponds to the `users` table in the [`winvoice-server`](crate) database.
+/// Corresponds to the `users` table in the [`winvoice_server`] database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[cfg_attr(feature = "bin", derive(sqlx::FromRow))]
 pub struct Role
@@ -25,13 +27,13 @@ pub struct Role
 impl Role
 {
 	/// Create a new [`Role`].
-	pub fn new(id: Id, name: String, password_ttl: Option<Duration>) -> Self
+	pub const fn new(id: Id, name: String, password_ttl: Option<Duration>) -> Self
 	{
 		Self { id, name, password_ttl }
 	}
 
 	/// The unique identity of the [`Role`].
-	pub fn id(&self) -> i64
+	pub const fn id(&self) -> i64
 	{
 		self.id
 	}
@@ -45,7 +47,7 @@ impl Role
 	/// How frequent password rotation must occur for [`User`](super::User) with this [`Role`].
 	///
 	/// [`None`] indicates that the password lasts forever.
-	pub fn password_ttl(&self) -> Option<Duration>
+	pub const fn password_ttl(&self) -> Option<Duration>
 	{
 		self.password_ttl
 	}

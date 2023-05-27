@@ -14,7 +14,7 @@ use clap::Parser;
 use command::Command;
 use futures::TryFutureExt;
 use rand::Rng;
-use tracing::{instrument, level_filters::LevelFilter, Instrument, Level};
+use tracing::{instrument, level_filters::LevelFilter, Instrument};
 use watchman_client::{
 	expr::{Expr, NameTerm},
 	fields::NameOnly,
@@ -218,7 +218,7 @@ fn leak_string(s: String) -> &'static str
 ///
 /// This allows [`winvoice_server`]'s permissions to be hot-reloaded while the server is
 /// running.
-#[instrument(level = "trace")]
+#[instrument(level = "trace", skip(permissions))]
 async fn init_watchman(
 	permissions: Lock<Enforcer>,
 	model_path: Option<&'static str>,
@@ -278,7 +278,7 @@ async fn init_watchman(
 							},
 						};
 					},
-					Ok(event) => tracing::trace!("Notified of ignored event: {event}"),
+					Ok(event) => tracing::trace!("Notified of ignored event: {event:?}"),
 					Err(e) =>
 					{
 						tracing::error!(

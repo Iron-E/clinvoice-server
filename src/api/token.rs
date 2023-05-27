@@ -1,4 +1,4 @@
-//! This module contains data types which are used by [`winvoice-server`](crate) to refer to a
+//! This module contains data types which are used by [`winvoice_server`] to refer to a
 //! unique user identity.
 
 /// A refresh token.

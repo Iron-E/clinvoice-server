@@ -31,10 +31,12 @@ use winvoice_adapter::{
 		TimesheetAdapter,
 	},
 	Deletable,
+	Initializable,
 	Retrievable,
 	Updatable,
 };
 
+use self::auth::InitializableWithAuthorization;
 use crate::DynResult;
 
 /// A Winvoice server.
@@ -80,7 +82,7 @@ where
 		J: Deletable<Db = Db> + JobAdapter,
 		L: Deletable<Db = Db> + LocationAdapter,
 		O: Deletable<Db = Db> + OrganizationAdapter,
-		S: auth::Initializable,
+		S: Initializable<Db = Db> + InitializableWithAuthorization,
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
@@ -111,11 +113,11 @@ where
 		J: Deletable<Db = Db> + JobAdapter,
 		L: Deletable<Db = Db> + LocationAdapter,
 		O: Deletable<Db = Db> + OrganizationAdapter,
-		S: auth::Initializable<Db = Db>,
+		S: Initializable<Db = Db> + InitializableWithAuthorization,
 		T: Deletable<Db = Db> + TimesheetAdapter,
 		X: Deletable<Db = Db> + ExpensesAdapter,
 	{
-		S::init(state.pool()).await?;
+		S::init_with_auth(state.pool()).await?;
 
 		let mut router = Router::new();
 		if let Some(t) = timeout
