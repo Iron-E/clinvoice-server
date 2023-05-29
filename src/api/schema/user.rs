@@ -85,3 +85,7 @@ impl User
 		self.username.as_ref()
 	}
 }
+
+/// A [`User`] which has specialized implementations for the [`Postgres`](sqlx::Postgres) database.
+#[cfg(feature = "postgres")]
+pub struct PgUser;

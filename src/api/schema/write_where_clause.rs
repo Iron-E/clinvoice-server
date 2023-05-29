@@ -19,6 +19,7 @@ mod postgres
 		PgSchema,
 	};
 
+	#[allow(clippy::wildcard_imports)]
 	use super::*;
 
 	impl WriteWhereClause<Postgres, &MatchRole> for PgSchema
