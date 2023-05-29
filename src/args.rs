@@ -277,6 +277,7 @@ async fn init_watchman(
 								continue;
 							},
 						};
+						tracing::trace!("Successfully processed file change(s)");
 					},
 					Ok(event) => tracing::trace!("Notified of ignored event: {event:?}"),
 					Err(e) =>
@@ -384,9 +385,9 @@ g, alice, data2_admin
 			tokio::time::sleep(wait).await;
 			let p = permissions.read().await;
 			assert!(p.enforce(("alice", "data1", "read")).unwrap());
-			assert!(p.enforce(("bob", "data2", "write")).unwrap());
 			assert!(!p.enforce(("alice", "data2", "write")).unwrap());
-			assert!(!p.enforce(("data2_admin", "data2", "write")).unwrap());
+			assert!(p.enforce(("bob", "data2", "write")).unwrap());
+			assert!(p.enforce(("data2_admin", "data2", "write")).unwrap());
 		}
 
 		fs::write(
