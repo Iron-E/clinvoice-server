@@ -68,6 +68,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "android-tzdata"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -647,13 +653,13 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.24"
+version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e3c5919066adf22df73762e50cffcde3a758f2a848b113b586d1f86728b673b"
+checksum = "fdbc37d37da9e5bce8173f3a41b71d9bf3c674deebbaceacd0ebdabde76efb03"
 dependencies = [
+ "android-tzdata",
  "iana-time-zone",
  "js-sys",
- "num-integer",
  "num-traits",
  "serde",
  "time 0.1.45",
@@ -1798,9 +1804,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.17.1"
+version = "1.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
+checksum = "9670a07f94779e00908f3e686eab508878ebb390ba6e604d3a284c00e8d0487b"
 
 [[package]]
 name = "opaque-debug"
@@ -3798,8 +3804,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter"
-version = "0.20.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.20#3ea2872fd4472446b390d9c4d8b616fa6d28c069"
+version = "0.20.2"
+source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.20#284206f11af8fb5adccf03d2cb5035bdbb6989ed"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
@@ -3810,8 +3816,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter-postgres"
-version = "0.10.2"
-source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.10#3ef615ccfe0e5da3f5d2729649e8bd7a1c22df00"
+version = "0.10.4"
+source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.10#4cabf915e009d7a14eea41bec6b4054d5e122197"
 dependencies = [
  "async-trait",
  "futures 0.3.28",

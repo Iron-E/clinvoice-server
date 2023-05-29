@@ -52,7 +52,3 @@ impl Role
 		self.password_ttl
 	}
 }
-
-/// A [`Role`] which has specialized implementations for the [`Postgres`](sqlx::Postgres) database.
-#[cfg(feature = "postgres")]
-pub struct PgRole;
