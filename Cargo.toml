@@ -25,6 +25,7 @@ clap = {features = ['derive', 'env'], optional = true, version = '4'}
 dirs = {optional = true, version = '5'}
 futures = {optional = true, version = '0.3'}
 humantime = {optional = true, version = '2'}
+humantime-serde = '1'
 money2 = {features = ['serde'], optional = true, version = '0.8'}
 rand = {optional = true, version = '0.8'}
 semver = {optional = true, version = '1'}

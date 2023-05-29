@@ -3879,6 +3879,7 @@ dependencies = [
  "dotenvy",
  "futures 0.3.28",
  "humantime",
+ "humantime-serde",
  "money2",
  "pretty_assertions",
  "rand",

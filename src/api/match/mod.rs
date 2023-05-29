@@ -3,5 +3,5 @@
 mod role;
 mod user;
 
-// pub use role::MatchRole;
+pub use role::MatchRole;
 pub use user::MatchUser;

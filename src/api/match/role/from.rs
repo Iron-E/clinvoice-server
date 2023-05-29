@@ -1,8 +1,8 @@
-//! Contains [`From`] implementations for [`MatchUser`].
+//! Contains [`From`] implementations for [`MatchRole`].
 
-use super::{Id, Match, MatchUser};
+use super::{Id, Match, MatchRole};
 
-impl From<Id> for MatchTimesheet
+impl From<Id> for MatchRole
 {
 	fn from(id: Id) -> Self
 	{
@@ -10,7 +10,7 @@ impl From<Id> for MatchTimesheet
 	}
 }
 
-impl From<Match<Id>> for MatchTimesheet
+impl From<Match<Id>> for MatchRole
 {
 	fn from(match_condition: Match<Id>) -> Self
 	{
