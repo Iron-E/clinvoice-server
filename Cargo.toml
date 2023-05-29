@@ -44,13 +44,13 @@ optional = true
 version = '0.4'
 
 [dependencies.winvoice-adapter]
-branch = 'release/0.19'
+branch = 'release/0.20'
 default-features = false
 git = 'https://github.com/Iron-E/winvoice-adapter'
 optional = true
 
 [dependencies.winvoice-adapter-postgres]
-branch = 'release/0.9'
+branch = 'release/0.10'
 git = 'https://github.com/Iron-E/winvoice-adapter-postgres'
 optional = true
 
@@ -61,7 +61,7 @@ git = 'https://github.com/Iron-E/winvoice-export'
 optional = true
 
 [dependencies.winvoice-match]
-branch = 'release/0.9'
+branch = 'release/0.10'
 features = ['serde']
 git = 'https://github.com/Iron-E/winvoice-match'
 
