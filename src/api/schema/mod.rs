@@ -3,6 +3,7 @@
 pub mod columns;
 mod role;
 mod user;
+mod write_where_clause;
 
 pub use role::Role;
 pub use user::User;

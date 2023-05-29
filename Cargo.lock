@@ -3810,8 +3810,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter-postgres"
-version = "0.10.1"
-source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.10#a5afc4e1c6e547c28dfc1b26ab01e6ad4b87baa5"
+version = "0.10.2"
+source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.10#3ef615ccfe0e5da3f5d2729649e8bd7a1c22df00"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
