@@ -107,3 +107,7 @@ bin = [
 ]
 default = ['postgres']
 postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/postgres']
+
+[patch.crates-io.serde]
+git = "https://github.com/dewert99/serde"
+branch = "partially_untagged"
