@@ -8,7 +8,7 @@ use winvoice_adapter::fmt::{TableToSql, WithIdentifier};
 
 /// The names of the columns of the `users` table.
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct UserColumns<T>
+pub struct UserColumns<T = &'static str>
 {
 	/// The name of the `employee_id` column of the `users` table.
 	pub employee_id: T,

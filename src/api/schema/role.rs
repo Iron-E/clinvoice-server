@@ -9,7 +9,6 @@ use winvoice_schema::Id;
 
 /// Corresponds to the `users` table in the [`winvoice_server`] database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[cfg_attr(feature = "bin", derive(sqlx::FromRow))]
 pub struct Role
 {
 	/// The unique identity of the [`Role`].

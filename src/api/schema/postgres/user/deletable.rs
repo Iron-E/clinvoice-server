@@ -29,7 +29,7 @@ impl Deletable for PgUser
 		}
 
 		// TODO: use `for<'a> |e: &'a User| e.id`
-		PgSchema::delete::<_, _, UserColumns<char>>(connection, entities.map(mapper)).await
+		PgSchema::delete::<_, _, UserColumns>(connection, entities.map(mapper)).await
 	}
 }
 

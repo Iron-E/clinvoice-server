@@ -8,7 +8,7 @@ use winvoice_adapter::fmt::{TableToSql, WithIdentifier};
 
 /// The names of the columns of the `roles` table.
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct RoleColumns<T>
+pub struct RoleColumns<T = &'static str>
 {
 	/// The name of the `id` column of the `roles` table.
 	pub id: T,
@@ -29,7 +29,7 @@ impl<T> RoleColumns<T>
 	/// * [`WithIdentifier`].
 	pub const fn default_scope(self) -> RoleColumns<WithIdentifier<char, T>>
 	{
-		self.scope(Self::DEFAULT_ALIAS)
+		self.scope(RoleColumns::DEFAULT_ALIAS)
 	}
 
 	/// Returns a [`RoleColumns`] which modifies its fields' [`Display`]
@@ -56,5 +56,58 @@ impl RoleColumns<&'static str>
 	pub const fn default() -> Self
 	{
 		Self { id: "id", name: "name", password_ttl: "password_ttl" }
+	}
+
+	/// Aliases for the columns in `roles` which are guaranteed to be unique among other
+	/// [`columns`](super)' `unique` aliases.
+	///
+	/// # Examples
+	///
+	/// ```rust
+	/// # use pretty_assertions::assert_eq;
+	/// use sqlx::{Execute, Postgres, QueryBuilder};
+	/// use winvoice_adapter::fmt::{QueryBuilderExt, sql};
+	/// use winvoice_server::api::schema::columns::*;
+	///
+	/// {
+	///   let mut query = QueryBuilder::<Postgres>::new(sql::SELECT);
+	///
+	///   // `sqlx::Row::get` ignores scopes (e.g. `E.` in `E.id`) so `R.id` and `U.id` clobber each
+	///   // other.
+	///   assert_eq!(
+	///     query
+	///       .push_columns(&RoleColumns::default().default_scope())
+	///       .push_more_columns(&UserColumns::default().default_scope())
+	///       .prepare()
+	///       .sql(),
+	///     " SELECT R.id,R.name,R.password_ttl,\
+	///         U.employee_id,U.id,U.password,U.password_expires,U.role_id,U.username;"
+	///   );
+	/// }
+	///
+	/// {
+	///   let mut query = QueryBuilder::<Postgres>::new(sql::SELECT);
+	///
+	///   // no clobbering
+	///   assert_eq!(
+	///     query
+	///       .push_columns(&UserColumns::default().default_scope())
+	///       .push_more_columns(&RoleColumns::default().default_scope().r#as(RoleColumns::unique()))
+	///       .prepare()
+	///       .sql(),
+	///     " SELECT U.employee_id,U.id,U.password,U.password_expires,U.role_id,U.username,\
+	///         R.id AS unique_8_role_id,\
+	///         R.name AS unique_8_role_name,\
+	///         R.password_ttl AS unique_8_role_password_ttl;"
+	///   );
+	/// }
+	/// ```
+	pub const fn unique() -> Self
+	{
+		Self {
+			id: "unique_8_role_id",
+			name: "unique_8_role_name",
+			password_ttl: "unique_8_role_password_ttl",
+		}
 	}
 }

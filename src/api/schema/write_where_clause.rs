@@ -67,25 +67,13 @@ mod postgres
 			Self::write_where_clause(
 				Self::write_where_clause(
 					Self::write_where_clause(
-						Self::write_where_clause(
-							Self::write_where_clause(
-								context,
-								columns.id,
-								&match_condition.id,
-								query,
-							),
-							columns.password,
-							&match_condition.password,
-							query,
-						),
-						columns.password_expires,
-						&match_condition
-							.password_expires
-							.map_ref(|m| m.map_ref(|d| PgTimestampTz(*d))),
+						Self::write_where_clause(context, columns.id, &match_condition.id, query),
+						columns.password,
+						&match_condition.password,
 						query,
 					),
-					columns.role_id,
-					&match_condition.role,
+					columns.password_expires,
+					&match_condition.password_expires.map_ref(|m| m.map_ref(|d| PgTimestampTz(*d))),
 					query,
 				),
 				columns.username,

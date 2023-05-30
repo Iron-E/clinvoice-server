@@ -29,7 +29,7 @@ impl Deletable for PgRole
 		}
 
 		// TODO: use `for<'a> |e: &'a Role| e.id`
-		PgSchema::delete::<_, _, RoleColumns<char>>(connection, entities.map(mapper)).await
+		PgSchema::delete::<_, _, RoleColumns>(connection, entities.map(mapper)).await
 	}
 }
 
