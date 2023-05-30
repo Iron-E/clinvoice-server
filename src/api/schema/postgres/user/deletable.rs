@@ -49,35 +49,6 @@ mod tests
 	#[tokio::test]
 	async fn delete()
 	{
-		let connection = util::connect().await;
-
-		// let earth = PgLocation::create(&connection, "Earth".into(), None).await.unwrap();
-
-		// let (organization, organization2, organization3) = futures::try_join!(
-		// 	PgUser::create(&connection, earth.clone(), "Some User".into()),
-		// 	PgUser::create(&connection, earth.clone(), "Some Other User".into()),
-		// 	PgUser::create(&connection, earth.clone(), "Another Other User".into(),),
-		// )
-		// .unwrap();
-
-		// // The `organization`s still depend on `earth`
-		// assert!(PgLocation::delete(&connection, [&earth].into_iter()).await.is_err());
-		// PgUser::delete(&connection, [&organization, &organization2].into_iter()).await.unwrap();
-
-		// assert_eq!(
-		// 	PgUser::retrieve(
-		// 		&connection,
-		// 		Match::Or(vec![
-		// 			organization.id.into(),
-		// 			organization2.id.into(),
-		// 			organization3.id.into()
-		// 		])
-		// 		.into(),
-		// 	)
-		// 	.await
-		// 	.unwrap()
-		// 	.as_slice(),
-		// 	&[organization3]
-		// );
+		todo!("Write test")
 	}
 }
