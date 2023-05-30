@@ -84,7 +84,7 @@ mod postgres
 							.map_ref(|m| m.map_ref(|d| PgTimestampTz(*d))),
 						query,
 					),
-					columns.role,
+					columns.role_id,
 					&match_condition.role,
 					query,
 				),

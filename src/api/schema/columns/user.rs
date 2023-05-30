@@ -23,7 +23,7 @@ pub struct UserColumns<T>
 	pub password_expires: T,
 
 	/// The name of the `role` column of the `users` table.
-	pub role: T,
+	pub role_id: T,
 
 	/// The name of the `username` column of the `users` table.
 	pub username: T,
@@ -36,7 +36,7 @@ impl<T> UserColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`].
-	pub fn default_scope(self) -> UserColumns<WithIdentifier<char, T>>
+	pub const fn default_scope(self) -> UserColumns<WithIdentifier<char, T>>
 	{
 		self.scope(Self::DEFAULT_ALIAS)
 	}
@@ -47,8 +47,7 @@ impl<T> UserColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`]
-	#[allow(clippy::missing_const_for_fn)]
-	pub fn scope<Alias>(self, alias: Alias) -> UserColumns<WithIdentifier<Alias, T>>
+	pub const fn scope<Alias>(self, alias: Alias) -> UserColumns<WithIdentifier<Alias, T>>
 	where
 		Alias: Copy,
 	{
@@ -57,7 +56,7 @@ impl<T> UserColumns<T>
 			id: WithIdentifier(alias, self.id),
 			password: WithIdentifier(alias, self.password),
 			password_expires: WithIdentifier(alias, self.password_expires),
-			role: WithIdentifier(alias, self.role),
+			role_id: WithIdentifier(alias, self.role_id),
 			username: WithIdentifier(alias, self.username),
 		}
 	}
@@ -73,7 +72,7 @@ impl UserColumns<&'static str>
 			id: "id",
 			password: "password",
 			password_expires: "password_expires",
-			role: "role",
+			role_id: "role_id",
 			username: "usernames",
 		}
 	}

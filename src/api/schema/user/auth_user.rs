@@ -1,14 +1,15 @@
 //! Contains an implementation of [`AuthUser`] for [`User`].
 
 use axum_login::{secrecy::SecretVec, AuthUser};
+use winvoice_schema::Id;
 
 use super::User;
 
-impl AuthUser<String, String> for User
+impl AuthUser<Id, Id> for User
 {
-	fn get_id(&self) -> String
+	fn get_id(&self) -> Id
 	{
-		self.username.clone()
+		self.id
 	}
 
 	fn get_password_hash(&self) -> SecretVec<u8>
@@ -16,8 +17,8 @@ impl AuthUser<String, String> for User
 		SecretVec::new(Vec::from(self.password()))
 	}
 
-	fn get_role(&self) -> Option<String>
+	fn get_role(&self) -> Option<Id>
 	{
-		Some(self.role.clone())
+		Some(self.role_id)
 	}
 }

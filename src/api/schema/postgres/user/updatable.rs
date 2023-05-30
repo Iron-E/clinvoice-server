@@ -1,9 +1,8 @@
 //! Contains an [`Updatable`] implementation for [`PgUser`]
 
 use sqlx::{Postgres, Result, Transaction};
-use winvoice_adapter::{schema::columns::UserColumns, Updatable};
+use winvoice_adapter::Updatable;
 use winvoice_adapter_postgres::PgSchema;
-use winvoice_schema::Id;
 
 use super::PgUser;
 use crate::api::schema::{columns::UserColumns, User};
@@ -36,7 +35,7 @@ impl Updatable for PgUser
 					.push_bind(e.id())
 					.push_bind(e.password())
 					.push_bind(e.password_expires())
-					.push_bind(e.role())
+					.push_bind(e.role_id())
 					.push_bind(e.username());
 			});
 		})

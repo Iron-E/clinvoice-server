@@ -27,7 +27,7 @@ impl<T> RoleColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`].
-	pub fn default_scope(self) -> RoleColumns<WithIdentifier<char, T>>
+	pub const fn default_scope(self) -> RoleColumns<WithIdentifier<char, T>>
 	{
 		self.scope(Self::DEFAULT_ALIAS)
 	}
@@ -38,8 +38,7 @@ impl<T> RoleColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`]
-	#[allow(clippy::missing_const_for_fn)]
-	pub fn scope<Alias>(self, alias: Alias) -> RoleColumns<WithIdentifier<Alias, T>>
+	pub const fn scope<Alias>(self, alias: Alias) -> RoleColumns<WithIdentifier<Alias, T>>
 	where
 		Alias: Copy,
 	{

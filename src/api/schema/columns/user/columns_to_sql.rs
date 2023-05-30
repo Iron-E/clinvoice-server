@@ -19,7 +19,7 @@ where
 			.push(self.id)
 			.push(self.password)
 			.push(self.password_expires)
-			.push(self.role)
+			.push(self.role_id)
 			.push(self.username);
 	}
 
@@ -36,7 +36,7 @@ where
 			.push(',')
 			.push_equal(self.password_expires, values_columns.password_expires)
 			.push(',')
-			.push_equal(self.role, values_columns.role)
+			.push_equal(self.role_id, values_columns.role_id)
 			.push(',')
 			.push_equal(self.username, values_columns.username);
 	}

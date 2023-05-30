@@ -1,7 +1,7 @@
 //! Contains an [`Updatable`] implementation for [`PgRole`]
 
 use sqlx::{Postgres, Result, Transaction};
-use winvoice_adapter::{schema::columns::RoleColumns, Updatable};
+use winvoice_adapter::Updatable;
 use winvoice_adapter_postgres::PgSchema;
 
 use super::PgRole;

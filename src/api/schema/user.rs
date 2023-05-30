@@ -27,8 +27,8 @@ pub struct User
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
 	password_expires: Option<DateTime<Utc>>,
 
-	/// The role of the [`User`]. Controls permissions.
-	role: String,
+	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].
+	role_id: Id,
 
 	/// Get the [`User`]'s username.
 	username: String,
@@ -40,13 +40,13 @@ impl User
 	pub const fn new(
 		employee_id: Option<Id>,
 		id: Id,
-		role: String,
+		role_id: Id,
 		password: String,
 		password_expires: Option<DateTime<Utc>>,
 		username: String,
 	) -> Self
 	{
-		Self { employee_id, id, role, password, password_expires, username }
+		Self { employee_id, id, role_id, password, password_expires, username }
 	}
 
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
@@ -56,15 +56,15 @@ impl User
 	}
 
 	/// The [`Id`] of the [`User`].
-	pub const fn id(&self) -> i64
+	pub const fn id(&self) -> Id
 	{
 		self.id
 	}
 
-	/// The role of the [`User`]. Controls permissions.
-	pub fn role(&self) -> &str
+	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].
+	pub const fn role_id(&self) -> Id
 	{
-		self.role.as_ref()
+		self.role_id
 	}
 
 	/// Get the [`User`]'s [`argon2`]-hashed password.

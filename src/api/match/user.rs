@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use winvoice_match::{Match, MatchEmployee, MatchOption, MatchStr};
 use winvoice_schema::{chrono::NaiveDateTime, Id};
 
+use super::MatchRole;
+
 /// A [`Timesheet`](winvoice_schema::Timesheet) with [matchable](winvoice_match) fields.
 ///
 /// [`MatchTimesheet`] matches IFF all of its fields also match.
@@ -69,7 +71,7 @@ pub struct MatchUser
 
 	#[allow(missing_docs)]
 	#[serde(default)]
-	pub role: MatchStr<String>,
+	pub role: MatchRole,
 
 	#[allow(missing_docs)]
 	#[serde(default)]
