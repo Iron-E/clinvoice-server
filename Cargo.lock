@@ -2707,8 +2707,7 @@ dependencies = [
 [[package]]
 name = "sqlx"
 version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8de3b03a925878ed54a954f621e64bf55a3c1bd29652d0d1a17830405350188"
+source = "git+https://github.com/Iron-E/sqlx?branch=release/0.6.3-patched#2fe173b1a48795527538a97b5b32f8ca218ca27c"
 dependencies = [
  "sqlx-core 0.6.3",
  "sqlx-macros 0.6.3",
@@ -2772,8 +2771,7 @@ dependencies = [
 [[package]]
 name = "sqlx-core"
 version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa8241483a83a3f33aa5fff7e7d9def398ff9990b2752b6c6112b83c6d246029"
+source = "git+https://github.com/Iron-E/sqlx?branch=release/0.6.3-patched#2fe173b1a48795527538a97b5b32f8ca218ca27c"
 dependencies = [
  "ahash 0.7.6",
  "atoi 1.0.0",
@@ -2844,8 +2842,7 @@ dependencies = [
 [[package]]
 name = "sqlx-macros"
 version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9966e64ae989e7e575b19d7265cb79d7fc3cbbdf179835cb0d716f294c2049c9"
+source = "git+https://github.com/Iron-E/sqlx?branch=release/0.6.3-patched#2fe173b1a48795527538a97b5b32f8ca218ca27c"
 dependencies = [
  "dotenvy",
  "either",
@@ -2874,8 +2871,7 @@ dependencies = [
 [[package]]
 name = "sqlx-rt"
 version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "804d3f245f894e61b1e6263c84b23ca675d96753b5abfd5cc8597d86806e8024"
+source = "git+https://github.com/Iron-E/sqlx?branch=release/0.6.3-patched#2fe173b1a48795527538a97b5b32f8ca218ca27c"
 dependencies = [
  "once_cell",
  "tokio",
@@ -3893,7 +3889,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "sqlx 0.5.13",
+ "sqlx 0.6.3",
  "tokio",
  "tower",
  "tower-http 0.4.0",

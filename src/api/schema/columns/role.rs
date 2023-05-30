@@ -4,7 +4,7 @@ mod columns_to_sql;
 mod table_to_sql;
 
 use serde::{Deserialize, Serialize};
-use winvoice_adapter::fmt::{TableToSql, WithIdentifier};
+use winvoice_adapter::fmt::{As, TableToSql, WithIdentifier};
 
 /// The names of the columns of the `roles` table.
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -22,6 +22,21 @@ pub struct RoleColumns<T = &'static str>
 
 impl<T> RoleColumns<T>
 {
+	/// Returns a [`RoleColumns`] which aliases the names of these [`RoleColumns`] with the
+	/// `aliased` columns provided.
+	///
+	/// # See also
+	///
+	/// * [`As`]
+	pub const fn r#as<Alias>(self, aliased: RoleColumns<Alias>) -> RoleColumns<As<T, Alias>>
+	{
+		RoleColumns {
+			id: As(self.id, aliased.id),
+			name: As(self.name, aliased.name),
+			password_ttl: As(self.password_ttl, aliased.password_ttl),
+		}
+	}
+
 	/// Add a [scope](ExpenseColumns::scope) using the [default alias](TableToSql::default_alias)
 	///
 	/// # See also

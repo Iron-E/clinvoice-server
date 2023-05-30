@@ -45,8 +45,7 @@ impl Retrievable for PgRole
 		);
 
 		query
-			.push(';')
-			.build()
+			.prepare()
 			.fetch(connection)
 			.map(|row| row.and_then(|r| Self::row_to_view(&COLUMNS, &r)))
 			.try_collect()

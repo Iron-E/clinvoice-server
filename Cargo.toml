@@ -30,7 +30,7 @@ money2 = {features = ['serde'], optional = true, version = '0.8'}
 rand = {optional = true, version = '0.8'}
 semver = {optional = true, version = '1'}
 serde = '1'
-sqlx = {features = ['runtime-tokio-rustls', 'tls'], optional = true, version = '0.5'}
+sqlx = {features = ['runtime-tokio-rustls', 'tls'], optional = true, version = '0.6'}
 tokio = {features = ['macros', 'rt-multi-thread'], optional = true, version = '1'}
 tower = {features = ['timeout'], optional = true, version = '0.4'}
 tracing = {optional = true, version = '0.1'}
@@ -112,3 +112,7 @@ postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/pos
 [patch.crates-io.serde]
 git = "https://github.com/dewert99/serde"
 branch = "partially_untagged"
+
+[patch.crates-io.sqlx]
+git = "https://github.com/Iron-E/sqlx"
+branch = "release/0.6.3-patched"
