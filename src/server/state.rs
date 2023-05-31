@@ -4,11 +4,16 @@ mod clone;
 
 use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
+use winvoice_adapter::Retrievable;
 
 use crate::{
-	api::schema::User,
+	api::{
+		r#match::MatchRole,
+		schema::{Role, User},
+	},
 	lock::Lock,
 	permissions::{Action, Object},
+	DynResult,
 };
 
 /// The state which is shared by the server.
@@ -34,18 +39,26 @@ where
 	}
 
 	/// Check whether `subject` has permission to `action` on `object`.
-	pub async fn has_permission(
+	pub async fn has_permission<R>(
 		&self,
 		user: User,
 		object: Object,
 		action: Action,
-	) -> casbin::Result<bool>
+	) -> DynResult<bool>
+	where
+		R: Retrievable<Db = Db, Entity = Role, Match = MatchRole>,
 	{
 		let permissions = self.permissions.read().await;
-		let has_permission = permissions.enforce((user.username(), object, action))? ||
-			permissions.enforce((user.role(), object, action))?;
+		if permissions.enforce((user.username(), object, action))?
+		{
+			return Ok(true);
+		}
 
-		Ok(has_permission)
+		let role = R::retrieve(&self.pool, user.role_id().into())
+			.await
+			.and_then(|mut v| v.pop().ok_or(sqlx::Error::RowNotFound))?;
+
+		permissions.enforce((role.name(), object, action)).map_err(|e| e.into())
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].
