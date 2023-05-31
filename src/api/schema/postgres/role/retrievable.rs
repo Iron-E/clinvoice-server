@@ -3,7 +3,7 @@
 use futures::{StreamExt, TryStreamExt};
 use sqlx::{Pool, Postgres, QueryBuilder, Result};
 use winvoice_adapter::{
-	fmt::{sql, QueryBuilderExt, TableToSql, WithIdentifier},
+	fmt::{sql, QueryBuilderExt, TableToSql},
 	Retrievable,
 	WriteWhereClause,
 };
@@ -30,12 +30,11 @@ impl Retrievable for PgRole
 	) -> Result<Vec<Self::Entity>>
 	{
 		const COLUMNS: RoleColumns = RoleColumns::default();
-		const COLUMNS_DEFAULT_SCOPE: RoleColumns<WithIdentifier<char, &'static str>> =
-			COLUMNS.default_scope();
 
+		let columns = COLUMNS.default_scope();
 		let mut query = QueryBuilder::new(sql::SELECT);
 
-		query.push_columns(&COLUMNS_DEFAULT_SCOPE).push_default_from::<RoleColumns>();
+		query.push_columns(&columns).push_default_from::<RoleColumns>();
 
 		PgSchema::write_where_clause(
 			Default::default(),

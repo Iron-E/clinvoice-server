@@ -36,7 +36,8 @@ impl<T> UserColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`].
-	pub const fn default_scope(self) -> UserColumns<WithIdentifier<char, T>>
+	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
+	pub fn default_scope(self) -> UserColumns<WithIdentifier<char, T>>
 	{
 		self.scope(UserColumns::DEFAULT_ALIAS)
 	}
@@ -47,7 +48,8 @@ impl<T> UserColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`]
-	pub const fn scope<Alias>(self, alias: Alias) -> UserColumns<WithIdentifier<Alias, T>>
+	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
+	pub fn scope<Alias>(self, alias: Alias) -> UserColumns<WithIdentifier<Alias, T>>
 	where
 		Alias: Copy,
 	{

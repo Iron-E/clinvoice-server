@@ -28,7 +28,8 @@ impl<T> RoleColumns<T>
 	/// # See also
 	///
 	/// * [`As`]
-	pub const fn r#as<Alias>(self, aliased: RoleColumns<Alias>) -> RoleColumns<As<T, Alias>>
+	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
+	pub fn r#as<Alias>(self, aliased: RoleColumns<Alias>) -> RoleColumns<As<T, Alias>>
 	{
 		RoleColumns {
 			id: As(self.id, aliased.id),
@@ -42,7 +43,8 @@ impl<T> RoleColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`].
-	pub const fn default_scope(self) -> RoleColumns<WithIdentifier<char, T>>
+	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
+	pub fn default_scope(self) -> RoleColumns<WithIdentifier<char, T>>
 	{
 		self.scope(RoleColumns::DEFAULT_ALIAS)
 	}
@@ -53,7 +55,8 @@ impl<T> RoleColumns<T>
 	/// # See also
 	///
 	/// * [`WithIdentifier`]
-	pub const fn scope<Alias>(self, alias: Alias) -> RoleColumns<WithIdentifier<Alias, T>>
+	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
+	pub fn scope<Alias>(self, alias: Alias) -> RoleColumns<WithIdentifier<Alias, T>>
 	where
 		Alias: Copy,
 	{

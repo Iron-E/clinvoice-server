@@ -3,7 +3,7 @@
 use futures::TryStreamExt;
 use sqlx::{Pool, Postgres, QueryBuilder, Result};
 use winvoice_adapter::{
-	fmt::{sql, As, QueryBuilderExt, TableToSql, WithIdentifier},
+	fmt::{sql, QueryBuilderExt, TableToSql},
 	Retrievable,
 	WriteWhereClause,
 };
@@ -33,21 +33,17 @@ impl Retrievable for PgUser
 	) -> Result<Vec<Self::Entity>>
 	{
 		const COLUMNS: UserColumns = UserColumns::default();
-		const COLUMNS_SCOPED: UserColumns<WithIdentifier<char, &'static str>> =
-			COLUMNS.default_scope();
+		const ROLE_COLUMNS_UNIQUE: RoleColumns = RoleColumns::unique();
 
-		const ROLE_COLUMNS: RoleColumns<WithIdentifier<char, &'static str>> =
-			RoleColumns::default().default_scope();
-		const ROLE_COLUMNS_UNIQUE: RoleColumns<As<WithIdentifier<char, &str>, &str>> =
-			ROLE_COLUMNS.r#as(RoleColumns::unique());
-
+		let columns = COLUMNS.default_scope();
+		let role_columns = RoleColumns::default().default_scope();
 		let mut query = QueryBuilder::new(sql::SELECT);
 
 		query
-			.push_columns(&COLUMNS_SCOPED)
-			.push_more_columns(&ROLE_COLUMNS_UNIQUE)
+			.push_columns(&columns)
+			.push_more_columns(&role_columns.r#as(ROLE_COLUMNS_UNIQUE))
 			.push_default_from::<UserColumns>()
-			.push_default_equijoin::<RoleColumns, _, _>(ROLE_COLUMNS.id, COLUMNS_SCOPED.role_id);
+			.push_default_equijoin::<RoleColumns, _, _>(role_columns.id, columns.role_id);
 
 		PgSchema::write_where_clause(
 			PgSchema::write_where_clause(
