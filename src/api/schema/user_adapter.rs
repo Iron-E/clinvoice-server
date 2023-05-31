@@ -33,9 +33,3 @@ pub trait UserAdapter:
 	where
 		Conn: Executor<'connection, Database = <Self as Deletable>::Db>;
 }
-
-#[cfg(feature = "postgres")]
-mod postgres
-{
-	// TODO: impl UserAdapter for PgUser
-}

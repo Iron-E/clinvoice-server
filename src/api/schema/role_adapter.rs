@@ -28,9 +28,3 @@ pub trait RoleAdapter:
 	where
 		Conn: Executor<'connection, Database = <Self as Deletable>::Db>;
 }
-
-#[cfg(feature = "postgres")]
-mod postgres
-{
-	// TODO: impl RoleAdapter for PgRole
-}
