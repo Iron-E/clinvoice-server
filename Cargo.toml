@@ -45,13 +45,13 @@ optional = true
 version = '0.4'
 
 [dependencies.winvoice-adapter]
-branch = 'release/0.20'
+branch = 'release/0.21'
 default-features = false
 git = 'https://github.com/Iron-E/winvoice-adapter'
 optional = true
 
 [dependencies.winvoice-adapter-postgres]
-branch = 'release/0.10'
+branch = 'release/0.11'
 git = 'https://github.com/Iron-E/winvoice-adapter-postgres'
 optional = true
 

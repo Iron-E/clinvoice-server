@@ -38,7 +38,7 @@ impl<T> UserColumns<T>
 	/// * [`WithIdentifier`].
 	pub const fn default_scope(self) -> UserColumns<WithIdentifier<char, T>>
 	{
-		self.scope(Self::DEFAULT_ALIAS)
+		self.scope(UserColumns::DEFAULT_ALIAS)
 	}
 
 	/// Returns a [`UserColumns`] which modifies its fields' [`Display`]

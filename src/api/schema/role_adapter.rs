@@ -23,7 +23,7 @@ pub trait RoleAdapter:
 	async fn create<'connection, Conn>(
 		connection: Conn,
 		name: String,
-		password_ttl: Duration,
+		password_ttl: Option<Duration>,
 	) -> Result<<Self as Deletable>::Entity>
 	where
 		Conn: Executor<'connection, Database = <Self as Deletable>::Db>;

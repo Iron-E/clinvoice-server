@@ -38,9 +38,8 @@ impl Retrievable for PgUser
 
 		const ROLE_COLUMNS: RoleColumns<WithIdentifier<char, &'static str>> =
 			RoleColumns::default().default_scope();
-		const ROLE_COLUMNS_UNIQUE: RoleColumns<
-			As<WithIdentifier<char, &'static str>, RoleColumns>,
-		> = ROLE_COLUMNS.default_scope();
+		const ROLE_COLUMNS_UNIQUE: RoleColumns<As<WithIdentifier<char, &str>, &str>> =
+			ROLE_COLUMNS.r#as(RoleColumns::unique());
 
 		let mut query = QueryBuilder::new(sql::SELECT);
 
