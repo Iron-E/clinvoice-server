@@ -1,6 +1,7 @@
 //! The `server` module functions to spawn an [`axum_server`] which communicates over TLS.
 
 mod auth;
+mod db_session_store;
 mod response;
 mod state;
 
