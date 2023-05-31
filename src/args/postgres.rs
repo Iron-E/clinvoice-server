@@ -8,10 +8,7 @@ use sqlx::{
 	pool::PoolOptions,
 	postgres::{PgConnectOptions, PgSslMode},
 };
-use winvoice_adapter_postgres::{
-	schema::{PgContact, PgEmployee, PgExpenses, PgJob, PgLocation, PgOrganization, PgTimesheet},
-	PgSchema,
-};
+use winvoice_adapter_postgres::PgSchema;
 
 use crate::{
 	lock::Lock,
@@ -118,11 +115,7 @@ impl Postgres
 			.await?;
 
 		Server::new(address, tls)
-			.serve::<PgContact, PgEmployee, PgJob, PgLocation, PgOrganization, PgSchema, PgTimesheet, PgExpenses>(
-				State::new(permissions, pool),
-				session_ttl,
-				timeout,
-			)
+			.serve::<PgSchema>(State::new(permissions, pool), session_ttl, timeout)
 			.await
 	}
 }

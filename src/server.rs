@@ -20,24 +20,10 @@ use sqlx::{Connection, Database, Executor, Transaction};
 pub use state::State;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
-use winvoice_adapter::{
-	schema::{
-		ContactAdapter,
-		EmployeeAdapter,
-		ExpensesAdapter,
-		JobAdapter,
-		LocationAdapter,
-		OrganizationAdapter,
-		TimesheetAdapter,
-	},
-	Deletable,
-	Initializable,
-	Retrievable,
-	Updatable,
-};
+use winvoice_adapter::{Deletable, Retrievable, Updatable};
 
 use self::auth::InitializableWithAuthorization;
-use crate::DynResult;
+use crate::{api::schema::Adapter, DynResult};
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -70,23 +56,16 @@ where
 	/// Create an [`Router`] based on the `connect_options`.
 	///
 	/// Operations `timeout`, if specified.
-	pub async fn serve<C, E, J, L, O, S, T, X>(
+	pub async fn serve<A>(
 		self,
 		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<()>
 	where
-		C: Deletable<Db = Db> + ContactAdapter,
-		E: Deletable<Db = Db> + EmployeeAdapter,
-		J: Deletable<Db = Db> + JobAdapter,
-		L: Deletable<Db = Db> + LocationAdapter,
-		O: Deletable<Db = Db> + OrganizationAdapter,
-		S: Initializable<Db = Db> + InitializableWithAuthorization,
-		T: Deletable<Db = Db> + TimesheetAdapter,
-		X: Deletable<Db = Db> + ExpensesAdapter,
+		A: Adapter<Db = Db> + InitializableWithAuthorization,
 	{
-		let router = Self::router::<C, E, J, L, O, S, T, X>(state, session_ttl, timeout).await?;
+		let router = Self::router::<A>(state, session_ttl, timeout).await?;
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
@@ -102,22 +81,15 @@ where
 	}
 
 	/// Create the [`Router`] that will be used by the [`Server`].
-	async fn router<C, E, J, L, O, S, T, X>(
+	async fn router<A>(
 		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<Router>
 	where
-		C: Deletable<Db = Db> + ContactAdapter,
-		E: Deletable<Db = Db> + EmployeeAdapter,
-		J: Deletable<Db = Db> + JobAdapter,
-		L: Deletable<Db = Db> + LocationAdapter,
-		O: Deletable<Db = Db> + OrganizationAdapter,
-		S: Initializable<Db = Db> + InitializableWithAuthorization,
-		T: Deletable<Db = Db> + TimesheetAdapter,
-		X: Deletable<Db = Db> + ExpensesAdapter,
+		A: Adapter<Db = Db> + InitializableWithAuthorization,
 	{
-		S::init_with_auth(state.pool()).await?;
+		A::init_with_auth(state.pool()).await?;
 
 		let mut router = Router::new();
 		if let Some(t) = timeout
@@ -146,45 +118,57 @@ where
 			.route("/logout", routing::put(|| async { todo("logout") }))
 			.route(
 				"/contact",
-				Self::route::<C>()
+				Self::route::<A::Contact>()
 					.get(|| async { todo("contact retrieve") })
 					.post(|| async { todo("contact create") }),
 			)
 			.route(
 				"/employee",
-				Self::route::<E>()
+				Self::route::<A::Employee>()
 					.get(|| async { todo("employee retrieve") })
 					.post(|| async { todo("employee create") }),
 			)
 			.route(
 				"/expense",
-				Self::route::<X>()
+				Self::route::<A::Expenses>()
 					.get(|| async { todo("expense retrieve") })
 					.post(|| async { todo("expense create") }),
 			)
 			.route(
 				"/job",
-				Self::route::<J>()
+				Self::route::<A::Job>()
 					.get(|| async { todo("job retrieve") })
 					.post(|| async { todo("job create") }),
 			)
 			.route(
 				"/location",
-				Self::route::<L>()
+				Self::route::<A::Location>()
 					.get(|| async { todo("location retrieve") })
 					.post(|| async { todo("location create") }),
 			)
 			.route(
 				"/organization",
-				Self::route::<O>()
+				Self::route::<A::Organization>()
 					.get(|| async { todo("organization retrieve") })
 					.post(|| async { todo("organization create") }),
 			)
 			.route(
+				"/role",
+				Self::route::<A::Role>()
+					.get(|| async { todo("role retrieve") })
+					.post(|| async { todo("role create") }),
+			)
+			.route(
 				"/timesheet",
-				Self::route::<T>()
+				Self::route::<A::Timesheet>()
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
+			)
+			.route(
+				"/user",
+				Self::route::<A::User>()
+					.get(|| async { todo("user retrieve") })
+					.post(|| async { todo("user create") }),
 			)
 			.with_state(state))
 	}
