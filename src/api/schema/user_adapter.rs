@@ -8,7 +8,7 @@ use winvoice_schema::{
 	Employee,
 };
 
-use super::User;
+use super::{Role, User};
 use crate::api::r#match::MatchUser;
 
 /// Implementors of this trait may act as an [adapter](super) for [`Employee`]s.
@@ -21,13 +21,13 @@ pub trait UserAdapter:
 		Match = MatchUser,
 	> + Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
 {
-	/// Initialize and return a new [`Employee`] via the `connection`.
+	/// Initialize and return a new [`User`] via the `connection`.
 	async fn create<'connection, Conn>(
 		connection: Conn,
 		employee: Option<Employee>,
-		role: String,
 		password: String,
 		password_expires: Option<DateTime<Utc>>,
+		role: Role,
 		username: String,
 	) -> Result<<Self as Deletable>::Entity>
 	where
