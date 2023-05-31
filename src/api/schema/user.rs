@@ -4,7 +4,7 @@
 
 mod auth_user;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
 	chrono::{DateTime, Utc},
 	Id,
@@ -21,7 +21,13 @@ pub struct User
 	/// The [`Id`] of the [`User`].
 	id: Id,
 
-	/// Get the [`User`]'s [`argon2`]-hashed password.
+	/// The [hashed](argon2) password.
+	///
+	/// # `POST`/`PATCH`
+	///
+	/// The password in plaintext, which *will* be [hashed](argon2) and stored in the
+	/// [`Database`](sqlx::Database) by [`winvoice_server`].
+	#[serde(serialize_with = "serialize_password")]
 	password: String,
 
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
@@ -32,6 +38,16 @@ pub struct User
 
 	/// Get the [`User`]'s username.
 	username: String,
+}
+
+/// A custom serializer for the [`User`] password which prevents anyone from ever seeing the
+/// password [hash](argon2), and instead prompts them with the intended use of the field when it is
+/// visible.
+fn serialize_password<S>(password: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
+	serializer.serialize_str("[replace this text to set new password]")
 }
 
 impl User
