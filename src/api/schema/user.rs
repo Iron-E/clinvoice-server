@@ -43,7 +43,7 @@ pub struct User
 /// A custom serializer for the [`User`] password which prevents anyone from ever seeing the
 /// password [hash](argon2), and instead prompts them with the intended use of the field when it is
 /// visible.
-fn serialize_password<S>(password: &str, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_password<S>(_: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
 	S: Serializer,
 {
