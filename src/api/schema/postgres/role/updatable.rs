@@ -42,14 +42,6 @@ impl Updatable for PgRole
 mod tests
 {
 	use pretty_assertions::assert_eq;
-	use winvoice_adapter::{
-		schema::{LocationAdapter, RoleAdapter},
-		Retrievable,
-		Updatable,
-	};
-	use winvoice_match::MatchRole;
-
-	use crate::schema::{util, PgLocation, PgRole};
 
 	#[tokio::test]
 	async fn update()

@@ -37,14 +37,6 @@ impl Deletable for PgUser
 mod tests
 {
 	use pretty_assertions::assert_eq;
-	use winvoice_adapter::{
-		schema::{LocationAdapter, UserAdapter},
-		Deletable,
-		Retrievable,
-	};
-	use winvoice_match::Match;
-
-	use crate::schema::{util, PgLocation, PgUser};
 
 	#[tokio::test]
 	async fn delete()

@@ -47,14 +47,6 @@ impl Updatable for PgUser
 mod tests
 {
 	use pretty_assertions::assert_eq;
-	use winvoice_adapter::{
-		schema::{LocationAdapter, UserAdapter},
-		Retrievable,
-		Updatable,
-	};
-	use winvoice_match::MatchUser;
-
-	use crate::schema::{util, PgLocation, PgUser};
 
 	#[tokio::test]
 	async fn update()

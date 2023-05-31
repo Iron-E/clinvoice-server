@@ -56,12 +56,7 @@ impl Retrievable for PgRole
 #[cfg(test)]
 mod tests
 {
-	use std::collections::HashSet;
-
-	use winvoice_adapter::{schema::RoleAdapter, Retrievable};
-	use winvoice_match::{Match, MatchRole, MatchStr};
-
-	use crate::schema::{util, PgRole};
+	use pretty_assertions::assert_eq;
 
 	#[tokio::test]
 	async fn retrieve()

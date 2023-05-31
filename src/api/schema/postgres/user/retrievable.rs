@@ -69,12 +69,7 @@ impl Retrievable for PgUser
 #[cfg(test)]
 mod tests
 {
-	use std::collections::HashSet;
-
-	use winvoice_adapter::{schema::UserAdapter, Retrievable};
-	use winvoice_match::{Match, MatchStr, MatchUser};
-
-	use crate::schema::{util, PgUser};
+	use pretty_assertions::assert_eq;
 
 	#[tokio::test]
 	async fn retrieve()

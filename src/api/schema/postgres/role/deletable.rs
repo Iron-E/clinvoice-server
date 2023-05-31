@@ -37,14 +37,6 @@ impl Deletable for PgRole
 mod tests
 {
 	use pretty_assertions::assert_eq;
-	use winvoice_adapter::{
-		schema::{LocationAdapter, RoleAdapter},
-		Deletable,
-		Retrievable,
-	};
-	use winvoice_match::Match;
-
-	use crate::schema::{util, PgLocation, PgRole};
 
 	#[tokio::test]
 	async fn delete()
