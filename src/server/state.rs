@@ -58,7 +58,7 @@ where
 			.await
 			.and_then(|mut v| v.pop().ok_or(sqlx::Error::RowNotFound))?;
 
-		permissions.enforce((role.name(), object, action)).map_err(|e| e.into())
+		permissions.enforce((role.name(), object, action)).map_err(Into::into)
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].

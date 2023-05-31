@@ -77,12 +77,6 @@ impl User
 		self.id
 	}
 
-	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].
-	pub const fn role_id(&self) -> Id
-	{
-		self.role_id
-	}
-
 	/// Get the [`User`]'s [`argon2`]-hashed password.
 	pub fn password(&self) -> &str
 	{
@@ -93,6 +87,12 @@ impl User
 	pub const fn password_expires(&self) -> Option<DateTime<Utc>>
 	{
 		self.password_expires
+	}
+
+	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].
+	pub const fn role_id(&self) -> Id
+	{
+		self.role_id
 	}
 
 	/// Get the [`User`]'s username.
