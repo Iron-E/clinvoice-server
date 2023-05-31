@@ -36,7 +36,7 @@ impl UserAdapter for PgUser
 		.fetch_one(connection)
 		.await?;
 
-		Ok(User { employee_id, id: row.id, password, password_expires, role_id, username })
+		Ok(User::new(employee_id, row.id, password, password_expires, role_id, username))
 	}
 }
 

@@ -56,9 +56,9 @@ impl User
 	pub const fn new(
 		employee_id: Option<Id>,
 		id: Id,
-		role_id: Id,
 		password: String,
 		password_expires: Option<DateTime<Utc>>,
+		role_id: Id,
 		username: String,
 	) -> Self
 	{

@@ -25,6 +25,6 @@ impl PgRole
 			.try_get::<Option<_>, _>(columns.password_ttl)
 			.and_then(|ttl| ttl.map(duration_from).transpose())?;
 
-		Ok(Role { id, name, password_ttl })
+		Ok(Role::new(id, name, password_ttl))
 	}
 }

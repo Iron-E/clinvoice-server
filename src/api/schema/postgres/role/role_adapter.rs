@@ -26,7 +26,7 @@ impl RoleAdapter for PgRole
 		.fetch_one(connection)
 		.await?;
 
-		Ok(Role { id: row.id, name, password_ttl })
+		Ok(Role::new(row.id, name, password_ttl))
 	}
 }
 
