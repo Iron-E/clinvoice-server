@@ -35,7 +35,7 @@ pub(super) mod tests
 {
 	use std::collections::HashMap;
 
-	use pretty_assertions::assert_eq;
+	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::{Error, PgPool, Result, Transaction};
 	use winvoice_adapter::{Deletable, Retrievable, Updatable};
 	use winvoice_adapter_postgres::schema::util::duration_from;
@@ -112,7 +112,7 @@ pub(super) mod tests
 		let admin_row_password_ttl =
 			admin_row.password_ttl.clone().map(duration_from).transpose()?;
 		assert_eq!(admin.id(), admin_row.id);
-		assert_eq!(admin.name(), admin_row.name);
+		assert_str_eq!(admin.name(), admin_row.name);
 		assert_eq!(admin.password_ttl(), admin_row_password_ttl);
 
 		let guest_row = rows
@@ -121,7 +121,7 @@ pub(super) mod tests
 		let guest_row_password_ttl =
 			guest_row.password_ttl.clone().map(duration_from).transpose()?;
 		assert_eq!(guest.id(), guest_row.id);
-		assert_eq!(guest.name(), guest_row.name);
+		assert_str_eq!(guest.name(), guest_row.name);
 		assert_eq!(guest.password_ttl(), guest_row_password_ttl);
 
 		Ok(())
@@ -154,13 +154,13 @@ pub(super) mod tests
 		#[rustfmt::skip]
 		let admin_row = PgRole::retrieve(&pool, admin.id().into()).await.map(|mut v| v.remove(0))?;
 		assert_eq!(admin.id(), admin_row.id());
-		assert_eq!(admin.name(), admin_row.name());
+		assert_str_eq!(admin.name(), admin_row.name());
 		assert_eq!(admin.password_ttl(), admin_row.password_ttl());
 
 		#[rustfmt::skip]
 		let guest_row = PgRole::retrieve(&pool, guest.id().into()).await.map(|mut v| v.remove(0))?;
 		assert_eq!(guest.id(), guest_row.id());
-		assert_eq!(guest.name(), guest_row.name());
+		assert_str_eq!(guest.name(), guest_row.name());
 		assert_eq!(guest.password_ttl(), guest_row.password_ttl());
 
 		tear_down(&pool, admin.id(), guest.id()).await?;
