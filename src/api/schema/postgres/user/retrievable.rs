@@ -60,15 +60,3 @@ impl Retrievable for PgUser
 		query.push(';').build_query_as::<User>().fetch(connection).try_collect().await
 	}
 }
-
-#[cfg(test)]
-mod tests
-{
-	use pretty_assertions::assert_eq;
-
-	#[tokio::test]
-	async fn retrieve()
-	{
-		todo!("Write test")
-	}
-}

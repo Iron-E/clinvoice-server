@@ -42,15 +42,3 @@ impl Updatable for PgUser
 		.await
 	}
 }
-
-#[cfg(test)]
-mod tests
-{
-	use pretty_assertions::assert_eq;
-
-	#[tokio::test]
-	async fn update()
-	{
-		todo!("Write test");
-	}
-}

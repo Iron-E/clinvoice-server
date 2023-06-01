@@ -79,16 +79,6 @@ pub(in crate::api::schema::postgres) mod tests
 		Ok((admin, guest))
 	}
 
-	/// Cleans up the [`setup`]
-	pub async fn tear_down(pool: &PgPool, admin_id: Id, guest_id: Id) -> Result<()>
-	{
-		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", admin_id, guest_id)
-			.execute(pool)
-			.await?;
-
-		Ok(())
-	}
-
 	#[tokio::test]
 	async fn create() -> DynResult<()>
 	{
@@ -128,8 +118,9 @@ pub(in crate::api::schema::postgres) mod tests
 
 		PgRole::delete(&mut tx, [&admin].into_iter()).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
-		assert_eq!(rows.len(), 1);
 		assert!(!rows.contains_key(&admin.id()));
+		assert!(rows.contains_key(&guest.id()));
+		assert_eq!(rows.len(), 1);
 
 		Ok(())
 	}
@@ -155,7 +146,10 @@ pub(in crate::api::schema::postgres) mod tests
 		assert_str_eq!(guest.name(), guest_row.name());
 		assert_eq!(guest.password_ttl(), guest_row.password_ttl());
 
-		tear_down(&pool, admin.id(), guest.id()).await?;
+		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", admin.id(), guest.id())
+			.execute(&pool)
+			.await?;
+
 		Ok(())
 	}
 

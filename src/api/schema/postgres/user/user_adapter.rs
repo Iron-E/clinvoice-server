@@ -50,7 +50,7 @@ mod tests
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::{PgPool, Transaction};
-	use winvoice_adapter::{schema::EmployeeAdapter, Retrievable};
+	use winvoice_adapter::{schema::EmployeeAdapter, Deletable, Retrievable};
 	use winvoice_adapter_postgres::schema::PgEmployee;
 	use winvoice_schema::Id;
 
@@ -102,16 +102,6 @@ mod tests
 		Ok((joel, peggy))
 	}
 
-	/// Cleans up the [`setup`]
-	pub async fn tear_down(pool: &PgPool, joel: User, peggy: User) -> Result<()>
-	{
-		sqlx::query!("DELETE FROM users WHERE id IN ($1, $2);", joel.id(), peggy.id())
-			.execute(pool)
-			.await?;
-
-		role::tear_down(pool, joel.role_id(), peggy.role_id()).await
-	}
-
 	#[tokio::test]
 	async fn create() -> DynResult<()>
 	{
@@ -148,6 +138,22 @@ mod tests
 	}
 
 	#[tokio::test]
+	async fn delete() -> DynResult<()>
+	{
+		let pool = connect_pg();
+		let mut tx = pool.begin().await?;
+		let (joel, peggy) = setup(&mut tx).await?;
+
+		PgUser::delete(&mut tx, [&joel].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&mut tx, joel.id(), peggy.id());
+		assert!(!rows.contains_key(&joel.id()));
+		assert!(rows.contains_key(&peggy.id()));
+		assert_eq!(rows.len(), 1);
+
+		Ok(())
+	}
+
+	#[tokio::test]
 	async fn retrieve() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -176,6 +182,26 @@ mod tests
 		assert_str_eq!(peggy.password(), peggy_row.password());
 		assert_str_eq!(peggy.username(), peggy_row.username());
 
+		sqlx::query!("DELETE FROM users WHERE id IN ($1, $2);", joel.id(), peggy.id())
+			.execute(&pool)
+			.await?;
+
+		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", joel.role_id(), peggy.role_id())
+			.execute(&pool)
+			.await?;
+
 		Ok(())
+	}
+
+	#[tokio::test]
+	async fn update() -> DynResult<()>
+	{
+		let pool = connect_pg();
+		let mut tx = pool.begin().await?;
+		let (joel, peggy) = setup(&mut tx).await?;
+
+		todo!();
+
+		// Ok(())
 	}
 }
