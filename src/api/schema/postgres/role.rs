@@ -8,7 +8,7 @@ use crate::api::schema::{columns::RoleColumns, Role};
 
 mod deletable;
 mod retrievable;
-mod role_adapter;
+pub(super) mod role_adapter;
 mod updatable;
 
 /// A [`Role`](crate::api::schema::Role) which has specialized implementations for the

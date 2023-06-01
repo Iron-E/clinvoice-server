@@ -31,17 +31,17 @@ impl RoleAdapter for PgRole
 }
 
 #[cfg(test)]
-pub(super) mod tests
+pub(in crate::api::schema::postgres) mod tests
 {
 	use std::collections::HashMap;
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
-	use sqlx::{Error, PgPool, Result, Transaction};
+	use sqlx::{Error, PgPool, Transaction};
 	use winvoice_adapter::{Deletable, Retrievable, Updatable};
 	use winvoice_adapter_postgres::schema::util::duration_from;
 	use winvoice_schema::Id;
 
-	use super::{Duration, PgRole, Postgres, RoleAdapter};
+	use super::{Duration, PgRole, Postgres, Result, RoleAdapter};
 	use crate::{api::schema::Role, dyn_result::DynResult, utils::connect_pg};
 
 	/// `SECONDS_PER_MINUTE * MINUTES_PER_SECOND * HOURS_PER_DAY * DAYS_PER_MONTH`
@@ -53,16 +53,14 @@ pub(super) mod tests
 			sqlx::query!("SELECT * FROM roles WHERE id IN ($1, $2)", $admin_id, $guest_id)
 				.fetch_all($tx)
 				.await
-				.map(|v: Vec<_>| v.into_iter().map(|r| (r.id, r)).collect())?;
+				.map(|v: Vec<_>| v.into_iter().map(|r| (r.id, r)).collect())?
 		};
 	}
 
 	/// # Returns
 	///
 	/// `(admin, guest)`.
-	pub(in crate::api::schema::postgres) async fn setup(
-		tx: &mut Transaction<'_, Postgres>,
-	) -> Result<(Role, Role)>
+	pub async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(Role, Role)>
 	{
 		let admin = PgRole::create(
 			&mut *tx,
@@ -74,7 +72,7 @@ pub(super) mod tests
 		let guest = PgRole::create(
 			&mut *tx,
 			format!("guest{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
-			Duration::from_secs(SECONDS_PER_MONTH * 3).into(),
+			None,
 		)
 		.await?;
 
@@ -82,11 +80,7 @@ pub(super) mod tests
 	}
 
 	/// Cleans up the [`setup`]
-	pub(in crate::api::schema::postgres) async fn tear_down(
-		pool: &PgPool,
-		admin_id: Id,
-		guest_id: Id,
-	) -> Result<()>
+	pub async fn tear_down(pool: &PgPool, admin_id: Id, guest_id: Id) -> Result<()>
 	{
 		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", admin_id, guest_id)
 			.execute(pool)
@@ -101,28 +95,26 @@ pub(super) mod tests
 		let pool = connect_pg();
 		let mut tx = pool.begin().await?;
 		let (admin, guest) = setup(&mut tx).await?;
-
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
-
-		assert_eq!(rows.len(), 2);
 
 		let admin_row = rows
 			.get(&admin.id())
 			.ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
-		let admin_row_password_ttl =
-			admin_row.password_ttl.clone().map(duration_from).transpose()?;
-		assert_eq!(admin.id(), admin_row.id);
-		assert_str_eq!(admin.name(), admin_row.name);
-		assert_eq!(admin.password_ttl(), admin_row_password_ttl);
-
 		let guest_row = rows
 			.get(&guest.id())
 			.ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+
+		let admin_row_password_ttl =
+			admin_row.password_ttl.clone().map(duration_from).transpose()?;
 		let guest_row_password_ttl =
 			guest_row.password_ttl.clone().map(duration_from).transpose()?;
+
+		assert_eq!(admin.id(), admin_row.id);
+		assert_eq!(admin.password_ttl(), admin_row_password_ttl);
 		assert_eq!(guest.id(), guest_row.id);
-		assert_str_eq!(guest.name(), guest_row.name);
 		assert_eq!(guest.password_ttl(), guest_row_password_ttl);
+		assert_str_eq!(admin.name(), admin_row.name);
+		assert_str_eq!(guest.name(), guest_row.name);
 
 		Ok(())
 	}
@@ -173,6 +165,11 @@ pub(super) mod tests
 		let pool = connect_pg();
 		let mut tx = pool.begin().await?;
 		let (mut admin, guest) = setup(&mut tx).await?;
+		admin = Role::new(
+			admin.id(),
+			format!("not admin{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
+			admin.password_ttl(),
+		);
 
 		PgRole::update(&mut tx, [&admin].into_iter()).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
