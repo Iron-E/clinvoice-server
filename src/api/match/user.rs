@@ -24,7 +24,7 @@ use super::MatchRole;
 /// # use pretty_assertions::assert_eq;
 /// # use winvoice_match::{MatchEmployee, MatchStr};
 /// # use winvoice_schema::chrono::NaiveDate;
-/// # use winvoice_server::api::r#match::MatchUser;
+/// # use winvoice_server::api::r#match::{MatchRole, MatchUser};
 /// // JSON
 /// # assert_eq!(serde_json::from_str::<MatchUser>(r#"
 /// {
@@ -33,7 +33,7 @@ use super::MatchRole;
 ///   },
 ///   "password": {"equal_to": "asdlkjasfhjdklasdklj"},
 ///   "password_expires": {"equal_to": "2070-01-01T00:00:00"},
-///   "role": {"equal_to": "Admin"},
+///   "role": {"name": {"equal_to": "Admin"}},
 ///   "username": {"equal_to": "admin"}
 /// }
 /// # "#).unwrap(), MatchUser {
@@ -45,7 +45,7 @@ use super::MatchRole;
 /// #   password_expires: Some(
 /// #     NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().into()
 /// #   ).into(),
-/// #   role: "Admin".to_owned().into(),
+/// #   role: MatchRole { name: "Admin".to_owned().into(), ..Default::default() },
 /// #   username: "admin".to_owned().into(),
 /// #   ..Default::default()
 /// # });
