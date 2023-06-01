@@ -3,6 +3,8 @@
 #![cfg_attr(feature = "bin", allow(clippy::std_instead_of_core))]
 
 mod auth_user;
+#[cfg(feature = "postgres")]
+mod date_time_ext;
 
 use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{

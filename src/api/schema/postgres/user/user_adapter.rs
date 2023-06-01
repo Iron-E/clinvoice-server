@@ -1,6 +1,7 @@
 //! Contains an implementation of [`UserAdapter`] for [`PgUser`]
 
 use sqlx::{Executor, Postgres, Result};
+use winvoice_adapter_postgres::fmt::DateTimeExt;
 use winvoice_schema::{
 	chrono::{DateTime, Utc},
 	Employee,
@@ -38,7 +39,8 @@ impl UserAdapter for PgUser
 		.fetch_one(connection)
 		.await?;
 
-		Ok(User::new(employee_id, row.id, password, password_expires, role_id, username))
+		Ok(User::new(employee_id, row.id, password, password_expires, role_id, username)
+			.pg_sanitize())
 	}
 }
 
