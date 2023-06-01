@@ -1,8 +1,10 @@
+//! Misc. utilities for [`winvoice_server`] which do not have a more specific category.
+
 use winvoice_schema::chrono::{DateTime, Datelike, Local, NaiveDateTime, TimeZone, Timelike, Utc};
 #[cfg(test)]
 use {
-	core::cell::OnceCell,
-	sqlx::{Database, Pool},
+	sqlx::Pool,
+	std::sync::OnceLock,
 	std::{env, fs, path::PathBuf},
 };
 
@@ -15,16 +17,13 @@ pub(crate) fn naive_local_datetime_to_utc(d: NaiveDateTime) -> DateTime<Utc>
 		.into()
 }
 
-/// Connect to the database in the `DATABASE_URL` env variable.
-#[cfg(test)]
-pub(crate) async fn connect<Db>() -> Pool<Db>
-where
-	Db: sqlx::Database,
+/// Connect to the test [`Postgres`](sqlx::Postgres) database.
+#[cfg(all(test, feature = "postgres"))]
+pub(crate) fn connect_pg() -> sqlx::PgPool
 {
-	// TODO: use `LazyCell`
-	static URL: OnceCell<String> = OnceCell::new();
-
-	Pool::<Db>::connect_lazy(URL.get_or_try_init(|| dotenvy::var("DATABASE_URL")).unwrap()).unwrap()
+	// TODO: use `LazyLock`
+	static POOL: OnceLock<sqlx::PgPool> = OnceLock::new();
+	POOL.get_or_init(|| Pool::connect_lazy(&dotenvy::var("DATABASE_URL").unwrap()).unwrap()).clone()
 }
 
 /// A temporary directory which can be used to write files into for `test`.
