@@ -50,7 +50,7 @@ mod tests
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::{PgPool, Transaction};
-	use winvoice_adapter::schema::EmployeeAdapter;
+	use winvoice_adapter::{schema::EmployeeAdapter, Retrievable};
 	use winvoice_adapter_postgres::schema::PgEmployee;
 	use winvoice_schema::Id;
 
@@ -77,13 +77,27 @@ mod tests
 	async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(User, User)>
 	{
 		let (admin, guest) = role::setup(&mut *tx).await?;
-		let joel = PgUser::create(&mut *tx, None, "foobar".into(), guest, "joel".into()).await?;
+		let joel = PgUser::create(
+			&mut *tx,
+			None,
+			"foobar".into(),
+			guest,
+			format!("joel{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
+		)
+		.await?;
+
 		let margaret =
 			PgEmployee::create(&mut *tx, "margaret".into(), "Hired".into(), "Manager".into())
 				.await?;
-		let peggy =
-			PgUser::create(&mut *tx, margaret.into(), "asldkj".into(), admin, "peggy".into())
-				.await?;
+
+		let peggy = PgUser::create(
+			&mut *tx,
+			margaret.into(),
+			"asldkj".into(),
+			admin,
+			format!("peggy{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
+		)
+		.await?;
 
 		Ok((joel, peggy))
 	}
@@ -129,6 +143,38 @@ mod tests
 		assert_str_eq!(joel.username(), joel_row.username);
 		assert_str_eq!(peggy.password(), peggy_row.password);
 		assert_str_eq!(peggy.username(), peggy_row.username);
+
+		Ok(())
+	}
+
+	#[tokio::test]
+	async fn retrieve() -> DynResult<()>
+	{
+		let pool = connect_pg();
+		let mut tx = pool.begin().await?;
+		let (joel, peggy) = setup(&mut tx).await?;
+		tx.commit().await?;
+
+		#[rustfmt::skip]
+		let peggy_row = PgUser::retrieve(&pool, peggy.id().into()).await.map(|mut v| v.remove(0))?;
+		let joel_row = PgUser::retrieve(&pool, joel.id().into()).await.map(|mut v| v.remove(0))?;
+
+		assert_eq!(joel.employee_id(), joel_row.employee_id());
+		assert_eq!(joel.id(), joel_row.id());
+		assert_eq!(joel.password(), joel_row.password());
+		assert_eq!(joel.password_expires(), joel_row.password_expires());
+		assert_eq!(joel.role_id(), joel_row.role_id());
+		assert_eq!(joel.username(), joel_row.username());
+		assert_eq!(peggy.employee_id(), peggy_row.employee_id());
+		assert_eq!(peggy.id(), peggy_row.id());
+		assert_eq!(peggy.password(), peggy_row.password());
+		assert_eq!(peggy.password_expires(), peggy_row.password_expires());
+		assert_eq!(peggy.role_id(), peggy_row.role_id());
+		assert_eq!(peggy.username(), peggy_row.username());
+		assert_str_eq!(joel.password(), joel_row.password());
+		assert_str_eq!(joel.username(), joel_row.username());
+		assert_str_eq!(peggy.password(), peggy_row.password());
+		assert_str_eq!(peggy.username(), peggy_row.username());
 
 		Ok(())
 	}
