@@ -26,7 +26,6 @@ pub trait UserAdapter:
 		connection: Conn,
 		employee: Option<Employee>,
 		password: String,
-		password_expires: Option<DateTime<Utc>>,
 		role: Role,
 		username: String,
 	) -> Result<<Self as Deletable>::Entity>

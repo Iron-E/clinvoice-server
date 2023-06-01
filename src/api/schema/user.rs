@@ -8,9 +8,12 @@ mod date_time_ext;
 
 use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
-	chrono::{DateTime, Utc},
+	chrono::{DateTime, Duration, OutOfRangeError, Utc},
+	Employee,
 	Id,
 };
+
+use super::Role;
 
 /// Corresponds to the `users` table in the [`winvoice_server`] database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -55,16 +58,27 @@ where
 impl User
 {
 	/// Create a new [`User`].
-	pub const fn new(
-		employee_id: Option<Id>,
+	pub fn new(
+		employee: Option<Employee>,
 		id: Id,
 		password: String,
-		password_expires: Option<DateTime<Utc>>,
-		role_id: Id,
+		role: Role,
 		username: String,
-	) -> Self
+	) -> Result<Self, OutOfRangeError>
 	{
-		Self { employee_id, id, role_id, password, password_expires, username }
+		let password_expires = role
+			.password_ttl()
+			.map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d))
+			.transpose()?;
+
+		Ok(Self {
+			employee_id: employee.map(|e| e.id),
+			id,
+			role_id: role.id(),
+			password,
+			password_expires,
+			username,
+		})
 	}
 
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
@@ -95,6 +109,12 @@ impl User
 	pub const fn role_id(&self) -> Id
 	{
 		self.role_id
+	}
+
+	/// Set the `id` of the [`User`]
+	pub fn set_id(&mut self, id: Id)
+	{
+		self.id = id;
 	}
 
 	/// Get the [`User`]'s username.
