@@ -14,12 +14,10 @@ repository = 'https://www.github.com/Iron-E/winvoice-server'
 
 [dependencies]
 argon2 = {optional = true, version = '0.5'}
-async-session = {optional = true, version = '3'}
 async-trait = {optional = true, version = '0.1'}
 axum = {features = ['headers'], optional = true, version = '0.6'}
 axum-login = {features = ['sqlx'], optional = true, version = '0.5'}
 axum-server = {optional = true, features = ['tls-rustls'], version = '0.5'}
-axum-sessions = {optional = true, version = '0.5'}
 casbin = {optional = true, version = '2'}
 clap = {features = ['derive', 'env'], optional = true, version = '4'}
 dirs = {optional = true, version = '5'}
@@ -80,12 +78,10 @@ regex = "1"
 [features]
 bin = [
 	'argon2',
-	'async-session',
 	'async-trait',
 	'axum',
 	'axum-login',
 	'axum-server',
-	'axum-sessions',
 	'casbin',
 	'clap',
 	'dirs',

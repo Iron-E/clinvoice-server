@@ -3663,12 +3663,10 @@ name = "winvoice-server"
 version = "0.1.0-alpha.1"
 dependencies = [
  "argon2",
- "async-session",
  "async-trait",
  "axum",
  "axum-login",
  "axum-server",
- "axum-sessions",
  "casbin",
  "clap",
  "dirs 5.0.1",

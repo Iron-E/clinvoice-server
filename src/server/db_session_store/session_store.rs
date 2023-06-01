@@ -1,6 +1,6 @@
 //! Contains implementations of [`SessionStore`] for [`DbSessionStore`] per database.
 
-use async_session::{chrono::Utc, Result, Session, SessionStore};
+use axum_login::axum_sessions::async_session::{chrono::Utc, Result, Session, SessionStore};
 
 use super::DbSessionStore;
 

@@ -1,8 +1,10 @@
 //! Contains an implementation of [`UserAdapter`] for [`PgUser`]
 
-use async_session::chrono::{DateTime, Utc};
 use sqlx::{Executor, Postgres, Result};
-use winvoice_schema::Employee;
+use winvoice_schema::{
+	chrono::{DateTime, Utc},
+	Employee,
+};
 
 use super::PgUser;
 use crate::api::schema::{Role, User, UserAdapter};
