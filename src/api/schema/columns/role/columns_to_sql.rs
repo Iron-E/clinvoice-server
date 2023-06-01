@@ -23,8 +23,6 @@ where
 	{
 		let values_columns = self.scope(values_alias);
 		query
-			.push_equal(self.id, values_columns.id)
-			.push(',')
 			.push_equal(self.name, values_columns.name)
 			.push(',')
 			.push_equal(self.password_ttl, values_columns.password_ttl);
