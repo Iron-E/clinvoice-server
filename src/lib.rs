@@ -3,4 +3,5 @@
 //! etc.
 
 pub mod api;
+mod dyn_result;
 mod utils;

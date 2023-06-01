@@ -32,15 +32,3 @@ impl Deletable for PgRole
 		PgSchema::delete::<_, _, RoleColumns>(connection, entities.map(mapper)).await
 	}
 }
-
-#[cfg(test)]
-mod tests
-{
-	use pretty_assertions::assert_eq;
-
-	#[tokio::test]
-	async fn delete()
-	{
-		todo!("Write test");
-	}
-}
