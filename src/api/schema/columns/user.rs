@@ -75,7 +75,7 @@ impl UserColumns<&'static str>
 			password: "password",
 			password_expires: "password_expires",
 			role_id: "role_id",
-			username: "usernames",
+			username: "username",
 		}
 	}
 }
