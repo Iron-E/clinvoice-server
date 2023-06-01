@@ -51,15 +51,3 @@ impl Retrievable for PgRole
 			.await
 	}
 }
-
-#[cfg(test)]
-mod tests
-{
-	use pretty_assertions::assert_eq;
-
-	#[tokio::test]
-	async fn retrieve()
-	{
-		todo!("Write test")
-	}
-}
