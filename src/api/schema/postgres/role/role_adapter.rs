@@ -135,10 +135,10 @@ pub(super) mod tests
 		let (admin, guest) = setup(&mut tx).await?;
 
 		PgRole::delete(&mut tx, [&admin].into_iter()).await?;
-
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
 		assert_eq!(rows.len(), 1);
 		assert!(!rows.contains_key(&admin.id()));
+
 		Ok(())
 	}
 
@@ -170,6 +170,23 @@ pub(super) mod tests
 	#[tokio::test]
 	async fn update() -> DynResult<()>
 	{
-		todo!()
+		let pool = connect_pg();
+		let mut tx = pool.begin().await?;
+		let (mut admin, guest) = setup(&mut tx).await?;
+
+		PgRole::update(&mut tx, [&admin].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
+		let admin_row = rows
+			.get(&admin.id())
+			.ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+		let admin_row_password_ttl =
+			admin_row.password_ttl.clone().map(duration_from).transpose()?;
+
+		assert_eq!(rows.len(), 2);
+		assert_eq!(admin.id(), admin_row.id);
+		assert_str_eq!(admin.name(), admin_row.name);
+		assert_eq!(admin.password_ttl(), admin_row_password_ttl);
+
+		Ok(())
 	}
 }
