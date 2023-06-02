@@ -36,10 +36,9 @@ pub(in crate::api::schema::postgres) mod tests
 	use std::collections::HashMap;
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
-	use sqlx::{Error, PgPool, Transaction};
+	use sqlx::Transaction;
 	use winvoice_adapter::{Deletable, Retrievable, Updatable};
 	use winvoice_adapter_postgres::schema::util::duration_from;
-	use winvoice_schema::Id;
 
 	use super::{Duration, PgRole, Postgres, Result, RoleAdapter};
 	use crate::{

@@ -3,10 +3,7 @@
 
 use sqlx::{Executor, Result};
 use winvoice_adapter::{Deletable, Retrievable, Updatable};
-use winvoice_schema::{
-	chrono::{DateTime, Utc},
-	Employee,
-};
+use winvoice_schema::Employee;
 
 use super::{Role, User};
 use crate::api::r#match::MatchUser;

@@ -2,10 +2,7 @@
 
 use sqlx::{Error, Executor, Postgres, Result};
 use winvoice_adapter_postgres::fmt::DateTimeExt;
-use winvoice_schema::{
-	chrono::{DateTime, Duration, Utc},
-	Employee,
-};
+use winvoice_schema::Employee;
 
 use super::PgUser;
 use crate::api::schema::{Role, User, UserAdapter};
@@ -50,12 +47,11 @@ mod tests
 	use std::collections::HashMap;
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
-	use sqlx::{PgPool, Transaction};
+	use sqlx::Transaction;
 	use winvoice_adapter::{schema::EmployeeAdapter, Deletable, Retrievable, Updatable};
-	use winvoice_adapter_postgres::{fmt::DateTimeExt, schema::PgEmployee};
-	use winvoice_schema::Id;
+	use winvoice_adapter_postgres::schema::PgEmployee;
 
-	use super::{DateTime, Employee, PgUser, Postgres, Result, Role, User, UserAdapter};
+	use super::{DateTimeExt, PgUser, Postgres, Result, User, UserAdapter};
 	use crate::{
 		api::schema::{
 			postgres::{role::role_adapter::tests as role, PgRole},
