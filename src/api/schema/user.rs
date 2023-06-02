@@ -111,8 +111,8 @@ impl User
 		self.role_id
 	}
 
-	/// Set the `id` of the [`User`]
-	pub fn set_id(&mut self, id: Id)
+	/// Set the [`id`](Self::id)
+	pub(crate) fn set_id(&mut self, id: Id)
 	{
 		self.id = id;
 	}

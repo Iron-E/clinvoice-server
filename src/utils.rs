@@ -21,9 +21,22 @@ pub(crate) fn naive_local_datetime_to_utc(d: NaiveDateTime) -> DateTime<Utc>
 #[cfg(all(test, feature = "postgres"))]
 pub(crate) fn connect_pg() -> sqlx::PgPool
 {
-	// TODO: use `LazyLock`
-	static POOL: OnceLock<sqlx::PgPool> = OnceLock::new();
-	POOL.get_or_init(|| Pool::connect_lazy(&dotenvy::var("DATABASE_URL").unwrap()).unwrap()).clone()
+	static URL: OnceLock<String> = OnceLock::new();
+	Pool::connect_lazy(&URL.get_or_init(|| dotenvy::var("DATABASE_URL").unwrap())).unwrap()
+}
+
+/// Create a string which is guaranteed to be different from `s`.
+#[cfg(test)]
+pub(crate) fn different_string(s: &str) -> String
+{
+	format!("!{s}")
+}
+
+/// Generate a [`rand::random`] [`String`] of [`len`](String::len) `8`.
+#[cfg(test)]
+pub(crate) fn random_string() -> String
+{
+	rand::random::<[char; 8]>().into_iter().collect()
 }
 
 /// A temporary directory which can be used to write files into for `test`.

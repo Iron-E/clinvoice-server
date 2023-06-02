@@ -46,19 +46,23 @@ impl UserAdapter for PgUser
 #[cfg(test)]
 mod tests
 {
+	use core::time::Duration;
 	use std::collections::HashMap;
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::{PgPool, Transaction};
-	use winvoice_adapter::{schema::EmployeeAdapter, Deletable, Retrievable};
-	use winvoice_adapter_postgres::schema::PgEmployee;
+	use winvoice_adapter::{schema::EmployeeAdapter, Deletable, Retrievable, Updatable};
+	use winvoice_adapter_postgres::{fmt::DateTimeExt, schema::PgEmployee};
 	use winvoice_schema::Id;
 
 	use super::{DateTime, Employee, PgUser, Postgres, Result, Role, User, UserAdapter};
 	use crate::{
-		api::schema::postgres::role::role_adapter::tests as role,
+		api::schema::{
+			postgres::{role::role_adapter::tests as role, PgRole},
+			RoleAdapter,
+		},
 		dyn_result::DynResult,
-		utils::connect_pg,
+		utils::{connect_pg, different_string, random_string},
 	};
 
 	/// `SELECT` from `users` where the joel or peggy id matches.
@@ -82,7 +86,7 @@ mod tests
 			None,
 			"foobar".into(),
 			guest,
-			format!("joel{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
+			format!("joel{}", random_string()),
 		)
 		.await?;
 
@@ -95,7 +99,7 @@ mod tests
 			margaret.into(),
 			"asldkj".into(),
 			admin,
-			format!("peggy{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
+			format!("peggy{}", random_string()),
 		)
 		.await?;
 
@@ -198,10 +202,45 @@ mod tests
 	{
 		let pool = connect_pg();
 		let mut tx = pool.begin().await?;
-		let (joel, peggy) = setup(&mut tx).await?;
+		let (mut joel, peggy) = setup(&mut tx).await?;
 
-		todo!();
+		joel = {
+			let joel_emp =
+				PgEmployee::create(&mut tx, "Joel".into(), "Hired".into(), "Intern".into()).await?;
 
-		// Ok(())
+			let intern = PgRole::create(
+				&mut tx,
+				"intern".into(),
+				Duration::from_secs(rand::random::<u32>().into()).into(),
+			)
+			.await?;
+
+			User::new(
+				joel_emp.into(),
+				joel.id(),
+				different_string(joel.password()),
+				intern,
+				different_string(joel.username()),
+			)
+			.map(|u| u.pg_sanitize())?
+		};
+
+		PgUser::update(&mut tx, [&joel].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&mut tx, joel.id(), peggy.id());
+		let joel_row = rows
+			.get(&joel.id())
+			.ok_or_else(|| "The `joel` row does not exist in the database".to_owned())?;
+
+		assert_eq!(joel.employee_id(), joel_row.employee_id);
+		assert_eq!(joel.id(), joel_row.id);
+		assert_eq!(joel.password(), joel_row.password);
+		assert_eq!(joel.password_expires(), joel_row.password_expires);
+		assert_eq!(joel.role_id(), joel_row.role_id);
+		assert_eq!(joel.username(), joel_row.username);
+		assert_str_eq!(joel.password(), joel_row.password);
+		assert_str_eq!(joel.username(), joel_row.username);
+		assert_eq!(rows.len(), 2);
+
+		Ok(())
 	}
 }

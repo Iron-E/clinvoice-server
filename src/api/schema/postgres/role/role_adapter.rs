@@ -42,7 +42,11 @@ pub(in crate::api::schema::postgres) mod tests
 	use winvoice_schema::Id;
 
 	use super::{Duration, PgRole, Postgres, Result, RoleAdapter};
-	use crate::{api::schema::Role, dyn_result::DynResult, utils::connect_pg};
+	use crate::{
+		api::schema::Role,
+		dyn_result::DynResult,
+		utils::{connect_pg, different_string, random_string},
+	};
 
 	/// `SECONDS_PER_MINUTE * MINUTES_PER_SECOND * HOURS_PER_DAY * DAYS_PER_MONTH`
 	const SECONDS_PER_MONTH: u64 = 60 * 60 * 24 * 30;
@@ -64,17 +68,12 @@ pub(in crate::api::schema::postgres) mod tests
 	{
 		let admin = PgRole::create(
 			&mut *tx,
-			format!("admin{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
+			format!("admin{}", random_string()),
 			Duration::from_secs(SECONDS_PER_MONTH).into(),
 		)
 		.await?;
 
-		let guest = PgRole::create(
-			&mut *tx,
-			format!("guest{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
-			None,
-		)
-		.await?;
+		let guest = PgRole::create(&mut *tx, format!("guest{}", random_string()), None).await?;
 
 		Ok((admin, guest))
 	}
@@ -161,8 +160,8 @@ pub(in crate::api::schema::postgres) mod tests
 		let (mut admin, guest) = setup(&mut tx).await?;
 		admin = Role::new(
 			admin.id(),
-			format!("not admin{}", rand::random::<[char; 8]>().into_iter().collect::<String>()),
-			admin.password_ttl(),
+			different_string(admin.name()),
+			Duration::from_secs(rand::random::<u32>().into()).into(),
 		);
 
 		PgRole::update(&mut tx, [&admin].into_iter()).await?;
@@ -173,10 +172,10 @@ pub(in crate::api::schema::postgres) mod tests
 		let admin_row_password_ttl =
 			admin_row.password_ttl.clone().map(duration_from).transpose()?;
 
-		assert_eq!(rows.len(), 2);
 		assert_eq!(admin.id(), admin_row.id);
 		assert_str_eq!(admin.name(), admin_row.name);
 		assert_eq!(admin.password_ttl(), admin_row_password_ttl);
+		assert_eq!(rows.len(), 2);
 
 		Ok(())
 	}
