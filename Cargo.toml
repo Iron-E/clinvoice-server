@@ -73,6 +73,7 @@ git = 'https://github.com/Iron-E/winvoice-schema'
 dotenvy = '0.15'
 pretty_assertions = '1'
 regex = "1"
+serde_json = "1"
 
 [features]
 bin = [

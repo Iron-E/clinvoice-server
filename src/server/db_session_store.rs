@@ -36,7 +36,7 @@ impl DbSessionStore<sqlx::Postgres>
 			"CREATE TABLE IF NOT EXISTS sessions
 			(
 				id text NOT NULL PRIMARY KEY,
-				expires timestamptz,
+				expiry timestamptz,
 				session json NOT NULL
 			);"
 		)

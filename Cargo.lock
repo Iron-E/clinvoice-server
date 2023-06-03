@@ -3681,6 +3681,7 @@ dependencies = [
  "regex",
  "semver",
  "serde",
+ "serde_json",
  "sqlx",
  "tokio",
  "tower",
