@@ -3,7 +3,7 @@
 mod clone;
 mod session_store;
 
-use sqlx::{Database, Pool, Result};
+use sqlx::{Database, Executor, Pool, Result};
 
 /// A session storer which is agnostic over the given `Db`.
 #[derive(Debug)]
@@ -13,6 +13,18 @@ where
 {
 	/// The [`Pool`] of connections to the [`Database`].
 	pool: Pool<Db>,
+}
+
+impl<Db> DbSessionStore<Db>
+where
+	Db: Database,
+	for<'c> &'c Pool<Db>: Executor<'c, Database = Db>,
+{
+	/// Get the current [`Connection`](sqlx::Connection).
+	pub fn connection(&self) -> impl Executor<'_, Database = Db>
+	{
+		&self.pool
+	}
 }
 
 #[cfg(feature = "postgres")]

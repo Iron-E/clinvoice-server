@@ -13,6 +13,7 @@ impl Updatable for PgUser
 	type Db = Postgres;
 	type Entity = User;
 
+	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn update<'entity, Iter>(
 		connection: &mut Transaction<Self::Db>,
 		entities: Iter,

@@ -13,6 +13,7 @@ impl Updatable for PgRole
 	type Db = Postgres;
 	type Entity = Role;
 
+	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn update<'entity, Iter>(
 		connection: &mut Transaction<Self::Db>,
 		entities: Iter,

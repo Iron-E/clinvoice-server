@@ -27,6 +27,7 @@ impl Retrievable for PgUser
 	type Match = MatchUser;
 
 	/// Retrieve all [`User`]s (via `connection`) that match the `match_condition`.
+	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn retrieve(
 		connection: &Pool<Postgres>,
 		match_condition: Self::Match,
@@ -57,6 +58,7 @@ impl Retrievable for PgUser
 			&mut query,
 		);
 
+		tracing::debug!("Generated SQL: {}", query.sql());
 		query.push(';').build_query_as::<User>().fetch(connection).try_collect().await
 	}
 }

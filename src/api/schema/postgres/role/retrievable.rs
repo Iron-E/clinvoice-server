@@ -24,6 +24,7 @@ impl Retrievable for PgRole
 	type Match = MatchRole;
 
 	/// Retrieve all [`Role`]s (via `connection`) that match the `match_condition`.
+	#[tracing::instrument(level = "trace", skip(connection), err)]
 	async fn retrieve(
 		connection: &Pool<Postgres>,
 		match_condition: Self::Match,
@@ -43,6 +44,7 @@ impl Retrievable for PgRole
 			&mut query,
 		);
 
+		tracing::debug!("Generated SQL: {}", query.sql());
 		query
 			.prepare()
 			.fetch(connection)

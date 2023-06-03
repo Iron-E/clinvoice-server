@@ -10,6 +10,7 @@ use crate::api::schema::{Role, User, UserAdapter};
 #[async_trait::async_trait]
 impl UserAdapter for PgUser
 {
+	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn create<'connection, Conn>(
 		connection: Conn,
 		employee: Option<Employee>,
@@ -48,6 +49,7 @@ mod tests
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::Transaction;
+	use tracing_test::traced_test;
 	use winvoice_adapter::{schema::EmployeeAdapter, Deletable, Retrievable, Updatable};
 	use winvoice_adapter_postgres::schema::PgEmployee;
 
@@ -103,6 +105,7 @@ mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn create() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -138,6 +141,7 @@ mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn delete() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -154,6 +158,7 @@ mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn retrieve() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -194,6 +199,7 @@ mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn update() -> DynResult<()>
 	{
 		let pool = connect_pg();

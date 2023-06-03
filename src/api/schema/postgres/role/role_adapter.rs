@@ -10,6 +10,7 @@ use crate::api::schema::{Role, RoleAdapter};
 #[async_trait::async_trait]
 impl RoleAdapter for PgRole
 {
+	#[tracing::instrument(level = "trace", skip(connection), err)]
 	async fn create<'connection, Conn>(
 		connection: Conn,
 		name: String,
@@ -37,6 +38,7 @@ pub(in crate::api::schema::postgres) mod tests
 
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::Transaction;
+	use tracing_test::traced_test;
 	use winvoice_adapter::{Deletable, Retrievable, Updatable};
 	use winvoice_adapter_postgres::schema::util::duration_from;
 
@@ -78,6 +80,7 @@ pub(in crate::api::schema::postgres) mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn create() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -108,6 +111,7 @@ pub(in crate::api::schema::postgres) mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn delete() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -124,6 +128,7 @@ pub(in crate::api::schema::postgres) mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn retrieve() -> DynResult<()>
 	{
 		let pool = connect_pg();
@@ -152,6 +157,7 @@ pub(in crate::api::schema::postgres) mod tests
 	}
 
 	#[tokio::test]
+	#[traced_test]
 	async fn update() -> DynResult<()>
 	{
 		let pool = connect_pg();

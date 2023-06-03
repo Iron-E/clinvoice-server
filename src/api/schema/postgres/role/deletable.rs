@@ -14,6 +14,7 @@ impl Deletable for PgRole
 	type Db = Postgres;
 	type Entity = Role;
 
+	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn delete<'connection, 'entity, Conn, Iter>(
 		connection: Conn,
 		entities: Iter,
