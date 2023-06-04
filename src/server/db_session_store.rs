@@ -1,6 +1,7 @@
 //! Contains the structure which is used to store session data.
 
 mod clone;
+mod initializable;
 mod session_store;
 
 use sqlx::{Database, Executor, Pool, Result};
@@ -18,31 +19,18 @@ where
 impl<Db> DbSessionStore<Db>
 where
 	Db: Database,
-	for<'c> &'c Pool<Db>: Executor<'c, Database = Db>,
 {
 	/// Get the current [`Connection`](sqlx::Connection).
 	pub fn connection(&self) -> impl Executor<'_, Database = Db>
+	where
+		for<'conn> &'conn Pool<Db>: Executor<'conn, Database = Db>,
 	{
 		&self.pool
 	}
-}
 
-#[cfg(feature = "postgres")]
-impl DbSessionStore<sqlx::Postgres>
-{
-	pub async fn new(pool: sqlx::PgPool) -> Result<Self>
+	/// Create a new [`DbSessionStore`].
+	pub const fn new(pool: Pool<Db>) -> Self
 	{
-		sqlx::query!(
-			"CREATE TABLE IF NOT EXISTS sessions
-			(
-				id text NOT NULL PRIMARY KEY,
-				expiry timestamptz,
-				session json NOT NULL
-			);"
-		)
-		.execute(&pool)
-		.await?;
-
-		Ok(Self { pool })
+		Self { pool }
 	}
 }

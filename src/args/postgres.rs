@@ -76,8 +76,9 @@ impl Postgres
 		self,
 		address: SocketAddr,
 		connection_idle: Duration,
+		cookie_domain: Option<String>,
+		cookie_secret: Vec<u8>,
 		permissions: Lock<Enforcer>,
-		secret: Vec<u8>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 		tls: RustlsConfig,
@@ -115,7 +116,13 @@ impl Postgres
 			.await?;
 
 		Server::new(address, tls)
-			.serve::<PgSchema>(State::new(permissions, pool), session_ttl, timeout)
+			.serve::<PgSchema>(
+				cookie_domain,
+				cookie_secret,
+				State::new(permissions, pool),
+				session_ttl,
+				timeout,
+			)
 			.await
 	}
 }

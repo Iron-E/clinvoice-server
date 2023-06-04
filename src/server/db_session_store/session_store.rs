@@ -160,7 +160,8 @@ mod postgres
 			session.insert("key", "value")?;
 			store.store_session(session).await?;
 			store.clear_store().await?;
-			let retrieved = sqlx::query!("SELECT * FROM sessions;").fetch_all(store.connection()).await?;
+			let retrieved =
+				sqlx::query!("SELECT * FROM sessions;").fetch_all(store.connection()).await?;
 			assert_eq!(retrieved.len(), 0);
 
 			Ok(())

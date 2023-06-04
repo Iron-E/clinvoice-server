@@ -5,7 +5,7 @@ use winvoice_schema::Id;
 
 use super::User;
 
-impl AuthUser<Id, Id> for User
+impl AuthUser<Id> for User
 {
 	fn get_id(&self) -> Id
 	{
@@ -15,10 +15,5 @@ impl AuthUser<Id, Id> for User
 	fn get_password_hash(&self) -> SecretVec<u8>
 	{
 		SecretVec::new(Vec::from(self.password()))
-	}
-
-	fn get_role(&self) -> Option<Id>
-	{
-		Some(self.role_id)
 	}
 }

@@ -60,6 +60,17 @@ pub struct Args
 	)]
 	connection_idle: Duration,
 
+	/// The domain name that will be used when creating cookies.
+	#[arg(long, short, value_name = "DOMAIN_NAME")]
+	cookie_domain: Option<String>,
+
+	/// The key which will be used to sign cookies. Should be securely generated, rather than
+	/// chosen.
+	///
+	/// TODO: allow changing without restarting the server
+	#[arg(long, short = 'S', value_name = "KEY")]
+	cookie_secret: Option<Vec<u8>>,
+
 	/// The file containing the key to use for TLS. Must be in PEM format.
 	#[arg(long, short, value_name = "FILE")]
 	key: PathBuf,
@@ -68,7 +79,7 @@ pub struct Args
 	///
 	/// When unspecified, uses [`dirs::state_dir`] or [`dirs::data_local_dir`]— whichever can be
 	/// resolved.
-	#[arg(long, short = 'D')]
+	#[arg(long, short)]
 	log_dir: Option<PathBuf>,
 
 	/// How often new log files will be generated.
@@ -101,13 +112,6 @@ pub struct Args
 	/// A [`casbin`] policy. Try [the editor](https://casbin.org/editor).
 	#[arg(long, short, value_name = "FILE")]
 	permissions_policy: String,
-
-	/// The key which will be used to encrypt sensitive data stored by users. If one is not
-	/// provided, a random one will be generated.
-	///
-	/// TODO: allow changing without restarting the server
-	#[arg(long, short = 'S', value_name = "KEY")]
-	secret: Option<Vec<u8>>,
 
 	/// The amount of time that a session is valid for.
 	#[arg(
@@ -154,24 +158,30 @@ impl Args
 			tracing::error!("Failed to enable hot-reloading permissions: {e}");
 		}
 
-		match self.command
-		{
-			#[cfg(feature = "postgres")]
-			Command::Postgres(p) => p.run(
-				self.address,
-				self.connection_idle,
-				permissions,
-				self.secret.unwrap_or_else(|| {
-					let mut arr = [0u8; 64];
-					rand::thread_rng().fill(&mut arr);
-					arr.to_vec()
-				}),
-				self.session_ttl,
-				self.timeout,
-				tls,
-			),
+		macro_rules! run {
+			($cmd:expr, $($Variant:ident $feature:literal),+) => {
+				match $cmd
+				{
+					$(#[cfg(feature = $feature)]
+					Command::$Variant(p) => p.run(
+						self.address,
+						self.connection_idle,
+						self.cookie_domain,
+						self.cookie_secret.unwrap_or_else(|| {
+							let mut arr = [0u8; 64];
+							rand::thread_rng().fill(&mut arr);
+							arr.to_vec()
+						}),
+						permissions,
+						self.session_ttl,
+						self.timeout,
+						tls,
+					)),+
+				}
+			}
 		}
-		.await
+
+		run!(self.command, Postgres "postgres").await
 	}
 }
 

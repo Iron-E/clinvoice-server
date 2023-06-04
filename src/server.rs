@@ -15,16 +15,27 @@ use axum::{
 	BoxError,
 	Router,
 };
+use axum_login::{
+	axum_sessions::{async_session::SessionStore, SessionLayer},
+	AuthLayer,
+	SqlxStore,
+	UserStore,
+};
 use axum_server::tls_rustls::RustlsConfig;
+use db_session_store::DbSessionStore;
 pub use response::{LoginResponse, LogoutResponse, Response};
-use sqlx::{Connection, Database, Executor, Transaction};
+use sqlx::{Connection, Database, Executor, Pool, Transaction};
 pub use state::State;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
-use winvoice_adapter::{Deletable, Retrievable, Updatable};
+use winvoice_adapter::{Deletable, Initializable, Retrievable, Updatable};
+use winvoice_schema::Id;
 
 use self::auth::InitializableWithAuthorization;
-use crate::{api::schema::Adapter, DynResult};
+use crate::{
+	api::schema::{Adapter, User},
+	DynResult,
+};
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -44,6 +55,8 @@ where
 	Db: Database,
 	Db::Connection: core::fmt::Debug,
 	<Db::Connection as Connection>::Options: Clone,
+	DbSessionStore<Db>: Initializable<Db = Db> + SessionStore,
+	SqlxStore<Pool<Db>, User>: UserStore<Id, ()>,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
@@ -59,6 +72,8 @@ where
 	/// Operations `timeout`, if specified.
 	pub async fn serve<A>(
 		self,
+		cookie_domain: Option<String>,
+		cookie_secret: Vec<u8>,
 		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
@@ -66,7 +81,8 @@ where
 	where
 		A: Adapter<Db = Db> + InitializableWithAuthorization,
 	{
-		let router = Self::router::<A>(state, session_ttl, timeout).await?;
+		let router =
+			Self::router::<A>(cookie_domain, cookie_secret, state, session_ttl, timeout).await?;
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
@@ -83,6 +99,8 @@ where
 
 	/// Create the [`Router`] that will be used by the [`Server`].
 	async fn router<A>(
+		cookie_domain: Option<String>,
+		cookie_secret: Vec<u8>,
 		state: State<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
@@ -90,7 +108,7 @@ where
 	where
 		A: Adapter<Db = Db> + InitializableWithAuthorization,
 	{
-		A::init_with_auth(state.pool()).await?;
+		futures::try_join!(A::init_with_auth(state.pool()), DbSessionStore::init(state.pool()))?;
 
 		let mut router = Router::new();
 		if let Some(t) = timeout
@@ -104,7 +122,7 @@ where
 							true => (StatusCode::REQUEST_TIMEOUT, "Request took too long".to_owned()),
 							false => (
 								StatusCode::INTERNAL_SERVER_ERROR,
-								format!("Unhandled internal error: {}", err),
+								format!("Unhandled internal error: {err}"),
 							),
 						}
 					}))
@@ -114,6 +132,19 @@ where
 
 		Ok(router
 			.layer(CompressionLayer::new())
+			.layer(AuthLayer::new(SqlxStore::<_, User>::new(state.pool().clone()), &cookie_secret))
+			.layer({
+				let mut layer =
+					SessionLayer::new(DbSessionStore::new(state.pool().clone()), &cookie_secret)
+						.with_session_ttl(session_ttl.into());
+
+				if let Some(s) = cookie_domain
+				{
+					layer = layer.with_cookie_domain(s);
+				}
+
+				layer
+			})
 			.layer(TraceLayer::new_for_http())
 			.route("/login", routing::put(|| async { todo("login") }))
 			.route("/logout", routing::put(|| async { todo("logout") }))
