@@ -115,8 +115,8 @@ impl Postgres
 			.connect_with(connect_options)
 			.await?;
 
-		Server::new(address, tls)
-			.serve::<PgSchema>(
+		Server::<PgSchema>::new(address, tls)
+			.serve(
 				cookie_domain,
 				cookie_secret,
 				ServerState::new(permissions, pool),
