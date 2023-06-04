@@ -1,8 +1,12 @@
 //! This module contains the template for a response which is sent by the [`winvoice_server`]
 
+mod debug;
+mod hash;
 mod into_response;
 mod login_response;
 mod logout_response;
+mod partial_eq;
+mod partial_ord;
 
 use axum::{http::StatusCode, Json};
 pub use login_response::LoginResponse;
@@ -16,8 +20,9 @@ pub use logout_response::LogoutResponse;
 /// ```
 #[macro_export]
 macro_rules! new_response {
-	($Name:ident, $Type:ty) => {
+	($Name:ident($Type:ty) $(: $($derive:ident),+)*) => {
 		#[doc = concat!(" A [`", stringify!($Type), "`] [`Response`](crate::server::Response)")]
+		$(#[derive($($derive),+)])*
 		pub struct $Name($crate::server::Response<$Type>);
 
 		impl ::axum::response::IntoResponse for $Name
@@ -31,6 +36,7 @@ macro_rules! new_response {
 }
 
 /// The response which the [`winvoice_server`] may issue.
+#[derive(Clone, Copy, Default)]
 pub struct Response<T>(StatusCode, Json<T>);
 
 impl<T> Response<T>

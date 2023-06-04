@@ -5,15 +5,7 @@ mod from;
 use super::{Response, StatusCode};
 use crate::api::{response::Login, Code, Status};
 
-crate::new_response!(LoginResponse, Login);
-
-impl From<Code> for LoginResponse
-{
-	fn from(code: Code) -> Self
-	{
-		Self::new(code.into(), code.into())
-	}
-}
+crate::new_response!(LoginResponse(Login): Clone, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
 
 impl LoginResponse
 {

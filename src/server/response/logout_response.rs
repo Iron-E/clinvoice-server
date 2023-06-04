@@ -5,7 +5,7 @@ mod from;
 use super::{Response, StatusCode};
 use crate::api::{response::Logout, Code, Status};
 
-crate::new_response!(LogoutResponse, Logout);
+crate::new_response!(LogoutResponse(Logout): Clone, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
 
 impl LogoutResponse
 {

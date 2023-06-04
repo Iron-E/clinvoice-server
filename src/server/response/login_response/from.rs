@@ -3,7 +3,15 @@
 use sqlx::Error as SqlxError;
 
 use super::LoginResponse;
-use crate::api::Status;
+use crate::api::{Code, Status};
+
+impl From<Code> for LoginResponse
+{
+	fn from(code: Code) -> Self
+	{
+		Self::new(code.into(), code.into())
+	}
+}
 
 impl From<argon2::password_hash::Error> for LoginResponse
 {
