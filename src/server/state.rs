@@ -17,7 +17,7 @@ use crate::{
 };
 
 /// The state which is shared by the server.
-pub struct State<Db>
+pub struct ServerState<Db>
 where
 	Db: Database,
 {
@@ -28,7 +28,7 @@ where
 	pool: Pool<Db>,
 }
 
-impl<Db> State<Db>
+impl<Db> ServerState<Db>
 where
 	Db: Database,
 {

@@ -3,22 +3,27 @@
 mod from;
 
 use super::{Response, StatusCode};
-use crate::api::{response::Login, Status, StatusCode as Code};
+use crate::api::{response::Login, Code, Status};
 
 crate::new_response!(LoginResponse, Login);
 
 impl LoginResponse
 {
-	/// Create a new [`LoginResponse`].
-	pub fn new<S>(code: StatusCode, status: S) -> Self
-	where
-		S: Into<Status>,
+	/// A [`LoginResponse`] indicating that the credentials passed were invalid.
+	pub const fn invalid_credentials() -> Self
 	{
-		Self(Response::new(code, Login::new(status.into())))
+		Self::new(StatusCode::UNPROCESSABLE_ENTITY, Code::InvalidCredentials.into())
 	}
 
-	pub fn success() -> Self
+	/// Create a new [`LoginResponse`].
+	pub fn new(code: StatusCode, status: Status) -> Self
 	{
-		Self::new(StatusCode::OK, Status::new(Code::LoggedIn, None))
+		Self(Response::new(code, Login::new(status)))
+	}
+
+	/// A [`LoginResponse`] indicating the login operation succeeded.
+	pub const fn success() -> Self
+	{
+		Self::new(StatusCode::OK, Code::LoggedIn.into())
 	}
 }

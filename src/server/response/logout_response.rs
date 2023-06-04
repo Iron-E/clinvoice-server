@@ -3,22 +3,20 @@
 mod from;
 
 use super::{Response, StatusCode};
-use crate::api::{response::Logout, Status, StatusCode as Code};
+use crate::api::{response::Logout, Code, Status};
 
 crate::new_response!(LogoutResponse, Logout);
 
 impl LogoutResponse
 {
 	/// Create a new [`LogoutResponse`].
-	pub fn new<S>(code: StatusCode, status: S) -> Self
-	where
-		S: Into<Status>,
+	pub fn new(code: StatusCode, status: Status) -> Self
 	{
-		Self(Response::new(code, Logout::new(status.into())))
+		Self(Response::new(code, Logout::new(status)))
 	}
 
 	pub fn success() -> Self
 	{
-		Self::new(StatusCode::OK, Status::new(Code::LoggedOut, None))
+		Self::new(StatusCode::OK, Code::LoggedOut.into())
 	}
 }

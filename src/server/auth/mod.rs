@@ -3,5 +3,5 @@
 mod context;
 mod initializable_with_authorization;
 
-pub use context::Context;
+pub use context::AuthContext;
 pub use initializable_with_authorization::InitializableWithAuthorization;

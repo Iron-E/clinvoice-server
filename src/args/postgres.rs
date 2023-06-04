@@ -12,7 +12,7 @@ use winvoice_adapter_postgres::PgSchema;
 
 use crate::{
 	lock::Lock,
-	server::{Server, State},
+	server::{Server, ServerState},
 	DynResult,
 };
 
@@ -119,7 +119,7 @@ impl Postgres
 			.serve::<PgSchema>(
 				cookie_domain,
 				cookie_secret,
-				State::new(permissions, pool),
+				ServerState::new(permissions, pool),
 				session_ttl,
 				timeout,
 			)

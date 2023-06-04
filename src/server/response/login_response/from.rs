@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use sqlx::Error;
 
 use super::LoginResponse;
-use crate::api::{Status, StatusCode as Code};
+use crate::api::{Code, Status};
 
 impl From<&Error> for LoginResponse
 {

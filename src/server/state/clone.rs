@@ -1,8 +1,8 @@
 //! Contains a [`Clone`] implementation for [`State`].
 
-use super::{Database, State};
+use super::{Database, ServerState};
 
-impl<Db> Clone for State<Db>
+impl<Db> Clone for ServerState<Db>
 where
 	Db: Database,
 {
