@@ -25,7 +25,6 @@ impl LoginResponse
 	/// A [`LoginResponse`] indicating the login operation succeeded.
 	pub fn success() -> Self
 	{
-		const CODE: Code = Code::LoggedIn;
-		CODE.into()
+		Code::LoggedIn.into()
 	}
 }

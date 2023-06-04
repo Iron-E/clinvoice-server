@@ -17,6 +17,6 @@ impl LogoutResponse
 
 	pub fn success() -> Self
 	{
-		Self::new(StatusCode::OK, Code::LoggedOut.into())
+		Code::LoggedOut.into()
 	}
 }

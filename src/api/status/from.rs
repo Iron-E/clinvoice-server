@@ -1,7 +1,5 @@
 //! Contains the [`From`] implementations for [`Status`].
 
-use core::array::TryFromSliceError;
-
 use sqlx::Error as SqlxError;
 
 use super::{Code, Status};
@@ -25,14 +23,6 @@ impl From<&argon2::password_hash::Error> for Status
 impl From<&SqlxError> for Status
 {
 	fn from(error: &SqlxError) -> Self
-	{
-		Self::new(error.into(), error.to_string())
-	}
-}
-
-impl From<&TryFromSliceError> for Status
-{
-	fn from(error: &TryFromSliceError) -> Self
 	{
 		Self::new(error.into(), error.to_string())
 	}

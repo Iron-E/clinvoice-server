@@ -15,6 +15,7 @@ use axum::{
 	extract::State,
 	headers::{authorization::Basic, Authorization},
 	http::StatusCode,
+	response::IntoResponse,
 	routing::{self, MethodRouter},
 	BoxError,
 	Router,
@@ -157,12 +158,7 @@ where
 			})
 			.layer(TraceLayer::new_for_http())
 			.route("/login", routing::get(Self::handle_get_login))
-			.route(
-				"/logout",
-				routing::get(|mut auth: AuthContext<A::Db>| async move {
-					auth.logout().await;
-				}),
-			)
+			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/contact",
 				Self::route::<A::Contact>()
@@ -247,6 +243,13 @@ where
 			let code = Code::LoginError;
 			LoginResponse::new(code.into(), Status::new(code, e.to_string()))
 		})
+	}
+
+	/// The [handler](axum::Handler) for [GET](routing::get) on "/logout".
+	async fn handle_get_logout(mut auth: AuthContext<A::Db>) -> impl IntoResponse
+	{
+		auth.logout().await;
+		LogoutResponse::success()
 	}
 }
 

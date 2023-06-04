@@ -1,7 +1,5 @@
 //! Implementations of [`From`] for [`Code`].
 
-use core::array::TryFromSliceError;
-
 use argon2::password_hash::Error as PasswordError;
 use axum::http::StatusCode;
 use sqlx::Error as SqlxError;
@@ -14,14 +12,14 @@ impl From<Code> for StatusCode
 	{
 		match code
 		{
+			Code::EncodingError => Self::BAD_REQUEST,
 			Code::InvalidCredentials => Self::UNPROCESSABLE_ENTITY,
-			Code::Unauthorized => Self::UNAUTHORIZED,
 			Code::LoggedIn | Code::LoggedOut => Self::OK,
+			Code::Unauthorized => Self::UNAUTHORIZED,
 
 			Code::BadArguments |
 			Code::CryptError |
 			Code::Database |
-			Code::EncodingError |
 			Code::LoginError |
 			Code::Other |
 			Code::SqlError => Self::INTERNAL_SERVER_ERROR,
@@ -65,13 +63,5 @@ impl From<&SqlxError> for Code
 
 			_ => Self::Other,
 		}
-	}
-}
-
-impl From<&TryFromSliceError> for Code
-{
-	fn from(_: &TryFromSliceError) -> Self
-	{
-		Self::EncodingError
 	}
 }
