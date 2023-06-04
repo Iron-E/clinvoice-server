@@ -7,12 +7,21 @@ use crate::api::{response::Login, Code, Status};
 
 crate::new_response!(LoginResponse, Login);
 
+impl From<Code> for LoginResponse
+{
+	fn from(code: Code) -> Self
+	{
+		Self::new(code.into(), code.into())
+	}
+}
+
 impl LoginResponse
 {
 	/// A [`LoginResponse`] indicating that the credentials passed were invalid.
-	pub const fn invalid_credentials() -> Self
+	pub fn invalid_credentials(message: Option<String>) -> Self
 	{
-		Self::new(StatusCode::UNPROCESSABLE_ENTITY, Code::InvalidCredentials.into())
+		const CODE: Code = Code::InvalidCredentials;
+		Self::new(CODE.into(), message.map_or_else(|| CODE.into(), |m| Status::new(CODE, m)))
 	}
 
 	/// Create a new [`LoginResponse`].
@@ -22,8 +31,9 @@ impl LoginResponse
 	}
 
 	/// A [`LoginResponse`] indicating the login operation succeeded.
-	pub const fn success() -> Self
+	pub fn success() -> Self
 	{
-		Self::new(StatusCode::OK, Code::LoggedIn.into())
+		const CODE: Code = Code::LoggedIn;
+		CODE.into()
 	}
 }

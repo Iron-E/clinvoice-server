@@ -3,7 +3,7 @@
 mod clone;
 
 use casbin::{CoreApi, Enforcer};
-use sqlx::{Database, Pool};
+use sqlx::{Database, Error as SqlxError, Pool};
 use winvoice_adapter::Retrievable;
 
 use crate::{
@@ -56,7 +56,7 @@ where
 
 		let role = R::retrieve(&self.pool, user.role_id().into())
 			.await
-			.and_then(|mut v| v.pop().ok_or(sqlx::Error::RowNotFound))?;
+			.and_then(|mut v| v.pop().ok_or(SqlxError::RowNotFound))?;
 
 		permissions.enforce((role.name(), object, action)).map_err(Into::into)
 	}

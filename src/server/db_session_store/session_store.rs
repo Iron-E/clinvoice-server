@@ -106,7 +106,7 @@ mod postgres
 				let session_row = match select!(connection, session.id())
 				{
 					Ok(Some(s)) => s,
-					Ok(None) => return Err(sqlx::Error::RowNotFound.into()),
+					Ok(None) => return Err(SqlxError::RowNotFound.into()),
 					Err(e) => return Err(e.into()),
 				};
 

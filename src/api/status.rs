@@ -35,7 +35,7 @@ impl Status
 
 	/// Create a new [`Status`]. If the `message` is left out, a default message based on the `code`
 	/// will be used.
-	pub fn new(code: Code, message: String) -> Self
+	pub const fn new(code: Code, message: String) -> Self
 	{
 		Self { code, message }
 	}

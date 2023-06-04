@@ -2,6 +2,8 @@
 
 use core::array::TryFromSliceError;
 
+use sqlx::Error as SqlxError;
+
 use super::{Code, Status};
 
 impl From<Code> for Status
@@ -12,30 +14,19 @@ impl From<Code> for Status
 	}
 }
 
-impl From<&sqlx::Error> for Status
+impl From<&argon2::password_hash::Error> for Status
 {
-	fn from(error: &sqlx::Error) -> Self
+	fn from(error: &argon2::password_hash::Error) -> Self
 	{
-		use sqlx::Error;
+		Self::new(error.into(), error.to_string())
+	}
+}
 
-		Self::new(
-			match error
-			{
-				Error::Configuration(_) => Code::BadArguments,
-				Error::ColumnDecode { .. } | Error::Decode(_) => Code::DecodeError,
-				Error::ColumnIndexOutOfBounds { .. } |
-				Error::ColumnNotFound(_) |
-				Error::RowNotFound |
-				Error::TypeNotFound { .. } => Code::SqlError,
-				Error::Io(_) => Code::DbIoError,
-				Error::PoolClosed => Code::DbConnectionSevered,
-				Error::PoolTimedOut => Code::DbConnectTimeout,
-				Error::Protocol(_) => Code::DbAdapterError,
-				Error::Tls(_) => Code::DbTlsError,
-				_ => Code::Other,
-			},
-			error.to_string(),
-		)
+impl From<&SqlxError> for Status
+{
+	fn from(error: &SqlxError) -> Self
+	{
+		Self::new(error.into(), error.to_string())
 	}
 }
 
@@ -43,6 +34,6 @@ impl From<&TryFromSliceError> for Status
 {
 	fn from(error: &TryFromSliceError) -> Self
 	{
-		Self::new(Code::DecodeError, error.to_string())
+		Self::new(error.into(), error.to_string())
 	}
 }

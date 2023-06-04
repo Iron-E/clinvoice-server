@@ -8,12 +8,17 @@ mod state;
 use core::{marker::PhantomData, time::Duration};
 use std::net::SocketAddr;
 
+use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use auth::{AuthContext, InitializableWithAuthorization};
 use axum::{
 	error_handling::HandleErrorLayer,
+	extract::State,
+	headers::{authorization::Basic, Authorization},
 	http::StatusCode,
 	routing::{self, MethodRouter},
 	BoxError,
 	Router,
+	TypedHeader,
 };
 use axum_login::{
 	axum_sessions::{async_session::SessionStore, SessionLayer},
@@ -25,15 +30,19 @@ use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
 pub use response::{LoginResponse, LogoutResponse, Response};
 use sqlx::{Connection, Database, Executor, Pool, Transaction};
-pub use state::State;
+pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use winvoice_adapter::{Deletable, Initializable, Retrievable, Updatable};
 use winvoice_schema::Id;
 
-use self::auth::InitializableWithAuthorization;
 use crate::{
-	api::schema::{Adapter, User},
+	api::{
+		r#match::MatchUser,
+		schema::{Adapter, User},
+		Code,
+		Status,
+	},
 	DynResult,
 };
 
@@ -56,7 +65,7 @@ where
 	Db::Connection: core::fmt::Debug,
 	<Db::Connection as Connection>::Options: Clone,
 	DbSessionStore<Db>: Initializable<Db = Db> + SessionStore,
-	SqlxStore<Pool<Db>, User>: UserStore<Id, ()>,
+	SqlxStore<Pool<Db>, User>: UserStore<Id, (), User = User>,
 	for<'connection> &'connection mut Db::Connection: Executor<'connection, Database = Db>,
 	for<'connection> &'connection mut Transaction<'connection, Db>:
 		Executor<'connection, Database = Db>,
@@ -74,7 +83,7 @@ where
 		self,
 		cookie_domain: Option<String>,
 		cookie_secret: Vec<u8>,
-		state: State<Db>,
+		state: ServerState<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<()>
@@ -89,7 +98,7 @@ where
 
 	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
 	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<TEntity>() -> MethodRouter<State<Db>>
+	fn route<TEntity>() -> MethodRouter<ServerState<Db>>
 	where
 		TEntity: Deletable<Db = Db> + Retrievable<Db = Db> + Updatable<Db = Db>,
 	{
@@ -101,7 +110,7 @@ where
 	async fn router<A>(
 		cookie_domain: Option<String>,
 		cookie_secret: Vec<u8>,
-		state: State<Db>,
+		state: ServerState<Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<Router>
@@ -130,6 +139,23 @@ where
 			);
 		}
 
+		// async fn login_handler(mut auth: AuthContext)
+		// {
+		// 	let pool = SqlitePoolOptions::new().connect("sqlite/user_store.db").await.unwrap();
+		// 	let mut conn = pool.acquire().await.unwrap();
+		// 	let user: User = sqlx::query_as("select * from users where id = 1")
+		// 		.fetch_one(&mut conn)
+		// 		.await
+		// 		.unwrap();
+		// 	auth.login(&user).await.unwrap();
+		// }
+
+		// async fn logout_handler(mut auth: AuthContext)
+		// {
+		// 	dbg!("Logging out user: {}", &auth.current_user);
+		// 	auth.logout().await;
+		// }
+
 		Ok(router
 			.layer(CompressionLayer::new())
 			.layer(AuthLayer::new(SqlxStore::<_, User>::new(state.pool().clone()), &cookie_secret))
@@ -146,7 +172,37 @@ where
 				layer
 			})
 			.layer(TraceLayer::new_for_http())
-			.route("/login", routing::put(|| async { todo("login") }))
+			.route(
+				"/login",
+				routing::get(
+					|mut auth: AuthContext<Db>,
+					 State(state): State<ServerState<Db>>,
+					 TypedHeader(credentials): TypedHeader<Authorization<Basic>>| async move {
+						let user = match A::User::retrieve(state.pool(), MatchUser {
+							username: credentials.username().to_owned().into(),
+							..Default::default()
+						})
+						.await
+						.map(|mut v| v.pop())
+						{
+							Ok(Some(u)) => u,
+							Ok(None) => return Err(LoginResponse::invalid_credentials(None)),
+							Err(e) => return Err(LoginResponse::from(e)),
+						};
+
+						PasswordHash::new(user.password())
+							.and_then(|hash| {
+								Argon2::default().verify_password(user.password().as_bytes(), &hash)
+							})
+							.map_err(LoginResponse::from)?;
+
+						auth.login(&user).await.map(|_| LoginResponse::success()).map_err(|e| {
+							let code = Code::LoginError;
+							LoginResponse::new(code.into(), Status::new(code, e.to_string()))
+						})
+					},
+				),
+			)
 			.route("/logout", routing::put(|| async { todo("logout") }))
 			.route(
 				"/contact",
