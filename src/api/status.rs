@@ -35,10 +35,8 @@ impl Status
 
 	/// Create a new [`Status`]. If the `message` is left out, a default message based on the `code`
 	/// will be used.
-	pub fn new<M>(code: Code, message: M) -> Self
-	where
-		M: Into<Option<String>>,
+	pub fn new(code: Code, message: String) -> Self
 	{
-		Self { code, message: message.into().unwrap_or_else(|| code.to_string()) }
+		Self { code, message }
 	}
 }

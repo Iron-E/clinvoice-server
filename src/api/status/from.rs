@@ -4,6 +4,14 @@ use core::array::TryFromSliceError;
 
 use super::{Code, Status};
 
+impl From<Code> for Status
+{
+	fn from(code: Code) -> Self
+	{
+		Self { code, message: code.to_string() }
+	}
+}
+
 impl From<&sqlx::Error> for Status
 {
 	fn from(error: &sqlx::Error) -> Self
@@ -14,16 +22,6 @@ impl From<&sqlx::Error> for Status
 			match error
 			{
 				Error::Configuration(_) => Code::BadArguments,
-				#[cfg(feature = "postgres")]
-				Error::Database(e)
-					if matches!(
-						e.try_downcast_ref::<sqlx::postgres::PgDatabaseError>()
-							.and_then(sqlx::postgres::PgDatabaseError::routine),
-						Some("auth_failed" | "InitializeSessionUserId"),
-					) =>
-				{
-					Code::InvalidCredentials
-				},
 				Error::ColumnDecode { .. } | Error::Decode(_) => Code::DecodeError,
 				Error::ColumnIndexOutOfBounds { .. } |
 				Error::ColumnNotFound(_) |

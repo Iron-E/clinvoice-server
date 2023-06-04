@@ -7,4 +7,4 @@ pub mod response;
 pub mod schema;
 mod status;
 
-pub use status::{Code as StatusCode, Status};
+pub use status::{Code, Status};
