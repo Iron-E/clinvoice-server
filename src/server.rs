@@ -9,7 +9,7 @@ use core::{marker::PhantomData, time::Duration};
 use std::net::SocketAddr;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use auth::{AuthContext, InitializableWithAuthorization};
+use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, UserStore};
 use axum::{
 	error_handling::HandleErrorLayer,
 	extract::State,
@@ -24,8 +24,8 @@ use axum::{
 use axum_login::{
 	axum_sessions::{async_session::SessionStore, SessionLayer},
 	AuthLayer,
+	RequireAuthorizationLayer,
 	SqlxStore,
-	UserStore,
 };
 use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
@@ -66,7 +66,7 @@ where
 	<A::Db as Database>::Connection: core::fmt::Debug,
 	<<A::Db as Database>::Connection as Connection>::Options: Clone,
 	DbSessionStore<A::Db>: Initializable<Db = A::Db> + SessionStore,
-	SqlxStore<Pool<A::Db>, User>: UserStore<Id, (), User = User>,
+	DbUserStore<A::Db>: UserStore,
 	for<'connection> &'connection mut <A::Db as Database>::Connection:
 		Executor<'connection, Database = A::Db>,
 	for<'connection> &'connection mut Transaction<'connection, A::Db>:
