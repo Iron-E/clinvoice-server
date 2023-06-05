@@ -21,8 +21,6 @@ impl Display for Code
 			                             the credentials provided were incorrect"
 				.fmt(f),
 			Self::EncodingError => "An error occurred while attempting to de/encode a value".fmt(f),
-			Self::LoggedIn => "A user has been logged in".fmt(f),
-			Self::LoggedOut => "A user has been logged out".fmt(f),
 			Self::LoginError => "Valid credentials were provided, and then an error occurred when \
 			                     attempting to login"
 				.fmt(f),
@@ -30,6 +28,7 @@ impl Display for Code
 			Self::SqlError => "The SQL which was generated from a `winvoice_match` was incorrect. \
 			                   This is likely a bug in Winvoice"
 				.fmt(f),
+			Self::Success => "The requested operation has completed without error.".fmt(f),
 			Self::Unauthorized => "A user has attempted to perform an operation while not having \
 			                       the correct permissions"
 				.fmt(f),

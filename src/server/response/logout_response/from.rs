@@ -1,7 +1,5 @@
 //! Contains [`From`] implementations for a [`LoginResponse`].
 
-use axum::http::StatusCode;
-
 use super::LogoutResponse;
 use crate::api::Code;
 

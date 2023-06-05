@@ -221,7 +221,7 @@ where
 		mut auth: AuthContext<A::Db>,
 		State(state): State<ServerState<A::Db>>,
 		TypedHeader(credentials): TypedHeader<Authorization<Basic>>,
-	) -> Result<LoginResponse, LoginResponse>
+	) -> impl IntoResponse
 	{
 		let user = match A::User::retrieve(state.pool(), MatchUser {
 			username: credentials.username().to_owned().into(),
@@ -239,7 +239,7 @@ where
 			.and_then(|hash| Argon2::default().verify_password(user.password().as_bytes(), &hash))
 			.map_err(LoginResponse::from)?;
 
-		auth.login(&user).await.map(|_| LoginResponse::success()).map_err(|e| {
+		auth.login(&user).await.map(|_| LoginResponse::from(Code::Success)).map_err(|e| {
 			let code = Code::LoginError;
 			LoginResponse::new(code.into(), Status::new(code, e.to_string()))
 		})
@@ -249,7 +249,7 @@ where
 	async fn handle_get_logout(mut auth: AuthContext<A::Db>) -> impl IntoResponse
 	{
 		auth.logout().await;
-		LogoutResponse::success()
+		LogoutResponse::from(Code::Success)
 	}
 }
 

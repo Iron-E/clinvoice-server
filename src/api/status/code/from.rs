@@ -14,7 +14,7 @@ impl From<Code> for StatusCode
 		{
 			Code::EncodingError => Self::BAD_REQUEST,
 			Code::InvalidCredentials => Self::UNPROCESSABLE_ENTITY,
-			Code::LoggedIn | Code::LoggedOut => Self::OK,
+			Code::Success => Self::OK,
 			Code::Unauthorized => Self::UNAUTHORIZED,
 
 			Code::BadArguments |

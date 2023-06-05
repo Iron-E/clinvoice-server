@@ -3,7 +3,7 @@
 mod from;
 
 use super::{Response, StatusCode};
-use crate::api::{response::Logout, Code, Status};
+use crate::api::{response::Logout, Status};
 
 crate::new_response!(LogoutResponse(Logout): Clone, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
 
@@ -13,10 +13,5 @@ impl LogoutResponse
 	pub fn new(code: StatusCode, status: Status) -> Self
 	{
 		Self(Response::new(code, Logout::new(status)))
-	}
-
-	pub fn success() -> Self
-	{
-		Code::LoggedOut.into()
 	}
 }

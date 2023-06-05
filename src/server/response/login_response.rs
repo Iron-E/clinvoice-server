@@ -21,10 +21,4 @@ impl LoginResponse
 	{
 		Self(Response::new(code, Login::new(status)))
 	}
-
-	/// A [`LoginResponse`] indicating the login operation succeeded.
-	pub fn success() -> Self
-	{
-		Code::LoggedIn.into()
-	}
 }
