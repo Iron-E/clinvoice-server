@@ -105,6 +105,7 @@ where
 		TEntity: Deletable<Db = A::Db> + Retrievable<Db = A::Db> + Updatable<Db = A::Db>,
 	{
 		routing::delete(|| async { todo("Delete method not implemented") })
+			.get(|| async { todo("Retrieve method not implemented") })
 			.patch(|| async { todo("Update method not implemented") })
 	}
 
@@ -159,68 +160,41 @@ where
 			.layer(TraceLayer::new_for_http())
 			.route(
 				"/contact",
-				Self::route::<A::Contact>()
-					.get(|| async { todo("contact retrieve") })
-					.post(|| async { todo("contact create") }),
+				Self::route::<A::Contact>().post(|| async { todo("contact create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/employee",
-				Self::route::<A::Employee>()
-					.get(|| async { todo("employee retrieve") })
-					.post(|| async { todo("employee create") }),
+				Self::route::<A::Employee>().post(|| async { todo("employee create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/expense",
-				Self::route::<A::Expenses>()
-					.get(|| async { todo("expense retrieve") })
-					.post(|| async { todo("expense create") }),
+				Self::route::<A::Expenses>().post(|| async { todo("expense create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/job",
-				Self::route::<A::Job>()
-					.get(|| async { todo("job retrieve") })
-					.post(|| async { todo("job create") }),
-			)
+			.route("/job", Self::route::<A::Job>().post(|| async { todo("job create") }))
 			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/location",
-				Self::route::<A::Location>()
-					.get(|| async { todo("location retrieve") })
-					.post(|| async { todo("location create") }),
+				Self::route::<A::Location>().post(|| async { todo("location create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
 			.route("/login", routing::get(Self::handle_get_login))
 			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/organization",
-				Self::route::<A::Organization>()
-					.get(|| async { todo("organization retrieve") })
-					.post(|| async { todo("organization create") }),
+				Self::route::<A::Organization>().post(|| async { todo("organization create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/role",
-				Self::route::<A::Role>()
-					.get(|| async { todo("role retrieve") })
-					.post(|| async { todo("role create") }),
-			)
+			.route("/role", Self::route::<A::Role>().post(|| async { todo("role create") }))
 			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/timesheet",
-				Self::route::<A::Timesheet>()
-					.get(|| async { todo("timesheet retrieve") })
-					.post(|| async { todo("timesheet create") }),
+				Self::route::<A::Timesheet>().post(|| async { todo("timesheet create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/user",
-				Self::route::<A::User>()
-					.get(|| async { todo("user retrieve") })
-					.post(|| async { todo("user create") }),
-			)
+			.route("/user", Self::route::<A::User>().post(|| async { todo("user create") }))
 			.route_layer(RequireAuthLayer::login())
 			.with_state(state))
 	}
