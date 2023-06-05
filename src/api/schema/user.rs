@@ -2,6 +2,7 @@
 
 #![cfg_attr(feature = "bin", allow(clippy::std_instead_of_core))]
 
+#[cfg(feature = "bin")]
 mod auth_user;
 #[cfg(feature = "postgres")]
 mod date_time_ext;
