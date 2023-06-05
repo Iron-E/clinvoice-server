@@ -17,7 +17,7 @@ impl LoginResponse
 	}
 
 	/// Create a new [`LoginResponse`].
-	pub fn new(code: StatusCode, status: Status) -> Self
+	pub const fn new(code: StatusCode, status: Status) -> Self
 	{
 		Self(Response::new(code, Login::new(status)))
 	}

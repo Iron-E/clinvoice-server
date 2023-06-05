@@ -10,7 +10,7 @@ crate::new_response!(LogoutResponse(Logout): Clone, Default, Eq, Hash, PartialEq
 impl LogoutResponse
 {
 	/// Create a new [`LogoutResponse`].
-	pub fn new(code: StatusCode, status: Status) -> Self
+	pub const fn new(code: StatusCode, status: Status) -> Self
 	{
 		Self(Response::new(code, Logout::new(status)))
 	}
