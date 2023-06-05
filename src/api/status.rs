@@ -1,5 +1,6 @@
 //! This module contains data used in reporting the success/failure of an operation on the server.
 
+mod as_ref;
 mod code;
 
 #[cfg(feature = "bin")]

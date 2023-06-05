@@ -12,6 +12,8 @@ use axum::{http::StatusCode, Json};
 pub use login_response::LoginResponse;
 pub use logout_response::LogoutResponse;
 
+use crate::api::Code;
+
 /// Implements [`IntoResponse`](axum::response::IntoResponse) for any `struct` with this structure:
 ///
 /// ```rust,ignore
@@ -45,5 +47,16 @@ impl<T> Response<T>
 	pub const fn new(status_code: StatusCode, content: T) -> Self
 	{
 		Self(status_code, Json(content))
+	}
+}
+
+impl<T> Response<T>
+where
+	T: AsRef<Code>,
+{
+	/// Create a new [`Response`]
+	pub fn from(content: T) -> Self
+	{
+		Self((*content.as_ref()).into(), Json(content))
 	}
 }

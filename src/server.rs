@@ -12,11 +12,11 @@ use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
 use axum::{
 	error_handling::HandleErrorLayer,
-	extract::State,
+	extract::{Json, State},
 	headers::{authorization::Basic, Authorization},
 	http::StatusCode,
 	response::IntoResponse,
-	routing::{self, MethodRouter},
+	routing,
 	BoxError,
 	Router,
 	TypedHeader,
@@ -38,12 +38,36 @@ use winvoice_adapter::{Deletable, Initializable, Retrievable, Updatable};
 use crate::{
 	api::{
 		r#match::MatchUser,
+		request,
+		response as res,
 		schema::{Adapter, User},
 		Code,
 		Status,
 	},
 	DynResult,
 };
+
+/// Create routes which are able to be implemented generically.
+macro_rules! route {
+	($TEntity:ty) => {
+		routing::delete(|| async move { todo("Delete method not implemented") })
+			.get(
+				|State(state): State<ServerState<A::Db>>,
+				 Json(request): Json<request::Retrieve<<$TEntity as Retrievable>::Match>>| async move {
+					<$TEntity>::retrieve(state.pool(), request.into_condition())
+						.await
+						.map(|vec| Response::from(res::Retrieve::new(vec, Code::Success.into())))
+						.map_err(|e| {
+							Response::from(res::Retrieve::new(
+								Vec::<<$TEntity as Retrievable>::Entity>::default(),
+								(&e).into(),
+							))
+						})
+				},
+			)
+			.patch(|| async move { todo("Update method not implemented") })
+	};
+}
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -96,17 +120,6 @@ where
 		Ok(())
 	}
 
-	/// Create a new [`MethodRouter`] with [`delete`](routing::delete) and [`patch`](routing::patch)
-	/// preconfigured, since those are common among all Winvoice entities.
-	fn route<TEntity>() -> MethodRouter<ServerState<A::Db>>
-	where
-		TEntity: Deletable<Db = A::Db> + Retrievable<Db = A::Db> + Updatable<Db = A::Db>,
-	{
-		routing::delete(|| async { todo("Delete method not implemented") })
-			.get(|| async { todo("Retrieve method not implemented") })
-			.patch(|| async { todo("Update method not implemented") })
-	}
-
 	/// Create the [`Router`] that will be used by the [`Server`].
 	async fn router(
 		cookie_domain: Option<String>,
@@ -156,43 +169,28 @@ where
 				layer
 			})
 			.layer(TraceLayer::new_for_http())
-			.route(
-				"/contact",
-				Self::route::<A::Contact>().post(|| async { todo("contact create") }),
-			)
+			.route("/contact", route!(A::Contact).post(|| async { todo("contact create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/employee",
-				Self::route::<A::Employee>().post(|| async { todo("employee create") }),
-			)
+			.route("/employee", route!(A::Employee).post(|| async { todo("employee create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/expense",
-				Self::route::<A::Expenses>().post(|| async { todo("expense create") }),
-			)
+			.route("/expense", route!(A::Expenses).post(|| async { todo("expense create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/job", Self::route::<A::Job>().post(|| async { todo("job create") }))
+			.route("/job", route!(A::Job).post(|| async { todo("job create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/location",
-				Self::route::<A::Location>().post(|| async { todo("location create") }),
-			)
+			.route("/location", route!(A::Location).post(|| async { todo("location create") }))
 			.route_layer(RequireAuthLayer::login())
 			.route("/login", routing::get(Self::handle_get_login))
 			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/organization",
-				Self::route::<A::Organization>().post(|| async { todo("organization create") }),
+				route!(A::Organization).post(|| async { todo("organization create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
-			.route("/role", Self::route::<A::Role>().post(|| async { todo("role create") }))
+			.route("/role", route!(A::Role).post(|| async { todo("role create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/timesheet",
-				Self::route::<A::Timesheet>().post(|| async { todo("timesheet create") }),
-			)
+			.route("/timesheet", route!(A::Timesheet).post(|| async { todo("timesheet create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/user", Self::route::<A::User>().post(|| async { todo("user create") }))
+			.route("/user", route!(A::User).post(|| async { todo("user create") }))
 			.route_layer(RequireAuthLayer::login())
 			.with_state(state))
 	}

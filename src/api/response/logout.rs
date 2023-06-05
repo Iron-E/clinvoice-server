@@ -1,5 +1,7 @@
 //! This module contains the response for a logout.
 
+mod as_ref;
+
 use serde::{Deserialize, Serialize};
 
 use crate::api::Status;
