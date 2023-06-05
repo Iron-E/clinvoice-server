@@ -24,18 +24,16 @@ use axum::{
 use axum_login::{
 	axum_sessions::{async_session::SessionStore, SessionLayer},
 	AuthLayer,
-	RequireAuthorizationLayer,
 	SqlxStore,
 };
 use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
 pub use response::{LoginResponse, LogoutResponse, Response};
-use sqlx::{Connection, Database, Executor, Pool, Transaction};
+use sqlx::{Connection, Database, Executor, Transaction};
 pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
 use winvoice_adapter::{Deletable, Initializable, Retrievable, Updatable};
-use winvoice_schema::Id;
 
 use crate::{
 	api::{
