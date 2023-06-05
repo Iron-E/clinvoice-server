@@ -15,11 +15,9 @@ pub struct Login
 impl Login
 {
 	/// Create a new [`Login`] response.
-	pub fn new<S>(status: S) -> Self
-	where
-		S: Into<Status>,
+	pub const fn new(status: Status) -> Self
 	{
-		Self { status: status.into() }
+		Self { status }
 	}
 
 	/// The [`Status`] of the login request.

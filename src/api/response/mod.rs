@@ -3,6 +3,8 @@
 
 mod login;
 mod logout;
+mod retrieve;
 
 pub use login::Login;
 pub use logout::Logout;
+pub use retrieve::Retrieve;

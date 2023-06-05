@@ -15,11 +15,9 @@ pub struct Logout
 impl Logout
 {
 	/// Create a new [`Logout`] response.
-	pub fn new<S>(status: S) -> Self
-	where
-		S: Into<Status>,
+	pub const fn new(status: Status) -> Self
 	{
-		Self { status: status.into() }
+		Self { status }
 	}
 
 	/// The [`Status`] of the logout request.
