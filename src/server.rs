@@ -9,7 +9,7 @@ use core::{marker::PhantomData, time::Duration};
 use std::net::SocketAddr;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, UserStore};
+use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
 use axum::{
 	error_handling::HandleErrorLayer,
 	extract::State,
@@ -157,62 +157,71 @@ where
 				layer
 			})
 			.layer(TraceLayer::new_for_http())
-			.route("/login", routing::get(Self::handle_get_login))
-			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/contact",
 				Self::route::<A::Contact>()
 					.get(|| async { todo("contact retrieve") })
 					.post(|| async { todo("contact create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/employee",
 				Self::route::<A::Employee>()
 					.get(|| async { todo("employee retrieve") })
 					.post(|| async { todo("employee create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/expense",
 				Self::route::<A::Expenses>()
 					.get(|| async { todo("expense retrieve") })
 					.post(|| async { todo("expense create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/job",
 				Self::route::<A::Job>()
 					.get(|| async { todo("job retrieve") })
 					.post(|| async { todo("job create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/location",
 				Self::route::<A::Location>()
 					.get(|| async { todo("location retrieve") })
 					.post(|| async { todo("location create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
+			.route("/login", routing::get(Self::handle_get_login))
+			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/organization",
 				Self::route::<A::Organization>()
 					.get(|| async { todo("organization retrieve") })
 					.post(|| async { todo("organization create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/role",
 				Self::route::<A::Role>()
 					.get(|| async { todo("role retrieve") })
 					.post(|| async { todo("role create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/timesheet",
 				Self::route::<A::Timesheet>()
 					.get(|| async { todo("timesheet retrieve") })
 					.post(|| async { todo("timesheet create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.route(
 				"/user",
 				Self::route::<A::User>()
 					.get(|| async { todo("user retrieve") })
 					.post(|| async { todo("user create") }),
 			)
+			.route_layer(RequireAuthLayer::login())
 			.with_state(state))
 	}
 
