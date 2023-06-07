@@ -3,6 +3,7 @@
 use axum_login::axum_sessions::async_session::{chrono::Utc, Result, Session, SessionStore};
 use sqlx::types::Json;
 use tracing::instrument;
+use winvoice_schema::chrono::DateTime;
 
 use super::DbSessionStore;
 
@@ -41,7 +42,7 @@ mod postgres
 			let row = sqlx::query!(
 				r#"SELECT session as "session!: Json<Session>" FROM sessions WHERE id = $1 AND (expiry IS NULL OR expiry > $2);"#,
 				id,
-				Utc::now(),
+				Utc::now().naive_utc(),
 			)
 			.fetch_optional(&self.pool)
 			.await?;
@@ -57,7 +58,7 @@ mod postgres
 				 DO UPDATE SET expiry = EXCLUDED.expiry, session = EXCLUDED.session",
 				session.id(),
 				Json(&session) as _,
-				session.expiry()
+				session.expiry().map(DateTime::naive_utc)
 			)
 			.execute(&self.pool)
 			.await?;
@@ -72,7 +73,7 @@ mod postgres
 		use core::time::Duration;
 
 		use pretty_assertions::{assert_eq, assert_str_eq};
-		use sqlx::Executor;
+		use sqlx::{Error as SqlxError, Executor};
 		use tracing_test::traced_test;
 		use winvoice_adapter_postgres::fmt::DateTimeExt;
 
@@ -111,14 +112,19 @@ mod postgres
 				};
 
 				let json = serde_json::to_value(session)?;
-				assert_eq!(session_row.expiry, session.expiry().map(|d| d.pg_sanitize()));
+				assert_eq!(
+					session_row.expiry,
+					session.expiry().map(|d| d.pg_sanitize().naive_utc())
+				);
 				assert_eq!(session_row.session, json);
 				assert_str_eq!(session_row.id, session.id());
 
 				Ok(())
 			}
 
-			let store = DbSessionStore::new(connect_pg()).await?;
+			let store = DbSessionStore::new(connect_pg());
+			store.init().await?;
+
 			let (cookie_value, test_session) = {
 				let mut session = Session::new();
 				session.insert("key", "value")?;

@@ -756,7 +756,7 @@ dependencies = [
  "rand",
  "sha2 0.10.6",
  "subtle",
- "time 0.3.21",
+ "time 0.3.22",
  "version_check",
 ]
 
@@ -1189,9 +1189,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.9"
+version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c85e1d9ab2eadba7e5040d4e09cbd6d072b76a557ad64e797c2cb9d4da21d7e4"
+checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
@@ -1431,9 +1431,9 @@ dependencies = [
 
 [[package]]
 name = "iana-time-zone"
-version = "0.1.56"
+version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0722cd7114b7de04316e7ea5456a0bbb20e4adb46fd27a3697adb812cff0f37c"
+checksum = "2fad5b825842d2b38bd206f3e81d6957625fd7f0a361e345c30e01a0ae2dd613"
 dependencies = [
  "android_system_properties",
  "core-foundation-sys",
@@ -1575,9 +1575,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.145"
+version = "0.2.146"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc86cde3ff845662b8f4ef6cb50ea0e20c524eb3d29ae048287e06a1b3fa6a81"
+checksum = "f92be4933c13fd498862a9e02a3055f8a8d9c039ce33db97306fd5a6caa7f29b"
 
 [[package]]
 name = "linux-raw-sys"
@@ -1587,9 +1587,9 @@ checksum = "ef53942eb7bf7ff43a617b3e2c1c4a5ecf5944a7c1bc12d7ee39bbb15e5c1519"
 
 [[package]]
 name = "lock_api"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "435011366fe56583b16cf956f9df0095b405b82d76425bc8981c0e22e60ec4df"
+checksum = "c1cc9717a20b1bb222f333e6a92fd32f7d8a18ddc5a3191a11af45dcbf4dcd16"
 dependencies = [
  "autocfg",
  "scopeguard",
@@ -1858,7 +1858,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
- "parking_lot_core 0.9.7",
+ "parking_lot_core 0.9.8",
 ]
 
 [[package]]
@@ -1877,15 +1877,15 @@ dependencies = [
 
 [[package]]
 name = "parking_lot_core"
-version = "0.9.7"
+version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9069cbb9f99e3a5083476ccb29ceb1de18b9118cafa53e90c9551235de2b9521"
+checksum = "93f00c865fe7cabf650081affecd3871070f26767e7b2070a3ffae14c654b447"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
- "redox_syscall 0.2.16",
+ "redox_syscall 0.3.5",
  "smallvec",
- "windows-sys 0.45.0",
+ "windows-targets",
 ]
 
 [[package]]
@@ -2424,8 +2424,9 @@ checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
 
 [[package]]
 name = "serde"
-version = "1.0.158"
-source = "git+https://github.com/dewert99/serde?branch=partially_untagged#3d735e1054c8c0c7a323cf70491632bdd92abea3"
+version = "1.0.163"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2113ab51b87a539ae008b5c6c02dc020ffa39afd2d83cffcb3f4eb2722cebec2"
 dependencies = [
  "serde_derive",
 ]
@@ -2445,8 +2446,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.158"
-source = "git+https://github.com/dewert99/serde?branch=partially_untagged#3d735e1054c8c0c7a323cf70491632bdd92abea3"
+version = "1.0.163"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c805777e3930c8883389c602315a24224bcc738b63905ef87cd1420353ea93e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2789,15 +2791,16 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
-version = "3.5.0"
+version = "3.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9fbec84f381d5795b08656e4912bec604d162bff9291d6189a78f4c8ab87998"
+checksum = "31c0432476357e58790aaa47a8efb0c5138f137343f3b5f23bd36a27e3b0a6d6"
 dependencies = [
+ "autocfg",
  "cfg-if 1.0.0",
  "fastrand",
  "redox_syscall 0.3.5",
  "rustix",
- "windows-sys 0.45.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -2843,9 +2846,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.21"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f3403384eaacbca9923fa06940178ac13e4edb725486d70e8e15881d0c836cc"
+checksum = "ea9e1b3cf1243ae005d9e74085d4d542f3125458f3a81af210d901dcd7411efd"
 dependencies = [
  "itoa",
  "serde",
@@ -3092,7 +3095,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e"
 dependencies = [
  "crossbeam-channel",
- "time 0.3.21",
+ "time 0.3.22",
  "tracing-subscriber",
 ]
 
@@ -3434,7 +3437,7 @@ version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e686886bc078bc1b0b600cac0147aadb815089b6e4da64016cbd754b6342700f"
 dependencies = [
- "windows-targets 0.48.0",
+ "windows-targets",
 ]
 
 [[package]]
@@ -3454,35 +3457,11 @@ dependencies = [
 
 [[package]]
 name = "windows-sys"
-version = "0.45.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75283be5efb2831d37ea142365f009c02ec203cd29a3ebecbc093d52315b66d0"
-dependencies = [
- "windows-targets 0.42.2",
-]
-
-[[package]]
-name = "windows-sys"
 version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "677d2418bec65e3338edb076e806bc1ec15693c5d0104683f2efe857f61056a9"
 dependencies = [
- "windows-targets 0.48.0",
-]
-
-[[package]]
-name = "windows-targets"
-version = "0.42.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e5180c00cd44c9b1c88adb3693291f1cd93605ded80c250a75d472756b4d071"
-dependencies = [
- "windows_aarch64_gnullvm 0.42.2",
- "windows_aarch64_msvc 0.42.2",
- "windows_i686_gnu 0.42.2",
- "windows_i686_msvc 0.42.2",
- "windows_x86_64_gnu 0.42.2",
- "windows_x86_64_gnullvm 0.42.2",
- "windows_x86_64_msvc 0.42.2",
+ "windows-targets",
 ]
 
 [[package]]
@@ -3595,8 +3574,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter"
-version = "0.21.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.21#f1c51e94cf168006c3f1adfc7f18a1fefe461bf6"
+version = "0.22.1"
+source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.22#a79fcd16505090676c5a5b7933cb1bb9671d96ac"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
@@ -3607,8 +3586,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter-postgres"
-version = "0.11.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.11#fb3fbda4fc8ec73ff84d7098b321aadc1598647a"
+version = "0.12.0"
+source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.12#8e201d4ed70e159c699307570390e5d562af5032"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
@@ -3618,6 +3597,7 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokio",
+ "tracing",
  "winvoice-adapter",
  "winvoice-match",
  "winvoice-schema",
@@ -3625,8 +3605,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-export"
-version = "0.3.0"
-source = "git+https://github.com/Iron-E/winvoice-export?branch=release/0.3#add1bed065767329b99762e3192fbe5689e50e9a"
+version = "0.4.0"
+source = "git+https://github.com/Iron-E/winvoice-export?branch=release/0.4#a35127f57f5c69b117058b0f3bf9e7fbf36dc7c7"
 dependencies = [
  "strum",
  "thiserror",
@@ -3635,8 +3615,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-match"
-version = "0.10.1"
-source = "git+https://github.com/Iron-E/winvoice-match?branch=release/0.10#b5fe0fdb4ea81627cb792d9e884b7b73829ff287"
+version = "0.11.0"
+source = "git+https://github.com/Iron-E/winvoice-match?branch=release/0.11#9e36e3d76abbfcef104495a4a3d83993f4de0a63"
 dependencies = [
  "humantime-serde",
  "money2",
@@ -3647,8 +3627,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-schema"
-version = "0.12.0"
-source = "git+https://github.com/Iron-E/winvoice-schema?branch=release/0.12#4e7e5cbc1f28b6d9a39574f6c23522520a813b23"
+version = "0.13.0"
+source = "git+https://github.com/Iron-E/winvoice-schema?branch=release/0.13#40af979f11b15cf3c8f909ac2506b0ed09c8f0a9"
 dependencies = [
  "chrono",
  "futures 0.3.28",
@@ -3735,7 +3715,7 @@ dependencies = [
  "hmac 0.12.1",
  "pbkdf2",
  "sha1",
- "time 0.3.21",
+ "time 0.3.22",
  "zstd",
 ]
 

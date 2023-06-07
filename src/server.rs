@@ -131,7 +131,8 @@ where
 	where
 		A: InitializableWithAuthorization,
 	{
-		futures::try_join!(A::init_with_auth(state.pool()), DbSessionStore::init(state.pool()))?;
+		let session_store = DbSessionStore::new(state.pool().clone());
+		futures::try_join!(A::init_with_auth(state.pool()), session_store.init())?;
 
 		let mut router = Router::new();
 		if let Some(t) = timeout
@@ -157,9 +158,8 @@ where
 			.layer(CompressionLayer::new())
 			.layer(AuthLayer::new(SqlxStore::<_, User>::new(state.pool().clone()), &cookie_secret))
 			.layer({
-				let mut layer =
-					SessionLayer::new(DbSessionStore::new(state.pool().clone()), &cookie_secret)
-						.with_session_ttl(session_ttl.into());
+				let mut layer = SessionLayer::new(session_store, &cookie_secret)
+					.with_session_ttl(session_ttl.into());
 
 				if let Some(s) = cookie_domain
 				{
@@ -169,28 +169,31 @@ where
 				layer
 			})
 			.layer(TraceLayer::new_for_http())
-			.route("/contact", route!(A::Contact).post(|| async { todo("contact create") }))
+			.route("/contact", route!(A::Contact).post(|| async move { todo("contact create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/employee", route!(A::Employee).post(|| async { todo("employee create") }))
+			.route("/employee", route!(A::Employee).post(|| async move { todo("employee create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/expense", route!(A::Expenses).post(|| async { todo("expense create") }))
+			.route("/expense", route!(A::Expenses).post(|| async move { todo("expense create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/job", route!(A::Job).post(|| async { todo("job create") }))
+			.route("/job", route!(A::Job).post(|| async move { todo("job create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/location", route!(A::Location).post(|| async { todo("location create") }))
+			.route("/location", route!(A::Location).post(|| async move { todo("location create") }))
 			.route_layer(RequireAuthLayer::login())
 			.route("/login", routing::get(Self::handle_get_login))
 			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/organization",
-				route!(A::Organization).post(|| async { todo("organization create") }),
+				route!(A::Organization).post(|| async move { todo("organization create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
-			.route("/role", route!(A::Role).post(|| async { todo("role create") }))
+			.route("/role", route!(A::Role).post(|| async move { todo("role create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/timesheet", route!(A::Timesheet).post(|| async { todo("timesheet create") }))
+			.route(
+				"/timesheet",
+				route!(A::Timesheet).post(|| async move { todo("timesheet create") }),
+			)
 			.route_layer(RequireAuthLayer::login())
-			.route("/user", route!(A::User).post(|| async { todo("user create") }))
+			.route("/user", route!(A::User).post(|| async move { todo("user create") }))
 			.route_layer(RequireAuthLayer::login())
 			.with_state(state))
 	}

@@ -1,9 +1,8 @@
 //! Contains implementations of [`Initializable`] for [`DbSessionStore`].
 
 use sqlx::Acquire;
-use winvoice_adapter::Initializable;
 
-use super::{DbSessionStore, Result};
+use super::{DbSessionStore, Initializable, Result};
 
 #[cfg(feature = "postgres")]
 #[async_trait::async_trait]
@@ -20,7 +19,7 @@ impl Initializable for DbSessionStore<sqlx::Postgres>
 			"CREATE TABLE IF NOT EXISTS sessions
 			(
 				id text NOT NULL PRIMARY KEY,
-				expiry timestamptz,
+				expiry timestamp,
 				session json NOT NULL
 			);"
 		)

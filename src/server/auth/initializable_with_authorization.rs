@@ -40,7 +40,7 @@ impl InitializableWithAuthorization for winvoice_adapter_postgres::PgSchema
 				employee_id bigint REFERENCES employees(id),
 				id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 				password text NOT NULL,
-				password_expires timestamptz,
+				password_expires timestamp,
 				role_id bigint NOT NULL REFERENCES roles(id),
 				username text NOT NULL UNIQUE
 			);"

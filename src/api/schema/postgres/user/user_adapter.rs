@@ -27,10 +27,10 @@ impl UserAdapter for PgUser
 		let row = sqlx::query!(
 			"INSERT INTO users (employee_id, password, password_expires, role_id, username) \
 			 VALUES ($1, $2, $3, $4, $5) RETURNING id;",
-			user.employee_id(),
+			user.employee().map(|e| e.id),
 			user.password(),
-			user.password_expires(),
-			user.role_id(),
+			user.password_expires().map(|d| d.naive_utc()),
+			user.role().id(),
 			user.username(),
 		)
 		.fetch_one(connection)
@@ -120,17 +120,17 @@ mod tests
 			.get(&peggy.id())
 			.ok_or_else(|| "The `peggy` row does not exist in the database".to_owned())?;
 
-		assert_eq!(joel.employee_id(), joel_row.employee_id);
+		assert_eq!(joel.employee().map(|e| e.id), joel_row.employee_id);
 		assert_eq!(joel.id(), joel_row.id);
 		assert_eq!(joel.password(), joel_row.password);
-		assert_eq!(joel.password_expires(), joel_row.password_expires);
-		assert_eq!(joel.role_id(), joel_row.role_id);
+		assert_eq!(joel.password_expires().map(|d| d.naive_utc()), joel_row.password_expires);
+		assert_eq!(joel.role().id(), joel_row.role_id);
 		assert_eq!(joel.username(), joel_row.username);
-		assert_eq!(peggy.employee_id(), peggy_row.employee_id);
+		assert_eq!(peggy.employee().map(|e| e.id), peggy_row.employee_id);
 		assert_eq!(peggy.id(), peggy_row.id);
 		assert_eq!(peggy.password(), peggy_row.password);
-		assert_eq!(peggy.password_expires(), peggy_row.password_expires);
-		assert_eq!(peggy.role_id(), peggy_row.role_id);
+		assert_eq!(peggy.password_expires().map(|d| d.naive_utc()), peggy_row.password_expires);
+		assert_eq!(peggy.role().id(), peggy_row.role_id);
 		assert_eq!(peggy.username(), peggy_row.username);
 		assert_str_eq!(joel.password(), joel_row.password);
 		assert_str_eq!(joel.username(), joel_row.username);
@@ -170,17 +170,17 @@ mod tests
 		let peggy_row = PgUser::retrieve(&pool, peggy.id().into()).await.map(|mut v| v.remove(0))?;
 		let joel_row = PgUser::retrieve(&pool, joel.id().into()).await.map(|mut v| v.remove(0))?;
 
-		assert_eq!(joel.employee_id(), joel_row.employee_id());
+		assert_eq!(joel.employee().map(|e| e.id), joel_row.employee().map(|e| e.id));
 		assert_eq!(joel.id(), joel_row.id());
 		assert_eq!(joel.password(), joel_row.password());
 		assert_eq!(joel.password_expires(), joel_row.password_expires());
-		assert_eq!(joel.role_id(), joel_row.role_id());
+		assert_eq!(joel.role().id(), joel_row.role().id());
 		assert_eq!(joel.username(), joel_row.username());
-		assert_eq!(peggy.employee_id(), peggy_row.employee_id());
+		assert_eq!(peggy.employee().map(|e| e.id), peggy_row.employee().map(|e| e.id));
 		assert_eq!(peggy.id(), peggy_row.id());
 		assert_eq!(peggy.password(), peggy_row.password());
 		assert_eq!(peggy.password_expires(), peggy_row.password_expires());
-		assert_eq!(peggy.role_id(), peggy_row.role_id());
+		assert_eq!(peggy.role().id(), peggy_row.role().id());
 		assert_eq!(peggy.username(), peggy_row.username());
 		assert_str_eq!(joel.password(), joel_row.password());
 		assert_str_eq!(joel.username(), joel_row.username());
@@ -191,9 +191,13 @@ mod tests
 			.execute(&pool)
 			.await?;
 
-		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", joel.role_id(), peggy.role_id())
-			.execute(&pool)
-			.await?;
+		sqlx::query!(
+			"DELETE FROM roles WHERE id IN ($1, $2);",
+			joel.role().id(),
+			peggy.role().id()
+		)
+		.execute(&pool)
+		.await?;
 
 		Ok(())
 	}
@@ -233,11 +237,11 @@ mod tests
 			.get(&joel.id())
 			.ok_or_else(|| "The `joel` row does not exist in the database".to_owned())?;
 
-		assert_eq!(joel.employee_id(), joel_row.employee_id);
+		assert_eq!(joel.employee().map(|e| e.id), joel_row.employee_id);
 		assert_eq!(joel.id(), joel_row.id);
 		assert_eq!(joel.password(), joel_row.password);
-		assert_eq!(joel.password_expires(), joel_row.password_expires);
-		assert_eq!(joel.role_id(), joel_row.role_id);
+		assert_eq!(joel.password_expires().map(|d| d.naive_utc()), joel_row.password_expires);
+		assert_eq!(joel.role().id(), joel_row.role_id);
 		assert_eq!(joel.username(), joel_row.username);
 		assert_str_eq!(joel.password(), joel_row.password);
 		assert_str_eq!(joel.username(), joel_row.username);

@@ -6,6 +6,8 @@
 mod auth_user;
 #[cfg(feature = "postgres")]
 mod date_time_ext;
+#[cfg(feature = "bin")]
+mod from_row;
 
 use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
@@ -18,11 +20,10 @@ use super::Role;
 
 /// Corresponds to the `users` table in the [`winvoice_server`] database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[cfg_attr(feature = "bin", derive(sqlx::FromRow))]
 pub struct User
 {
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
-	employee_id: Option<Id>,
+	employee: Option<Employee>,
 
 	/// The [`Id`] of the [`User`].
 	id: Id,
@@ -39,8 +40,8 @@ pub struct User
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
 	password_expires: Option<DateTime<Utc>>,
 
-	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].
-	role_id: Id,
+	/// The [`Role`] assigned to the [`User`].
+	role: Role,
 
 	/// Get the [`User`]'s username.
 	username: String,
@@ -72,20 +73,13 @@ impl User
 			.map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d))
 			.transpose()?;
 
-		Ok(Self {
-			employee_id: employee.map(|e| e.id),
-			id,
-			role_id: role.id(),
-			password,
-			password_expires,
-			username,
-		})
+		Ok(Self { employee, id, role, password, password_expires, username })
 	}
 
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
-	pub const fn employee_id(&self) -> Option<i64>
+	pub const fn employee(&self) -> Option<&Employee>
 	{
-		self.employee_id
+		self.employee.as_ref()
 	}
 
 	/// The [`Id`] of the [`User`].
@@ -107,9 +101,9 @@ impl User
 	}
 
 	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].
-	pub const fn role_id(&self) -> Id
+	pub const fn role(&self) -> &Role
 	{
-		self.role_id
+		&self.role
 	}
 
 	/// Set the [`id`](Self::id)

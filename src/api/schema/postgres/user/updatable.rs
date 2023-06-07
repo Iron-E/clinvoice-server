@@ -32,11 +32,11 @@ impl Updatable for PgUser
 
 		PgSchema::update(connection, UserColumns::default(), |query| {
 			query.push_values(peekable_entities, |mut q, e| {
-				q.push_bind(e.employee_id())
+				q.push_bind(e.employee().map(|emp| emp.id))
 					.push_bind(e.id())
 					.push_bind(e.password())
 					.push_bind(e.password_expires())
-					.push_bind(e.role_id())
+					.push_bind(e.role().id())
 					.push_bind(e.username());
 			});
 		})

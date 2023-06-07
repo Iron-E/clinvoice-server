@@ -34,7 +34,6 @@ tower = {features = ['timeout'], optional = true, version = '0.4'}
 tracing = {optional = true, version = '0.1'}
 tracing-appender = {optional = true, version = '0.2'}
 tracing-subscriber = {optional = true, version = '0.3'}
-tracing-test = {optional = true, version = '0.2'}
 watchman_client = {optional = true, version = '0.8'}
 
 [dependencies.tower-http]
@@ -43,29 +42,29 @@ optional = true
 version = '0.4'
 
 [dependencies.winvoice-adapter]
-branch = 'release/0.21'
+branch = 'release/0.22'
 default-features = false
 git = 'https://github.com/Iron-E/winvoice-adapter'
 optional = true
 
 [dependencies.winvoice-adapter-postgres]
-branch = 'release/0.11'
+branch = 'release/0.12'
 git = 'https://github.com/Iron-E/winvoice-adapter-postgres'
 optional = true
 
 [dependencies.winvoice-export]
-branch = 'release/0.3'
+branch = 'release/0.4'
 features = ['markdown']
 git = 'https://github.com/Iron-E/winvoice-export'
 optional = true
 
 [dependencies.winvoice-match]
-branch = 'release/0.10'
+branch = 'release/0.11'
 features = ['serde']
 git = 'https://github.com/Iron-E/winvoice-match'
 
 [dependencies.winvoice-schema]
-branch = 'release/0.12'
+branch = 'release/0.13'
 features = ['serde']
 git = 'https://github.com/Iron-E/winvoice-schema'
 
@@ -74,6 +73,7 @@ dotenvy = '0.15'
 pretty_assertions = '1'
 regex = "1"
 serde_json = "1"
+tracing-test = '0.2'
 
 [features]
 bin = [
@@ -97,17 +97,12 @@ bin = [
 	'tracing',
 	'tracing-appender',
 	'tracing-subscriber',
-	'tracing-test',
 	'watchman_client',
 	'winvoice-adapter',
 	'winvoice-export',
 ]
 default = ['postgres']
 postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/postgres']
-
-[patch.crates-io.serde]
-git = "https://github.com/dewert99/serde"
-branch = "partially_untagged"
 
 [patch.crates-io.sqlx]
 git = "https://github.com/Iron-E/sqlx"

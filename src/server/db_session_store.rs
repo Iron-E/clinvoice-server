@@ -5,6 +5,7 @@ mod initializable;
 mod session_store;
 
 use sqlx::{Database, Executor, Pool, Result};
+use winvoice_adapter::Initializable;
 
 /// A session storer which is agnostic over the given `Db`.
 #[derive(Debug)]
@@ -32,5 +33,17 @@ where
 	pub const fn new(pool: Pool<Db>) -> Self
 	{
 		Self { pool }
+	}
+}
+
+impl<Db> DbSessionStore<Db>
+where
+	Db: Database,
+	DbSessionStore<Db>: Initializable<Db = Db>,
+{
+	pub async fn init(&self) -> Result<()>
+	{
+		<DbSessionStore<Db> as Initializable>::init(&self.pool).await?;
+		Ok(())
 	}
 }

@@ -4,6 +4,7 @@ use futures::TryStreamExt;
 use sqlx::{Pool, Postgres, QueryBuilder, Result};
 use winvoice_adapter::{
 	fmt::{sql, QueryBuilderExt, TableToSql},
+	schema::columns::EmployeeColumns,
 	Retrievable,
 	WriteWhereClause,
 };
@@ -33,24 +34,17 @@ impl Retrievable for PgUser
 		match_condition: Self::Match,
 	) -> Result<Vec<Self::Entity>>
 	{
-		const COLUMNS: UserColumns = UserColumns::default();
-		const ROLE_COLUMNS_UNIQUE: RoleColumns = RoleColumns::unique();
-
-		let columns = COLUMNS.default_scope();
-		let role_columns = RoleColumns::default().default_scope();
-		let mut query = QueryBuilder::new(sql::SELECT);
-
-		query
-			.push_columns(&columns)
-			.push_more_columns(&role_columns.r#as(ROLE_COLUMNS_UNIQUE))
-			.push_default_from::<UserColumns>()
-			.push_default_equijoin::<RoleColumns, _, _>(role_columns.id, columns.role_id);
-
+		let mut query = PgUser::select();
 		PgSchema::write_where_clause(
 			PgSchema::write_where_clause(
-				Default::default(),
-				UserColumns::DEFAULT_ALIAS,
-				&match_condition,
+				PgSchema::write_where_clause(
+					Default::default(),
+					UserColumns::DEFAULT_ALIAS,
+					&match_condition,
+					&mut query,
+				),
+				EmployeeColumns::DEFAULT_ALIAS,
+				&match_condition.employee,
 				&mut query,
 			),
 			RoleColumns::DEFAULT_ALIAS,
