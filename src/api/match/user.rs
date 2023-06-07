@@ -28,11 +28,11 @@ use super::MatchRole;
 /// // JSON
 /// # assert_eq!(serde_json::from_str::<MatchUser>(r#"
 /// {
-///   "employee": {
+///   "employee": {"some": {
 ///     "name": {"regex": "[Aa]ndy$"}
-///   },
+///   }},
 ///   "password": {"equal_to": "asdlkjasfhjdklasdklj"},
-///   "password_expires": {"equal_to": "2070-01-01T00:00:00"},
+///   "password_expires": {"some": {"equal_to": "2070-01-01T00:00:00"}},
 ///   "role": {"name": {"equal_to": "Admin"}},
 ///   "username": {"equal_to": "admin"}
 /// }

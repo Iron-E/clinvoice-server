@@ -31,7 +31,7 @@ use winvoice_schema::Id;
 /// {
 ///   "id": "any",
 ///   "name": {"contains": "Peter"},
-///   "password_ttl": {"less_than": "1d"}
+///   "password_ttl": {"some": {"less_than": "1d"}}
 /// }
 /// # "#).unwrap(), MatchRole {
 /// #   name: MatchStr::Contains("Peter".into()),
