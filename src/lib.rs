@@ -4,4 +4,5 @@
 
 pub mod api;
 mod dyn_result;
+pub mod permissions;
 mod utils;

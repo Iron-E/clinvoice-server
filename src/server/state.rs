@@ -6,7 +6,7 @@ use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
 
 use crate::{
-	api::schema::User,
+	api::{schema::User, Code, Status},
 	lock::Lock,
 	permissions::{Action, Object},
 };
@@ -36,17 +36,26 @@ where
 	/// Check whether `subject` has permission to `action` on `object`.
 	pub async fn has_permission(
 		&self,
-		user: User,
+		user: &User,
 		object: Object,
 		action: Action,
-	) -> casbin::Result<bool>
+	) -> Result<(), Status>
 	{
 		let permissions = self.permissions.read().await;
-		let user_has_perms = permissions.enforce((user.username(), object, action))?;
-		let role_has_perms =
-			user_has_perms || permissions.enforce((user.role().name(), object, action))?;
 
-		Ok(role_has_perms)
+		match permissions
+			.enforce((user.role().name(), object, action))
+			.and_then(|role_authorized| {
+				Ok(role_authorized || permissions.enforce((user.username(), object, action))?)
+			})
+			.map_err(|e| Status::from(&e))?
+		{
+			true => Ok(()),
+			false => Err(Status::new(
+				Code::Unauthorized,
+				format!("{} is not authorized to {action} {object}s", user.username()),
+			)),
+		}
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].

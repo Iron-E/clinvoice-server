@@ -8,30 +8,37 @@ impl Display for Code
 	{
 		match self
 		{
-			Self::BadArguments => "Specific arguments that were used to start the server were not \
-			                       accepted by the database. If you are a user, please contact an \
-			                       administrator"
-				.fmt(f),
-			Self::CryptError => "An error occurred while decrypting sensitive data".fmt(f),
-			Self::Database =>
+			Self::BadArguments =>
 			{
-				"There was an issue while interfacing with the database adapter".fmt(f)
+				"Specific arguments that were used to start the server were not accepted by the \
+				 database. If you are a user, please contact an administrator"
 			},
-			Self::InvalidCredentials => "There was an attempt to log in, but it failed because \
-			                             the credentials provided were incorrect"
-				.fmt(f),
-			Self::EncodingError => "An error occurred while attempting to de/encode a value".fmt(f),
-			Self::LoginError => "Valid credentials were provided, and then an error occurred when \
-			                     attempting to login"
-				.fmt(f),
-			Self::Other => "An unknown operation occurred".fmt(f),
-			Self::SqlError => "The SQL which was generated from a `winvoice_match` was incorrect. \
-			                   This is likely a bug in Winvoice"
-				.fmt(f),
-			Self::Success => "The requested operation has completed without error.".fmt(f),
-			Self::Unauthorized => "A user has attempted to perform an operation while not having \
-			                       the correct permissions"
-				.fmt(f),
+			Self::CryptError => "An error occurred while decrypting sensitive data",
+			Self::Database => "There was an issue while interfacing with the database adapter",
+			Self::InvalidCredentials =>
+			{
+				"There was an attempt to log in, but it failed because the credentials provided \
+				 were incorrect"
+			},
+			Self::EncodingError => "An error occurred while attempting to de/encode a value",
+			Self::LoginError =>
+			{
+				"Valid credentials were provided, and then an error occurred when attempting to \
+				 login"
+			},
+			Self::Other => "An unknown operation occurred",
+			Self::SqlError =>
+			{
+				"The SQL which was generated from a `winvoice_match` was incorrect. This is likely \
+				 a bug in Winvoice"
+			},
+			Self::Success => "The requested operation has completed without error.",
+			Self::Unauthorized =>
+			{
+				"A user has attempted to perform an operation while not having the correct \
+				 permissions"
+			},
 		}
+		.fmt(f)
 	}
 }

@@ -127,7 +127,7 @@ mod postgres
 
 			let (cookie_value, test_session) = {
 				let mut session = Session::new();
-				session.insert("key", "value")?;
+				session.insert(&random_string(), random_string())?;
 
 				// needed to separate concern of testing `load` from `store`
 				let test_session = session.clone();

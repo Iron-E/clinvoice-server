@@ -3,7 +3,7 @@
 use futures::TryStreamExt;
 use sqlx::{Pool, Postgres, QueryBuilder, Result};
 use winvoice_adapter::{
-	fmt::{sql, QueryBuilderExt, TableToSql},
+	fmt::TableToSql,
 	schema::columns::EmployeeColumns,
 	Retrievable,
 	WriteWhereClause,
@@ -34,7 +34,7 @@ impl Retrievable for PgUser
 		match_condition: Self::Match,
 	) -> Result<Vec<Self::Entity>>
 	{
-		let mut query = PgUser::select();
+		let mut query = Self::select();
 		PgSchema::write_where_clause(
 			PgSchema::write_where_clause(
 				PgSchema::write_where_clause(

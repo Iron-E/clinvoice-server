@@ -1,5 +1,7 @@
 //! Contains all the actions which may be taken by users.
 
+mod display;
+
 use serde::{Deserialize, Serialize};
 
 /// The actions which users may have permission to take.
@@ -7,24 +9,30 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Object
 {
-	/// Permissions for operating on [`winvoice_schema::Contact`]s
+	/// Permission to operate on [`winvoice_schema::Contact`]s
 	Contact,
 
-	/// Permissions for operating on [`winvoice_schema::Employee`]s
+	/// Permission to operate on [`winvoice_schema::Employee`]s
 	Employee,
 
-	/// Permissions for operating on [`winvoice_schema::Expense`]s
-	Expense,
+	/// Permission to operate on [`winvoice_schema::Expense`]s
+	Expenses,
 
-	/// Permissions for operating on [`winvoice_schema::Job`]s
+	/// Permission to operate on [`winvoice_schema::Job`]s
 	Job,
 
-	/// Permissions for operating on [`winvoice_schema::Location`]s
+	/// Permission to operate on [`winvoice_schema::Location`]s
 	Location,
 
-	/// Permissions for operating on [`winvoice_schema::Organization`]s
+	/// Permission to operate on [`winvoice_schema::Organization`]s
 	Organization,
 
-	/// Permissions for operating on [`winvoice_schema::Timesheet`]s
+	/// Permission to operate on [`Role`](crate::schema::Role)s
+	Role,
+
+	/// Permission to operate on [`winvoice_schema::Timesheet`]s
 	Timesheet,
+
+	/// Permission to operate on [`User`](crate::schema::User)s
+	User,
 }

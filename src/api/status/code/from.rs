@@ -2,6 +2,7 @@
 
 use argon2::password_hash::Error as PasswordError;
 use axum::http::StatusCode;
+use casbin::Error as CasbinError;
 use sqlx::Error as SqlxError;
 
 use super::Code;
@@ -23,6 +24,24 @@ impl From<Code> for StatusCode
 			Code::LoginError |
 			Code::Other |
 			Code::SqlError => Self::INTERNAL_SERVER_ERROR,
+		}
+	}
+}
+
+impl From<&CasbinError> for Code
+{
+	fn from(error: &CasbinError) -> Self
+	{
+		match error
+		{
+			CasbinError::AdapterError(_) => todo!(),
+			CasbinError::IoError(_) => todo!(),
+			CasbinError::ModelError(_) => todo!(),
+			CasbinError::PolicyError(_) => todo!(),
+			CasbinError::RbacError(_) => todo!(),
+			CasbinError::RequestError(_) => todo!(),
+			CasbinError::RhaiError(_) => todo!(),
+			CasbinError::RhaiParseError(_) => todo!(),
 		}
 	}
 }

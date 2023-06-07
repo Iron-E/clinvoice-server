@@ -39,11 +39,11 @@ where
 impl<Db> DbSessionStore<Db>
 where
 	Db: Database,
-	DbSessionStore<Db>: Initializable<Db = Db>,
+	Self: Initializable<Db = Db>,
 {
 	pub async fn init(&self) -> Result<()>
 	{
-		<DbSessionStore<Db> as Initializable>::init(&self.pool).await?;
+		<Self as Initializable>::init(&self.pool).await?;
 		Ok(())
 	}
 }

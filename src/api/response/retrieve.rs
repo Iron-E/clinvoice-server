@@ -1,6 +1,7 @@
 //! This module contains the response for a [retrieve](winvoice_adapter::Retrievable) operation.
 
 mod as_ref;
+mod from;
 
 use serde::{Deserialize, Serialize};
 

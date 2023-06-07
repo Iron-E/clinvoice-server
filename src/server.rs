@@ -12,7 +12,7 @@ use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
 use axum::{
 	error_handling::HandleErrorLayer,
-	extract::{Json, State},
+	extract::{Extension, Json, State},
 	headers::{authorization::Basic, Authorization},
 	http::StatusCode,
 	response::IntoResponse,
@@ -39,30 +39,41 @@ use crate::{
 	api::{
 		r#match::MatchUser,
 		request,
-		response as res,
+		response::Retrieve,
 		schema::{Adapter, User},
 		Code,
 		Status,
 	},
+	permissions::{Action, Object},
 	DynResult,
 };
 
 /// Create routes which are able to be implemented generically.
 macro_rules! route {
-	($TEntity:ty) => {
+	($Entity:ident) => {
 		routing::delete(|| async move { todo("Delete method not implemented") })
 			.get(
-				|State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<<$TEntity as Retrievable>::Match>>| async move {
-					<$TEntity>::retrieve(state.pool(), request.into_condition())
-						.await
-						.map(|vec| Response::from(res::Retrieve::new(vec, Code::Success.into())))
-						.map_err(|e| {
-							Response::from(res::Retrieve::new(
-								Vec::<<$TEntity as Retrievable>::Entity>::default(),
-								(&e).into(),
+				|Extension(user): Extension<User>,
+				 State(state): State<ServerState<A::Db>>,
+				 Json(request): Json<request::Retrieve<<A::$Entity as Retrievable>::Match>>| async move {
+					state.has_permission(&user, Object::$Entity, Action::Retrieve).await.map_err(
+						|status| {
+							Response::from(Retrieve::<<A::$Entity as Retrievable>::Entity>::from(
+								status,
 							))
-						})
+						},
+					)?;
+
+					A::$Entity::retrieve(state.pool(), request.into_condition()).await.map_or_else(
+						|e| {
+							Ok(Response::from(
+								Retrieve::<<A::$Entity as Retrievable>::Entity>::from(
+									Status::from(&e),
+								),
+							))
+						},
+						|vec| Err(Response::from(Retrieve::new(vec, Code::Success.into()))),
+					)
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
@@ -169,31 +180,28 @@ where
 				layer
 			})
 			.layer(TraceLayer::new_for_http())
-			.route("/contact", route!(A::Contact).post(|| async move { todo("contact create") }))
+			.route("/contact", route!(Contact).post(|| async move { todo("contact create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/employee", route!(A::Employee).post(|| async move { todo("employee create") }))
+			.route("/employee", route!(Employee).post(|| async move { todo("employee create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/expense", route!(A::Expenses).post(|| async move { todo("expense create") }))
+			.route("/expense", route!(Expenses).post(|| async move { todo("expense create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/job", route!(A::Job).post(|| async move { todo("job create") }))
+			.route("/job", route!(Job).post(|| async move { todo("job create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/location", route!(A::Location).post(|| async move { todo("location create") }))
+			.route("/location", route!(Location).post(|| async move { todo("location create") }))
 			.route_layer(RequireAuthLayer::login())
 			.route("/login", routing::get(Self::handle_get_login))
 			.route("/logout", routing::get(Self::handle_get_logout))
 			.route(
 				"/organization",
-				route!(A::Organization).post(|| async move { todo("organization create") }),
+				route!(Organization).post(|| async move { todo("organization create") }),
 			)
 			.route_layer(RequireAuthLayer::login())
-			.route("/role", route!(A::Role).post(|| async move { todo("role create") }))
+			.route("/role", route!(Role).post(|| async move { todo("role create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route(
-				"/timesheet",
-				route!(A::Timesheet).post(|| async move { todo("timesheet create") }),
-			)
+			.route("/timesheet", route!(Timesheet).post(|| async move { todo("timesheet create") }))
 			.route_layer(RequireAuthLayer::login())
-			.route("/user", route!(A::User).post(|| async move { todo("user create") }))
+			.route("/user", route!(User).post(|| async move { todo("user create") }))
 			.route_layer(RequireAuthLayer::login())
 			.with_state(state))
 	}
