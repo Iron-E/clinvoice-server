@@ -4,7 +4,9 @@
 mod login;
 mod logout;
 mod retrieve;
+mod version;
 
 pub use login::Login;
 pub use logout::Logout;
 pub use retrieve::Retrieve;
+pub use version::Version;

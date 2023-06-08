@@ -14,7 +14,8 @@ use axum::{
 	error_handling::HandleErrorLayer,
 	extract::{Extension, Json, State},
 	headers::{authorization::Basic, Authorization},
-	http::StatusCode,
+	http::{HeaderMap, Request, StatusCode},
+	middleware::{self, Next},
 	response::IntoResponse,
 	routing,
 	BoxError,
@@ -29,6 +30,7 @@ use axum_login::{
 use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
 pub use response::{LoginResponse, LogoutResponse, Response};
+use semver::VersionReq;
 use sqlx::{Connection, Database, Executor, QueryBuilder, Transaction};
 pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
@@ -37,9 +39,10 @@ use winvoice_adapter::{fmt::sql, Deletable, Initializable, Retrievable, Updatabl
 
 use crate::{
 	api::{
+		self,
 		r#match::MatchUser,
 		request,
-		response::Retrieve,
+		response::{Retrieve, Version},
 		schema::{columns::UserColumns, Adapter, User},
 		Code,
 		Status,
@@ -140,6 +143,39 @@ where
 		timeout: Option<Duration>,
 	) -> DynResult<Router>
 	{
+		/// Middleware to check the [`api`] version of connecting clients.
+		async fn version_checker<B>(
+			headers: HeaderMap,
+			req: Request<B>,
+			next: Next<B>,
+		) -> Result<axum::response::Response, Response<Version>>
+		{
+			fn encoding_err<E>(e: E) -> Result<(), Response<Version>>
+			where
+				E: ToString,
+			{
+				Err(Response::from(Version::encoding_err(e.to_string())))
+			}
+
+			// do something with `request`...
+			headers.get(api::HEADER).map_or_else(
+				|| Err(Response::from(Version::mismatch())),
+				|version| {
+					version.to_str().map_or_else(encoding_err, |v| {
+						VersionReq::parse(v).map_or_else(encoding_err, |req| {
+							match req.matches(api::version())
+							{
+								false => Err(Response::from(Version::mismatch())),
+								true => Ok(()),
+							}
+						})
+					})
+				},
+			)?;
+
+			Ok(next.run(req).await)
+		}
+
 		let session_store = DbSessionStore::new(state.pool().clone());
 		futures::try_join!(A::init_with_auth(state.pool()), session_store.init())?;
 
@@ -164,7 +200,6 @@ where
 		}
 
 		Ok(router
-			.layer(CompressionLayer::new())
 			.layer(AuthLayer::new(
 				SqlxStore::<_, User>::new(state.pool().clone()).with_query({
 					let mut query = QueryBuilder::<A::Db>::from(A::User::default());
@@ -184,6 +219,8 @@ where
 
 				layer
 			})
+			.layer(middleware::from_fn(version_checker))
+			.layer(CompressionLayer::new())
 			.layer(TraceLayer::new_for_http())
 			.route("/contact", route!(Contact).post(|| async move { todo("contact create") }))
 			.route_layer(RequireAuthLayer::login())

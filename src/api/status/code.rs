@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 )]
 pub enum Code
 {
+	/// The API version header was not sent with a particular request.
+	ApiVersionHeaderMissing = 12,
+
 	/// The API version specified in the version header is incompatible with the version running on
 	/// the server.
 	ApiVersionMismatch = 10,

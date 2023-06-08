@@ -13,11 +13,12 @@ impl From<Code> for StatusCode
 	{
 		match code
 		{
-			Code::ApiVersionMismatch => Self::PRECONDITION_FAILED,
-			Code::EncodingError => Self::BAD_REQUEST,
+			Code::ApiVersionMismatch => Self::GONE,
 			Code::InvalidCredentials => Self::UNPROCESSABLE_ENTITY,
 			Code::Success => Self::OK,
 			Code::Unauthorized => Self::FORBIDDEN,
+
+			Code::ApiVersionHeaderMissing | Code::EncodingError => Self::BAD_REQUEST,
 
 			Code::BadArguments |
 			Code::CryptError |

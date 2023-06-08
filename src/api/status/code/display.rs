@@ -8,6 +8,10 @@ impl Display for Code
 	{
 		match self
 		{
+			Self::ApiVersionHeaderMissing =>
+			{
+				"The API version header was not sent with a particular request"
+			},
 			Self::ApiVersionMismatch =>
 			{
 				"The API version specified in the version header is incompatible with the version \
