@@ -12,6 +12,12 @@ pub struct Retrieve<Match>
 
 impl<Match> Retrieve<Match>
 {
+	/// Create a new GET request body.
+	pub fn new(condition: Match) -> Self
+	{
+		Self { condition }
+	}
+
 	/// The condition used to filter which entities should be retrieved.
 	///
 	/// # See also

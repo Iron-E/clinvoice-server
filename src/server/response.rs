@@ -3,14 +3,16 @@
 mod debug;
 mod hash;
 mod into_response;
-mod login_response;
-mod logout_response;
+mod login;
+mod logout;
 mod partial_eq;
 mod partial_ord;
+mod version;
 
 use axum::{http::StatusCode, Json};
-pub use login_response::LoginResponse;
-pub use logout_response::LogoutResponse;
+pub use login::LoginResponse;
+pub use logout::LogoutResponse;
+pub use version::VersionResponse;
 
 use crate::api::Code;
 
@@ -26,6 +28,21 @@ macro_rules! new_response {
 		#[doc = concat!(" A [`", stringify!($Type), "`] [`Response`](crate::server::Response)")]
 		$(#[derive($($derive),+)])*
 		pub struct $Name($crate::server::Response<$Type>);
+
+		impl $Name
+		{
+			/// Get the content of this response.
+			pub const fn content(&self) -> &$Type
+			{
+				self.0.content()
+			}
+
+			/// Get the status of this response.
+			pub const fn status(&self) -> ::axum::http::StatusCode
+			{
+				self.0.status()
+			}
+		}
 
 		impl ::axum::response::IntoResponse for $Name
 		{
@@ -43,10 +60,22 @@ pub struct Response<T>(StatusCode, Json<T>);
 
 impl<T> Response<T>
 {
+	/// Get the content of this [`Response`]
+	pub const fn content(&self) -> &T
+	{
+		&self.1 .0
+	}
+
 	/// Create a new [`Response`]
 	pub const fn new(status_code: StatusCode, content: T) -> Self
 	{
 		Self(status_code, Json(content))
+	}
+
+	/// Get the content of this [`Response`]
+	pub const fn status(&self) -> StatusCode
+	{
+		self.0
 	}
 }
 

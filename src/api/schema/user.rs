@@ -9,14 +9,23 @@ mod date_time_ext;
 #[cfg(feature = "bin")]
 mod from_row;
 
+use std::sync::OnceLock;
+
+use argon2::{
+	password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+	Argon2,
+};
 use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
-	chrono::{DateTime, Duration, OutOfRangeError, Utc},
+	chrono::{DateTime, Duration, Utc},
 	Employee,
 	Id,
 };
 
 use super::Role;
+use crate::dyn_result::DynResult;
+
+static ARGON: OnceLock<Argon2> = OnceLock::new();
 
 /// Corresponds to the `users` table in the [`winvoice_server`] database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -66,12 +75,18 @@ impl User
 		password: String,
 		role: Role,
 		username: String,
-	) -> Result<Self, OutOfRangeError>
+	) -> DynResult<Self>
 	{
 		let password_expires = role
 			.password_ttl()
 			.map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d))
 			.transpose()?;
+
+		let argon = ARGON.get_or_init(Argon2::default);
+		let salt = SaltString::generate(&mut OsRng);
+		let password_hash = argon
+			.hash_password(password.as_bytes(), &salt)
+			.map_or_else(|e| Err(format!("{e}")), |hash| Ok(hash.to_string()))?;
 
 		Ok(Self { employee, id, role, password, password_expires, username })
 	}

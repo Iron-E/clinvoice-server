@@ -36,6 +36,10 @@ impl Display for Code
 				 login"
 			},
 			Self::Other => "An unknown operation occurred",
+			Self::PasswordExpired =>
+			{
+				"A valid login was presented, but the password has expired and must be changed"
+			},
 			Self::PermissionsError =>
 			{
 				"An error occurred while attempting to resolve the permissions of this request's \

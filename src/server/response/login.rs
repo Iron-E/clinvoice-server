@@ -2,13 +2,22 @@
 
 mod from;
 
+use winvoice_schema::chrono::{DateTime, Utc};
+
 use super::{Response, StatusCode};
 use crate::api::{response::Login, Code, Status};
 
-crate::new_response!(LoginResponse(Login): Clone, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
+crate::new_response!(LoginResponse(Login): Clone, Debug, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
 
 impl LoginResponse
 {
+	/// A [`LoginResponse`] indicating that the credentials passed were invalid.
+	pub fn expired(date: DateTime<Utc>) -> Self
+	{
+		const CODE: Code = Code::PasswordExpired;
+		Self::new(CODE.into(), Status::new(CODE, format!("Password expired on {date}")))
+	}
+
 	/// A [`LoginResponse`] indicating that the credentials passed were invalid.
 	pub fn invalid_credentials(message: Option<String>) -> Self
 	{

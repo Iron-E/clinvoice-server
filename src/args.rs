@@ -13,7 +13,6 @@ use casbin::{CoreApi, Enforcer};
 use clap::Parser;
 use command::Command;
 use futures::TryFutureExt;
-use rand::Rng;
 use tracing::{instrument, level_filters::LevelFilter, Instrument};
 use watchman_client::{
 	expr::{Expr, NameTerm},
@@ -27,6 +26,7 @@ use watchman_client::{
 use crate::{
 	dyn_result::{DynError, DynResult},
 	lock::{self, Lock},
+	utils,
 };
 
 /// Winvoice is a tool to track and generate invoices from the command line. Pass --help for more.
@@ -145,8 +145,8 @@ impl Args
 	{
 		init_tracing(self.log_level, self.log_dir, &self.log_rotation)?;
 
-		let model_path = self.permissions_model.map(leak_string);
-		let policy_path = leak_string(self.permissions_policy);
+		let model_path = self.permissions_model.map(utils::leak_string);
+		let policy_path = utils::leak_string(self.permissions_policy);
 
 		let (permissions, tls) = futures::try_join!(
 			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into::<DynError>(),
@@ -167,11 +167,7 @@ impl Args
 						self.address,
 						self.connection_idle,
 						self.cookie_domain,
-						self.cookie_secret.unwrap_or_else(|| {
-							let mut arr = [0u8; 64];
-							rand::thread_rng().fill(&mut arr);
-							arr.to_vec()
-						}),
+						self.cookie_secret.unwrap_or_else(utils::cookie_secret),
 						permissions,
 						self.session_ttl,
 						self.timeout,
@@ -217,19 +213,13 @@ fn init_tracing(
 	Ok(())
 }
 
-/// Convert `s` into a `'static` [`str`] by [`Box::leak`]ing it.
-fn leak_string(s: String) -> &'static str
-{
-	Box::leak(s.into_boxed_str())
-}
-
 /// Watch the `model_path` and `policy_path` for changes, reloading the `permissions` when they are
 /// changed.
 ///
 /// This allows [`winvoice_server`]'s permissions to be hot-reloaded while the server is
 /// running.
 #[instrument(level = "trace", skip(permissions))]
-async fn init_watchman(
+pub(crate) async fn init_watchman(
 	permissions: Lock<Enforcer>,
 	model_path: Option<&'static str>,
 	policy_path: &'static str,
@@ -322,59 +312,40 @@ mod tests
 
 	#[tokio::test]
 	#[traced_test]
-	async fn watch_permissions()
+	async fn watch_permissions() -> DynResult<()>
 	{
 		let wait = Duration::from_millis(30);
-		let temp_dir = utils::temp_dir("args::watch_permissions");
-		let model_path = temp_dir.join("model.conf");
-		let policy_path = temp_dir.join("policy.csv");
-
-		futures::try_join!(
-			fs::write(
-				&model_path,
-				r#"[request_definition]
-r = sub, obj, act
-
-[policy_definition]
-p = sub, obj, act
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
-"#,
-			),
-			fs::write(&policy_path, "p, alice, data1, read\n"),
+		let (model_path, policy_path) = utils::init_model_and_policy_files(
+			"args::watch_permissions",
+			utils::Model::Acl.to_string(),
+			"p, alice, data1, read\n",
 		)
-		.unwrap();
+		.await?;
 
-		let model_path_str = leak_string(model_path.to_string_lossy().to_string());
-		let policy_path_str = leak_string(policy_path.to_string_lossy().to_string());
+		let model_path_str = utils::leak_string(model_path.to_string_lossy().into());
+		let policy_path_str = utils::leak_string(policy_path.to_string_lossy().into());
 
-		let permissions = lock::new(Enforcer::new(model_path_str, policy_path_str).await.unwrap());
-		super::init_watchman(permissions.clone(), Some(model_path_str), policy_path_str)
-			.await
-			.unwrap();
+		let permissions = Enforcer::new(model_path_str, policy_path_str).await.map(lock::new)?;
+		super::init_watchman(permissions.clone(), Some(model_path_str), policy_path_str).await?;
 
 		{
 			// Assert permissions are correct
 			let p = permissions.read().await;
-			assert!(p.enforce(("alice", "data1", "read")).unwrap());
-			assert!(!p.enforce(("bob", "data2", "write")).unwrap());
+			assert!(p.enforce(("alice", "data1", "read"))?);
+			assert!(!p.enforce(("bob", "data2", "write"))?);
 		}
 
 		{
-			let mut file = OpenOptions::new().append(true).open(&policy_path).unwrap();
-			writeln!(file, "p, bob, data2, write").unwrap();
+			let mut file = OpenOptions::new().append(true).open(&policy_path)?;
+			writeln!(file, "p, bob, data2, write")?;
 		}
 
 		{
 			// Assert permissions update when policy is written to
 			tokio::time::sleep(wait).await;
 			let p = permissions.read().await;
-			assert!(p.enforce(("alice", "data1", "read")).unwrap());
-			assert!(p.enforce(("bob", "data2", "write")).unwrap());
+			assert!(p.enforce(("alice", "data1", "read"))?);
+			assert!(p.enforce(("bob", "data2", "write"))?);
 		}
 
 		fs::write(
@@ -386,49 +357,31 @@ p, data2_admin, data2, write
 g, alice, data2_admin
 "#,
 		)
-		.await
-		.unwrap();
+		.await?;
 
 		{
 			// Assert permissions remain valid when policy is written to with content that the model
 			// doesn't support
 			tokio::time::sleep(wait).await;
 			let p = permissions.read().await;
-			assert!(p.enforce(("alice", "data1", "read")).unwrap());
-			assert!(!p.enforce(("alice", "data2", "write")).unwrap());
-			assert!(p.enforce(("bob", "data2", "write")).unwrap());
-			assert!(p.enforce(("data2_admin", "data2", "write")).unwrap());
+			assert!(p.enforce(("alice", "data1", "read"))?);
+			assert!(!p.enforce(("alice", "data2", "write"))?);
+			assert!(p.enforce(("bob", "data2", "write"))?);
+			assert!(p.enforce(("data2_admin", "data2", "write"))?);
 		}
 
-		fs::write(
-			&model_path,
-			r#"[request_definition]
-r = sub, obj, act
-
-[policy_definition]
-p = sub, obj, act
-
-[role_definition]
-g = _, _
-
-[policy_effect]
-e = some(where (p.eft == allow))
-
-[matchers]
-m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
-"#,
-		)
-		.await
-		.unwrap();
+		fs::write(&model_path, utils::Model::Rbac.to_string()).await?;
 
 		{
 			// Assert update to model can fix bad policy
 			tokio::time::sleep(wait).await;
 			let p = permissions.read().await;
-			assert!(p.enforce(("alice", "data1", "read")).unwrap());
-			assert!(p.enforce(("bob", "data2", "write")).unwrap());
-			assert!(p.enforce(("alice", "data2", "write")).unwrap());
-			assert!(p.enforce(("data2_admin", "data2", "write")).unwrap());
+			assert!(p.enforce(("alice", "data1", "read"))?);
+			assert!(p.enforce(("bob", "data2", "write"))?);
+			assert!(p.enforce(("alice", "data2", "write"))?);
+			assert!(p.enforce(("data2_admin", "data2", "write"))?);
 		}
+
+		Ok(())
 	}
 }

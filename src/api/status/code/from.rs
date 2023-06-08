@@ -7,6 +7,14 @@ use sqlx::Error as SqlxError;
 
 use super::Code;
 
+impl From<Code> for u8
+{
+	fn from(code: Code) -> Self
+	{
+		code as Self
+	}
+}
+
 impl From<Code> for StatusCode
 {
 	fn from(code: Code) -> Self
@@ -14,7 +22,7 @@ impl From<Code> for StatusCode
 		match code
 		{
 			Code::ApiVersionMismatch => Self::GONE,
-			Code::InvalidCredentials => Self::UNPROCESSABLE_ENTITY,
+			Code::InvalidCredentials | Code::PasswordExpired => Self::UNPROCESSABLE_ENTITY,
 			Code::Success => Self::OK,
 			Code::Unauthorized => Self::FORBIDDEN,
 

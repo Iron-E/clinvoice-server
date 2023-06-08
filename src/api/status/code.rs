@@ -2,6 +2,7 @@
 
 mod display;
 mod from;
+mod try_from;
 
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(
 	Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
 )]
+#[serde(into = "u8", try_from = "u8")]
 pub enum Code
 {
 	/// The API version header was not sent with a particular request.
@@ -44,6 +46,9 @@ pub enum Code
 	/// An uncategorized type of action was taken.
 	#[default]
 	Other = 0,
+
+	/// A valid login was presented, but the password has expired and must be changed.
+	PasswordExpired = 13,
 
 	/// An error occurred while attempting to resolve the permissions of this request's active
 	/// user.

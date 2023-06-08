@@ -4,6 +4,7 @@
 pub mod r#match;
 pub mod request;
 pub mod response;
+pub mod routes;
 pub mod schema;
 mod status;
 
@@ -17,14 +18,6 @@ pub const HEADER: &str = "Api-Version";
 
 /// The current API version.
 static VERSION: OnceLock<Version> = OnceLock::new();
-
-// static VERSION: Version = Version {
-// 	build: BuildMetadata::EMPTY,
-// 	major: 0,
-// 	minor: 1,
-// 	patch: 0,
-// 	pre: Prerelease::new("alpha.1").unwrap(),
-// };
 
 /// The current API version.
 pub fn version() -> &'static Version
