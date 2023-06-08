@@ -8,6 +8,11 @@ impl Display for Code
 	{
 		match self
 		{
+			Self::ApiVersionMismatch =>
+			{
+				"The API version specified in the version header is incompatible with the version \
+				 running on the server"
+			},
 			Self::BadArguments =>
 			{
 				"Specific arguments that were used to start the server were not accepted by the \

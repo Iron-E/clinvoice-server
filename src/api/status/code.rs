@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 )]
 pub enum Code
 {
+	/// The API version specified in the version header is incompatible with the version running on
+	/// the server.
+	ApiVersionMismatch = 10,
+
 	/// Specific arguments that were used to start the server were not accepted by the
 	/// database.
 	BadArguments = 4,
