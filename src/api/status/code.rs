@@ -38,6 +38,10 @@ pub enum Code
 	#[default]
 	Other = 0,
 
+	/// An error occurred while attempting to resolve the permissions of this request's active
+	/// user.
+	PermissionsError = 11,
+
 	/// The SQL which was generated from a [`winvoice_match`] was incorrect. This is likely a bug
 	/// in Winvoice.
 	SqlError = 8,

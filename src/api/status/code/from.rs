@@ -16,13 +16,14 @@ impl From<Code> for StatusCode
 			Code::EncodingError => Self::BAD_REQUEST,
 			Code::InvalidCredentials => Self::UNPROCESSABLE_ENTITY,
 			Code::Success => Self::OK,
-			Code::Unauthorized => Self::UNAUTHORIZED,
+			Code::Unauthorized => Self::FORBIDDEN,
 
 			Code::BadArguments |
 			Code::CryptError |
 			Code::Database |
 			Code::LoginError |
 			Code::Other |
+			Code::PermissionsError |
 			Code::SqlError => Self::INTERNAL_SERVER_ERROR,
 		}
 	}
@@ -34,14 +35,15 @@ impl From<&CasbinError> for Code
 	{
 		match error
 		{
-			CasbinError::AdapterError(_) => todo!(),
-			CasbinError::IoError(_) => todo!(),
-			CasbinError::ModelError(_) => todo!(),
-			CasbinError::PolicyError(_) => todo!(),
-			CasbinError::RbacError(_) => todo!(),
-			CasbinError::RequestError(_) => todo!(),
-			CasbinError::RhaiError(_) => todo!(),
-			CasbinError::RhaiParseError(_) => todo!(),
+			CasbinError::RequestError(_) => Self::PermissionsError,
+
+			CasbinError::AdapterError(_) |
+			CasbinError::IoError(_) |
+			CasbinError::ModelError(_) |
+			CasbinError::PolicyError(_) |
+			CasbinError::RbacError(_) |
+			CasbinError::RhaiError(_) |
+			CasbinError::RhaiParseError(_) => Self::Other,
 		}
 	}
 }
@@ -67,13 +69,14 @@ impl From<&SqlxError> for Code
 		match error
 		{
 			SqlxError::Configuration(_) => Self::BadArguments,
-			SqlxError::ColumnDecode { .. } | SqlxError::Decode(_) => Self::EncodingError,
 
 			SqlxError::ColumnIndexOutOfBounds { .. } |
 			SqlxError::ColumnNotFound(_) |
 			SqlxError::RowNotFound |
 			SqlxError::TypeNotFound { .. } => Self::SqlError,
 
+			SqlxError::ColumnDecode { .. } |
+			SqlxError::Decode(_) |
 			SqlxError::Io(_) |
 			SqlxError::PoolClosed |
 			SqlxError::PoolTimedOut |

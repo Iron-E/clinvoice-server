@@ -27,6 +27,11 @@ impl Display for Code
 				 login"
 			},
 			Self::Other => "An unknown operation occurred",
+			Self::PermissionsError =>
+			{
+				"An error occurred while attempting to resolve the permissions of this request's \
+				 active user"
+			},
 			Self::SqlError =>
 			{
 				"The SQL which was generated from a `winvoice_match` was incorrect. This is likely \
