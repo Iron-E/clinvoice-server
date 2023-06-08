@@ -29,18 +29,18 @@ use axum_login::{
 use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
 pub use response::{LoginResponse, LogoutResponse, Response};
-use sqlx::{Connection, Database, Executor, Transaction};
+use sqlx::{Connection, Database, Executor, QueryBuilder, Transaction};
 pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
-use winvoice_adapter::{Deletable, Initializable, Retrievable, Updatable};
+use winvoice_adapter::{fmt::sql, Deletable, Initializable, Retrievable, Updatable};
 
 use crate::{
 	api::{
 		r#match::MatchUser,
 		request,
 		response::Retrieve,
-		schema::{Adapter, User},
+		schema::{columns::UserColumns, Adapter, User},
 		Code,
 		Status,
 	},
@@ -98,8 +98,10 @@ where
 	A: 'static + Adapter + InitializableWithAuthorization,
 	<A::Db as Database>::Connection: core::fmt::Debug,
 	<<A::Db as Database>::Connection as Connection>::Options: Clone,
+	A::User: Default,
 	DbSessionStore<A::Db>: Initializable<Db = A::Db> + SessionStore,
 	DbUserStore<A::Db>: UserStore,
+	for<'args> QueryBuilder<'args, A::Db>: From<A::User>,
 	for<'connection> &'connection mut <A::Db as Database>::Connection:
 		Executor<'connection, Database = A::Db>,
 	for<'connection> &'connection mut Transaction<'connection, A::Db>:
@@ -122,8 +124,6 @@ where
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<()>
-	where
-		A: InitializableWithAuthorization,
 	{
 		let router =
 			Self::router(cookie_domain, cookie_secret, state, session_ttl, timeout).await?;
@@ -139,8 +139,6 @@ where
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<Router>
-	where
-		A: InitializableWithAuthorization,
 	{
 		let session_store = DbSessionStore::new(state.pool().clone());
 		futures::try_join!(A::init_with_auth(state.pool()), session_store.init())?;
@@ -167,7 +165,14 @@ where
 
 		Ok(router
 			.layer(CompressionLayer::new())
-			.layer(AuthLayer::new(SqlxStore::<_, User>::new(state.pool().clone()), &cookie_secret))
+			.layer(AuthLayer::new(
+				SqlxStore::<_, User>::new(state.pool().clone()).with_query({
+					let mut query = QueryBuilder::<A::Db>::from(A::User::default());
+					query.push(sql::WHERE).push(UserColumns::default().id).push(" = $1");
+					query.into_sql()
+				}),
+				&cookie_secret,
+			))
 			.layer({
 				let mut layer = SessionLayer::new(session_store, &cookie_secret)
 					.with_session_ttl(session_ttl.into());

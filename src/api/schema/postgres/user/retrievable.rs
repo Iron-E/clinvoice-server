@@ -34,7 +34,7 @@ impl Retrievable for PgUser
 		match_condition: Self::Match,
 	) -> Result<Vec<Self::Entity>>
 	{
-		let mut query = Self::select();
+		let mut query = QueryBuilder::<Postgres>::from(Self);
 		PgSchema::write_where_clause(
 			PgSchema::write_where_clause(
 				PgSchema::write_where_clause(

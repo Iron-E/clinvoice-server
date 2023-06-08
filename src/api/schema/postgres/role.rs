@@ -13,6 +13,7 @@ mod updatable;
 
 /// A [`Role`](crate::api::schema::Role) which has specialized implementations for the
 /// [`Postgres`](sqlx::Postgres) database.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct PgRole;
 
 impl PgRole
