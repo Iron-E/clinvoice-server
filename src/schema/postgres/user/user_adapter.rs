@@ -5,7 +5,7 @@ use winvoice_adapter_postgres::fmt::DateTimeExt;
 use winvoice_schema::Employee;
 
 use super::PgUser;
-use crate::api::schema::{Role, User, UserAdapter};
+use crate::schema::{Role, User, UserAdapter};
 
 #[async_trait::async_trait]
 impl UserAdapter for PgUser
@@ -55,11 +55,11 @@ mod tests
 
 	use super::{DateTimeExt, PgUser, Postgres, Result, User, UserAdapter};
 	use crate::{
-		api::schema::{
+		dyn_result::DynResult,
+		schema::{
 			postgres::{role::role_adapter::tests as role, PgRole},
 			RoleAdapter,
 		},
-		dyn_result::DynResult,
 		utils::{connect_pg, different_string, random_string},
 	};
 

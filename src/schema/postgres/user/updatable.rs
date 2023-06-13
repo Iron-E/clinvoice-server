@@ -5,7 +5,7 @@ use winvoice_adapter::Updatable;
 use winvoice_adapter_postgres::PgSchema;
 
 use super::PgUser;
-use crate::api::schema::{columns::UserColumns, User};
+use crate::schema::{columns::UserColumns, User};
 
 #[async_trait::async_trait]
 impl Updatable for PgUser

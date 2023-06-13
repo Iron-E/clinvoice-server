@@ -6,9 +6,10 @@ use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
 
 use crate::{
-	api::{schema::User, Code, Status},
+	api::{Code, Status},
 	lock::Lock,
 	permissions::{Action, Object},
+	schema::User,
 };
 
 /// The state which is shared by the server.

@@ -11,7 +11,7 @@ use winvoice_adapter::{
 use winvoice_adapter_postgres::PgSchema;
 
 use super::PgUser;
-use crate::api::{
+use crate::{
 	r#match::MatchUser,
 	schema::{
 		columns::{RoleColumns, UserColumns},

@@ -54,17 +54,10 @@ use winvoice_adapter::{
 use winvoice_schema::chrono::Utc;
 
 use crate::{
-	api::{
-		self,
-		r#match::MatchUser,
-		request,
-		response::Retrieve,
-		routes,
-		schema::{columns::UserColumns, Adapter, RoleAdapter, User, UserAdapter},
-		Code,
-		Status,
-	},
+	api::{self, request, response::Retrieve, routes, Code, Status},
 	permissions::{Action, Object},
+	r#match::MatchUser,
+	schema::{columns::UserColumns, Adapter, RoleAdapter, User, UserAdapter},
 	DynResult,
 };
 
@@ -593,7 +586,7 @@ p, {admin_role_name}, {user}, {update}
 
 		#[allow(clippy::wildcard_imports)]
 		use super::*;
-		use crate::api::schema::postgres::{PgRole, PgUser};
+		use crate::schema::postgres::{PgRole, PgUser};
 
 		fn_setup!(PgSchema, Postgres, utils::connect_pg);
 

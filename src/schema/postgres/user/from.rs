@@ -7,7 +7,7 @@ use winvoice_adapter::{
 };
 
 use super::PgUser;
-use crate::api::schema::columns::{RoleColumns, UserColumns};
+use crate::schema::columns::{RoleColumns, UserColumns};
 
 impl<'args> From<PgUser> for QueryBuilder<'args, Postgres>
 {

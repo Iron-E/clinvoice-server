@@ -10,7 +10,7 @@ use winvoice_adapter::{
 use winvoice_adapter_postgres::PgSchema;
 
 use super::PgRole;
-use crate::api::{
+use crate::{
 	r#match::MatchRole,
 	schema::{columns::RoleColumns, Role},
 };

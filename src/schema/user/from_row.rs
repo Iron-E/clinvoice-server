@@ -5,7 +5,7 @@ use winvoice_adapter::schema::columns::EmployeeColumns;
 use winvoice_schema::Id;
 
 use super::User;
-use crate::api::schema::columns::{RoleColumns, UserColumns};
+use crate::schema::columns::{RoleColumns, UserColumns};
 
 const EMPLOYEE_COLUMNS: EmployeeColumns = EmployeeColumns::unique();
 const ROLE_COLUMNS: RoleColumns = RoleColumns::unique();
@@ -19,7 +19,7 @@ mod postgres
 
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
-	use crate::api::schema::postgres::PgRole;
+	use crate::schema::postgres::PgRole;
 
 	impl FromRow<'_, PgRow> for User
 	{

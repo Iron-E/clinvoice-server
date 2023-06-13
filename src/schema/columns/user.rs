@@ -1,4 +1,4 @@
-//! This module holds data for the columns of the [`User`](crate::api::schema::User) table.
+//! This module holds data for the columns of the [`User`](crate::schema::User) table.
 
 mod columns_to_sql;
 mod table_to_sql;

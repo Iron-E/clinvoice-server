@@ -5,7 +5,7 @@ use core::fmt::Display;
 use sqlx::QueryBuilder;
 use winvoice_adapter::{WriteContext, WriteWhereClause};
 
-use crate::api::{
+use crate::{
 	r#match::{MatchRole, MatchUser},
 	schema::columns::{RoleColumns, UserColumns},
 };

@@ -7,7 +7,7 @@ pub use initializable_with_authorization::InitializableWithAuthorization;
 use sqlx::Pool;
 use winvoice_schema::Id;
 
-use crate::api::schema::User;
+use crate::schema::User;
 
 /// The [authorization context](Context) used by the [`winvoice_server::server`].
 pub type AuthContext<Db> = Context<Id, User, DbUserStore<Db>>;

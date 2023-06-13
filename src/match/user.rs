@@ -1,4 +1,4 @@
-//! Contains a [`Match`](winvoice_match::Match) type for [`User`](crate::api::schema::User)s
+//! Contains a [`Match`](winvoice_match::Match) type for [`User`](crate::schema::User)s
 
 mod from;
 
@@ -24,7 +24,7 @@ use super::MatchRole;
 /// # use pretty_assertions::assert_eq;
 /// # use winvoice_match::{MatchEmployee, MatchStr};
 /// # use winvoice_schema::chrono::NaiveDate;
-/// # use winvoice_server::api::r#match::{MatchRole, MatchUser};
+/// # use winvoice_server::r#match::{MatchRole, MatchUser};
 /// // JSON
 /// # assert_eq!(serde_json::from_str::<MatchUser>(r#"
 /// {

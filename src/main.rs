@@ -104,7 +104,9 @@ mod api;
 mod args;
 mod dyn_result;
 mod lock;
+mod r#match;
 mod permissions;
+mod schema;
 mod server;
 mod utils;
 

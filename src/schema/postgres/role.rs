@@ -1,17 +1,17 @@
-//! Contains a  [`Role`](crate::api::schema::Role) for the [`Postgres`](sqlx::Postgres) database.
+//! Contains a  [`Role`](crate::schema::Role) for the [`Postgres`](sqlx::Postgres) database.
 
 use sqlx::{postgres::PgRow, Result, Row};
 use winvoice_adapter_postgres::schema::util::duration_from;
 use winvoice_schema::Id;
 
-use crate::api::schema::{columns::RoleColumns, Role};
+use crate::schema::{columns::RoleColumns, Role};
 
 mod deletable;
 mod retrievable;
 pub(super) mod role_adapter;
 mod updatable;
 
-/// A [`Role`](crate::api::schema::Role) which has specialized implementations for the
+/// A [`Role`](crate::schema::Role) which has specialized implementations for the
 /// [`Postgres`](sqlx::Postgres) database.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct PgRole;

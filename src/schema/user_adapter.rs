@@ -1,29 +1,30 @@
 //! Contains a version of e.g. [`TimesheetAdapter`](winvoice_adapter::schema::TimesheetAdapter) for
 //! [`User`](super::User).
 
-use core::time::Duration;
-
 use sqlx::{Executor, Result};
 use winvoice_adapter::{Deletable, Retrievable, Updatable};
+use winvoice_schema::Employee;
 
-use super::Role;
-use crate::api::r#match::MatchRole;
+use super::{Role, User};
+use crate::r#match::MatchUser;
 
 /// Implementors of this trait may act as an [adapter](super) for [`Employee`]s.
 #[async_trait::async_trait]
-pub trait RoleAdapter:
-	Deletable<Entity = Role>
+pub trait UserAdapter:
+	Deletable<Entity = User>
 	+ Retrievable<
 		Db = <Self as Deletable>::Db,
 		Entity = <Self as Deletable>::Entity,
-		Match = MatchRole,
+		Match = MatchUser,
 	> + Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
 {
-	/// Initialize and return a new [`Employee`] via the `connection`.
+	/// Initialize and return a new [`User`] via the `connection`.
 	async fn create<'connection, Conn>(
 		connection: Conn,
-		name: String,
-		password_ttl: Option<Duration>,
+		employee: Option<Employee>,
+		password: String,
+		role: Role,
+		username: String,
 	) -> Result<<Self as Deletable>::Entity>
 	where
 		Conn: Executor<'connection, Database = <Self as Deletable>::Db>;

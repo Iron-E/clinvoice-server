@@ -1,18 +1,18 @@
-//! A [`Deletable`] implementation for [`PgRole`]
+//! A [`Deletable`] implementation for [`PgUser`]
 
 use sqlx::{Executor, Postgres, Result};
 use winvoice_adapter::Deletable;
 use winvoice_adapter_postgres::PgSchema;
 use winvoice_schema::Id;
 
-use super::PgRole;
-use crate::api::schema::{columns::RoleColumns, Role};
+use super::PgUser;
+use crate::schema::{columns::UserColumns, User};
 
 #[async_trait::async_trait]
-impl Deletable for PgRole
+impl Deletable for PgUser
 {
 	type Db = Postgres;
-	type Entity = Role;
+	type Entity = User;
 
 	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn delete<'connection, 'entity, Conn, Iter>(
@@ -24,12 +24,12 @@ impl Deletable for PgRole
 		Conn: Executor<'connection, Database = Self::Db>,
 		Iter: Iterator<Item = &'entity Self::Entity> + Send,
 	{
-		const fn mapper(o: &Role) -> Id
+		const fn mapper(o: &User) -> Id
 		{
 			o.id()
 		}
 
-		// TODO: use `for<'a> |e: &'a Role| e.id`
-		PgSchema::delete::<_, _, RoleColumns>(connection, entities.map(mapper)).await
+		// TODO: use `for<'a> |e: &'a User| e.id`
+		PgSchema::delete::<_, _, UserColumns>(connection, entities.map(mapper)).await
 	}
 }

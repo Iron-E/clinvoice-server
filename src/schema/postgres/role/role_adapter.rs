@@ -5,7 +5,7 @@ use core::time::Duration;
 use sqlx::{Executor, Postgres, Result};
 
 use super::PgRole;
-use crate::api::schema::{Role, RoleAdapter};
+use crate::schema::{Role, RoleAdapter};
 
 #[async_trait::async_trait]
 impl RoleAdapter for PgRole
@@ -32,7 +32,7 @@ impl RoleAdapter for PgRole
 }
 
 #[cfg(test)]
-pub(in crate::api::schema::postgres) mod tests
+pub(in crate::schema::postgres) mod tests
 {
 	use std::collections::HashMap;
 
@@ -44,8 +44,8 @@ pub(in crate::api::schema::postgres) mod tests
 
 	use super::{Duration, PgRole, Postgres, Result, RoleAdapter};
 	use crate::{
-		api::schema::Role,
 		dyn_result::DynResult,
+		schema::Role,
 		utils::{connect_pg, different_string, random_string},
 	};
 

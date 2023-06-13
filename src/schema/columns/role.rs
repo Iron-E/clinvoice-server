@@ -1,4 +1,4 @@
-//! This module holds data for the columns of the [`Role`](crate::api::schema::Role) table.
+//! This module holds data for the columns of the [`Role`](crate::schema::Role) table.
 
 mod columns_to_sql;
 mod table_to_sql;
@@ -85,7 +85,7 @@ impl RoleColumns<&'static str>
 	/// # use pretty_assertions::assert_eq;
 	/// use sqlx::{Execute, Postgres, QueryBuilder};
 	/// use winvoice_adapter::fmt::{QueryBuilderExt, sql};
-	/// use winvoice_server::api::schema::columns::*;
+	/// use winvoice_server::schema::columns::*;
 	///
 	/// {
 	///   let mut query = QueryBuilder::<Postgres>::new(sql::SELECT);

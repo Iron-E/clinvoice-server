@@ -1,11 +1,9 @@
 //! This module contains strongly-typed versions of all JSON information sent via the
-//! [`winvoice_server`].
+//! server.
 
-pub mod r#match;
 pub mod request;
 pub mod response;
 pub mod routes;
-pub mod schema;
 mod status;
 
 use std::sync::OnceLock;
