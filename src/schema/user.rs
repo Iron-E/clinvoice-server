@@ -84,11 +84,19 @@ impl User
 
 		let argon = ARGON.get_or_init(Argon2::default);
 		let salt = SaltString::generate(&mut OsRng);
-		let password_hash = argon
-			.hash_password(password.as_bytes(), &salt)
-			.map_or_else(|e| Err(format!("{e}")), |hash| Ok(hash.to_string()))?;
-
-		Ok(Self { employee, id, role, password, password_expires, username })
+		argon.hash_password(password.as_bytes(), &salt).map_or_else(
+			|e| Err(format!("{e}").into()),
+			|hash| {
+				Ok(Self {
+					employee,
+					id,
+					role,
+					password: hash.to_string(),
+					password_expires,
+					username,
+				})
+			},
+		)
 	}
 
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
