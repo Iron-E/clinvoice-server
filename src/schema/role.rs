@@ -7,7 +7,7 @@ use core::time::Duration;
 use serde::{Deserialize, Serialize};
 use winvoice_schema::Id;
 
-/// Corresponds to the `users` table in the [`winvoice_server`] database.
+/// Corresponds to the `role` table in the database.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Role
 {

@@ -9,7 +9,6 @@ use winvoice_adapter::{Deletable, Retrievable, Updatable};
 use super::Role;
 use crate::r#match::MatchRole;
 
-/// Implementors of this trait may act as an [adapter](super) for [`Employee`]s.
 #[async_trait::async_trait]
 pub trait RoleAdapter:
 	Deletable<Entity = Role>
@@ -19,7 +18,6 @@ pub trait RoleAdapter:
 		Match = MatchRole,
 	> + Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
 {
-	/// Initialize and return a new [`Employee`] via the `connection`.
 	async fn create<'connection, Conn>(
 		connection: Conn,
 		name: String,

@@ -31,7 +31,7 @@ pub struct UserColumns<T = &'static str>
 
 impl<T> UserColumns<T>
 {
-	/// Add a [scope](ExpenseColumns::scope) using the [default alias](TableToSql::default_alias)
+	/// Add a [scope](UserColumns::scope) using the [default alias](TableToSql::DEFAULT_ALIAS)
 	///
 	/// # See also
 	///
@@ -42,7 +42,7 @@ impl<T> UserColumns<T>
 		self.scope(UserColumns::DEFAULT_ALIAS)
 	}
 
-	/// Returns a [`UserColumns`] which modifies its fields' [`Display`]
+	/// Returns a [`UserColumns`] which modifies its fields' [`Display`](core::fmt::Display)
 	/// implementation to output `{alias}.{column}`.
 	///
 	/// # See also

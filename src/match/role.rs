@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use winvoice_match::{Match, MatchOption, MatchStr};
 use winvoice_schema::Id;
 
-/// A [`Timesheet`](winvoice_schema::Timesheet) with [matchable](winvoice_match) fields.
+/// A [`Role`](crate::schema::Role) with [matchable](winvoice_match) fields.
 ///
-/// [`MatchTimesheet`] matches IFF all of its fields also match.
+/// [`MatchRole`] matches IFF all of its fields also match.
 ///
 /// # Examples
 ///

@@ -15,7 +15,6 @@ use crate::{
 	schema::{columns::RoleColumns, Role},
 };
 
-/// Implementors of this trait are capable of being retrieved from a [`Database`].
 #[async_trait::async_trait]
 impl Retrievable for PgRole
 {
@@ -23,7 +22,6 @@ impl Retrievable for PgRole
 	type Entity = Role;
 	type Match = MatchRole;
 
-	/// Retrieve all [`Role`]s (via `connection`) that match the `match_condition`.
 	#[tracing::instrument(level = "trace", skip(connection), err)]
 	async fn retrieve(
 		connection: &Pool<Postgres>,

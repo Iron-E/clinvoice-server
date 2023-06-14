@@ -19,7 +19,6 @@ use crate::{
 	},
 };
 
-/// Implementors of this trait are capable of being retrieved from a [`Database`].
 #[async_trait::async_trait]
 impl Retrievable for PgUser
 {
@@ -27,7 +26,6 @@ impl Retrievable for PgUser
 	type Entity = User;
 	type Match = MatchUser;
 
-	/// Retrieve all [`User`]s (via `connection`) that match the `match_condition`.
 	#[tracing::instrument(level = "trace", skip_all, err)]
 	async fn retrieve(
 		connection: &Pool<Postgres>,

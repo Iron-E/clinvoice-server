@@ -8,9 +8,9 @@ use winvoice_schema::{chrono::NaiveDateTime, Id};
 
 use super::MatchRole;
 
-/// A [`Timesheet`](winvoice_schema::Timesheet) with [matchable](winvoice_match) fields.
+/// A [`User`](crate::schema::User) with [matchable](winvoice_match) fields.
 ///
-/// [`MatchTimesheet`] matches IFF all of its fields also match.
+/// [`MatchUser`] matches IFF all of its fields also match.
 ///
 /// # Examples
 ///

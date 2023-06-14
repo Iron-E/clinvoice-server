@@ -27,7 +27,7 @@ use crate::dyn_result::DynResult;
 
 static ARGON: OnceLock<Argon2> = OnceLock::new();
 
-/// Corresponds to the `users` table in the [`winvoice_server`] database.
+/// Corresponds to the `users` table.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct User
 {

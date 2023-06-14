@@ -23,7 +23,7 @@ impl<Match> Retrieve<Match>
 	/// # See also
 	///
 	/// * [`winvoice_match`]
-	/// * [`winvoice_server::api::match`](crate::r#match)
+	/// * [`winvoice_server::api::match`](crate::match)
 	pub const fn condition(&self) -> &Match
 	{
 		&self.condition

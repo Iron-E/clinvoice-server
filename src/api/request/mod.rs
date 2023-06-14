@@ -1,4 +1,4 @@
-//! This module contains all of the valid HTTP requests that the [`winvoice_server`] may
+//! This module contains all of the valid [HTTP](axum::http) requests that the server may
 //! [respond](super::response) to.
 
 mod retrieve;

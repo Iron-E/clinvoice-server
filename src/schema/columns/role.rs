@@ -38,7 +38,7 @@ impl<T> RoleColumns<T>
 		}
 	}
 
-	/// Add a [scope](ExpenseColumns::scope) using the [default alias](TableToSql::default_alias)
+	/// Add a [scope](Self::scope) using the [default alias](TableToSql::DEFAULT_ALIAS)
 	///
 	/// # See also
 	///
@@ -49,7 +49,7 @@ impl<T> RoleColumns<T>
 		self.scope(RoleColumns::DEFAULT_ALIAS)
 	}
 
-	/// Returns a [`RoleColumns`] which modifies its fields' [`Display`]
+	/// Returns a [`RoleColumns`] which modifies its fields' [`Display`](core::fmt::Display)
 	/// implementation to output `{alias}.{column}`.
 	///
 	/// # See also
