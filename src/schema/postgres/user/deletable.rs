@@ -2,8 +2,7 @@
 
 use sqlx::{Executor, Postgres, Result};
 use winvoice_adapter::Deletable;
-use winvoice_adapter_postgres::PgSchema;
-use winvoice_schema::Id;
+use winvoice_adapter_postgres::{fmt::PgUuid, PgSchema};
 
 use super::PgUser;
 use crate::schema::{columns::UserColumns, User};
@@ -24,9 +23,9 @@ impl Deletable for PgUser
 		Conn: Executor<'connection, Database = Self::Db>,
 		Iter: Iterator<Item = &'entity Self::Entity> + Send,
 	{
-		const fn mapper(o: &User) -> Id
+		fn mapper(o: &User) -> PgUuid
 		{
-			o.id()
+			PgUuid::from(o.id())
 		}
 
 		// TODO: use `for<'a> |e: &'a User| e.id`

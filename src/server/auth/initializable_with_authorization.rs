@@ -26,7 +26,7 @@ impl InitializableWithAuthorization for winvoice_adapter_postgres::PgSchema
 		sqlx::query!(
 			"CREATE TABLE IF NOT EXISTS roles
 			(
-				id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+				id uuid PRIMARY KEY,
 				name text NOT NULL UNIQUE,
 				password_ttl interval
 			);"
@@ -37,11 +37,11 @@ impl InitializableWithAuthorization for winvoice_adapter_postgres::PgSchema
 		sqlx::query!(
 			"CREATE TABLE IF NOT EXISTS users
 			(
-				employee_id bigint REFERENCES employees(id),
-				id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+				id uuid PRIMARY KEY,
+				employee_id uuid REFERENCES employees(id),
 				password text NOT NULL,
 				password_expires timestamp,
-				role_id bigint NOT NULL REFERENCES roles(id),
+				role_id uuid NOT NULL REFERENCES roles(id),
 				username text NOT NULL UNIQUE
 			);"
 		)

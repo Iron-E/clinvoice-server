@@ -352,11 +352,11 @@ const fn todo(msg: &'static str) -> (StatusCode, &'static str)
 #[cfg(test)]
 mod tests
 {
-	use std::{env, path::PathBuf, sync::OnceLock};
+	use std::sync::OnceLock;
 
 	use axum::http::header;
 	use axum_login::axum_sessions::async_session::base64;
-	use axum_test_helper::{RequestBuilder, TestClient, TestResponse};
+	use axum_test_helper::{RequestBuilder, TestClient};
 	use casbin::{CoreApi, Enforcer};
 	use futures::TryFutureExt;
 	use sqlx::Pool;
@@ -577,7 +577,7 @@ p, {admin_role_name}, {user}, {update}
 	mod postgres
 	{
 		use futures::{stream, StreamExt};
-		use pretty_assertions::{assert_eq, assert_str_eq};
+		use pretty_assertions::assert_eq;
 		use sqlx::Postgres;
 		use winvoice_adapter_postgres::{
 			schema::{PgContact, PgEmployee},
@@ -700,8 +700,6 @@ p, {admin_role_name}, {user}, {update}
 					.json(&request::Retrieve::new(MatchEmployee::from(employee.id)))
 					.send()
 					.await;
-
-				tracing::debug!("Response: {} {}", response.status(), response.text().await);
 
 				let actual =
 					Response::new(response.status(), response.json::<Retrieve<Employee>>().await);

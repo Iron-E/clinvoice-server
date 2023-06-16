@@ -3,6 +3,7 @@
 use core::time::Duration;
 
 use sqlx::{Executor, Postgres, Result};
+use winvoice_schema::Id;
 
 use super::PgRole;
 use crate::schema::{Role, RoleAdapter};
@@ -19,15 +20,17 @@ impl RoleAdapter for PgRole
 	where
 		Conn: Executor<'connection, Database = Postgres>,
 	{
-		let row = sqlx::query!(
-			"INSERT INTO roles (name, password_ttl) VALUES ($1, $2) RETURNING id;",
+		let id = Id::new_v4();
+		sqlx::query!(
+			"INSERT INTO roles (id, name, password_ttl) VALUES ($1, $2, $3);",
+			id,
 			name,
 			password_ttl as _,
 		)
-		.fetch_one(connection)
+		.execute(connection)
 		.await?;
 
-		Ok(Role::new(row.id, name, password_ttl))
+		Ok(Role::new(id, name, password_ttl))
 	}
 }
 

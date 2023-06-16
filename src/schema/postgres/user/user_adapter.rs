@@ -2,7 +2,7 @@
 
 use sqlx::{Error, Executor, Postgres, Result};
 use winvoice_adapter_postgres::fmt::DateTimeExt;
-use winvoice_schema::Employee;
+use winvoice_schema::{Employee, Id};
 
 use super::PgUser;
 use crate::schema::{Role, User, UserAdapter};
@@ -21,22 +21,22 @@ impl UserAdapter for PgUser
 	where
 		Conn: Executor<'connection, Database = Postgres>,
 	{
-		let mut user =
-			User::new(employee, 0, password, role, username).map_err(|e| Error::Decode(e))?;
+		let user = User::new(employee, Id::new_v4(), password, role, username)
+			.map_err(|e| Error::Decode(e))?;
 
-		let row = sqlx::query!(
-			"INSERT INTO users (employee_id, password, password_expires, role_id, username) \
-			 VALUES ($1, $2, $3, $4, $5) RETURNING id;",
+		sqlx::query!(
+			"INSERT INTO users (id, employee_id, password, password_expires, role_id, username) \
+			 VALUES ($1, $2, $3, $4, $5, $6);",
+			user.id(),
 			user.employee().map(|e| e.id),
 			user.password(),
 			user.password_expires().map(|d| d.naive_utc()),
 			user.role().id(),
 			user.username(),
 		)
-		.fetch_one(connection)
+		.execute(connection)
 		.await?;
 
-		user.set_id(row.id);
 		Ok(user.pg_sanitize())
 	}
 }

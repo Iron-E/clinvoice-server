@@ -15,7 +15,7 @@ mod postgres
 {
 	use sqlx::Postgres;
 	use winvoice_adapter_postgres::{
-		fmt::{PgInterval, PgTimestampTz},
+		fmt::{PgInterval, PgTimestampTz, PgUuid},
 		PgSchema,
 	};
 
@@ -37,15 +37,18 @@ mod postgres
 
 			Self::write_where_clause(
 				Self::write_where_clause(
-					Self::write_where_clause(context, columns.id, &match_condition.id, query),
+					Self::write_where_clause(
+						context,
+						columns.id,
+						&match_condition.id.map_copied(PgUuid::from),
+						query,
+					),
 					columns.name,
 					&match_condition.name,
 					query,
 				),
 				columns.password_ttl,
-				&match_condition
-					.password_ttl
-					.map_ref(|m| m.map_ref(|d| PgInterval(d.into_inner()))),
+				&match_condition.password_ttl.map_ref(|m| m.map_copied(PgInterval::from)),
 				query,
 			)
 		}
@@ -67,13 +70,20 @@ mod postgres
 			Self::write_where_clause(
 				Self::write_where_clause(
 					Self::write_where_clause(
-						Self::write_where_clause(context, columns.id, &match_condition.id, query),
+						Self::write_where_clause(
+							context,
+							columns.id,
+							&match_condition.id.map_copied(PgUuid::from),
+							query,
+						),
 						columns.password,
 						&match_condition.password,
 						query,
 					),
 					columns.password_expires,
-					&match_condition.password_expires.map_ref(|m| m.map_ref(|d| PgTimestampTz(*d))),
+					&match_condition
+						.password_expires
+						.map_ref(|m| m.map_copied(PgTimestampTz::from)),
 					query,
 				),
 				columns.username,

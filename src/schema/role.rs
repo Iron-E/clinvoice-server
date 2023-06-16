@@ -32,7 +32,7 @@ impl Role
 	}
 
 	/// The unique identity of the [`Role`].
-	pub const fn id(&self) -> i64
+	pub const fn id(&self) -> Id
 	{
 		self.id
 	}
