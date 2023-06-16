@@ -77,7 +77,8 @@ macro_rules! route {
 						},
 					)?;
 
-					A::$Entity::retrieve(state.pool(), request.into_condition()).await.map_or_else(
+					let condition = request.into_condition();
+					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
 						|e| {
 							Err(Response::from(
 								Retrieve::<<A::$Entity as Retrievable>::Entity>::from(
@@ -85,12 +86,7 @@ macro_rules! route {
 								),
 							))
 						},
-						|vec| {
-							let response =
-								Ok(Response::from(Retrieve::new(vec, Code::Success.into())));
-							tracing::debug!("responding with {response:?}");
-							response
-						},
+						|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
 					)
 				},
 			)
@@ -352,17 +348,19 @@ const fn todo(msg: &'static str) -> (StatusCode, &'static str)
 #[cfg(test)]
 mod tests
 {
+	use core::fmt::Debug;
 	use std::sync::OnceLock;
 
 	use axum::http::header;
 	use axum_login::axum_sessions::async_session::base64;
 	use axum_test_helper::{RequestBuilder, TestClient};
 	use casbin::{CoreApi, Enforcer};
-	use futures::TryFutureExt;
+	use futures::{stream, StreamExt, TryFutureExt};
+	use serde::{de::DeserializeOwned, Serialize};
 	use sqlx::Pool;
 	use tracing_test::traced_test;
-	use winvoice_match::{MatchContact, MatchEmployee};
-	use winvoice_schema::{Contact, ContactKind, Employee};
+	use winvoice_match::{MatchContact, MatchEmployee, MatchLocation};
+	use winvoice_schema::{Contact, ContactKind, Employee, Location};
 
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
@@ -499,7 +497,7 @@ p, {admin_role_name}, {user}, {update}
 			#[traced_test]
 			async fn rejections() -> DynResult<()>
 			{
-				let (client, pool, admin, admin_password, ..) =
+				let (client, _, admin, admin_password, ..) =
 					setup("rejections", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 				#[rustfmt::skip]
@@ -566,6 +564,59 @@ p, {admin_role_name}, {user}, {update}
 		assert_eq!(&response.json::<Logout>().await, expected.content());
 	}
 
+	#[tracing::instrument(skip(client, admin, admin_password, guest, guest_password))]
+	async fn test_get<E, M>(
+		client: &TestClient,
+		route: &str,
+		admin: &User,
+		admin_password: &str,
+		guest: &User,
+		guest_password: &str,
+		entity: &E,
+		condition: M,
+	) where
+		E: Clone + Debug + DeserializeOwned + PartialEq + Serialize,
+		M: Default + Debug + Serialize,
+	{
+		// HACK: `tracing` doesn't work correctly with asyn cso I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!("");
+
+		let get_client =
+			|| -> RequestBuilder { client.get(route).header(api::HEADER, version_req()) };
+
+		{
+			// assert logged in user without permissions is rejected
+			login(&client, guest.username(), &guest_password).await;
+			let response = get_client().json(&request::Retrieve::new(M::default())).send().await;
+
+			let actual = Response::new(response.status(), response.json::<Retrieve<E>>().await);
+			let expected =
+				Response::from(Retrieve::<E>::from(Status::new(Code::Unauthorized, "".into())));
+
+			assert_eq!(actual.status(), expected.status());
+			assert_eq!(actual.content().entities(), &[]);
+			assert_eq!(actual.content().status().code(), expected.content().status().code());
+			logout(&client).await;
+		}
+
+		{
+			// assert logged in user without permissions is rejected
+			login(&client, admin.username(), &admin_password).await;
+			let response = get_client().json(&request::Retrieve::new(condition)).send().await;
+
+			let actual = Response::new(response.status(), response.json::<Retrieve<E>>().await);
+			let expected = Response::from(Retrieve::<E>::new(
+				[entity].into_iter().cloned().collect(),
+				Code::Success.into(),
+			));
+
+			assert_eq!(actual.content(), expected.content());
+			assert_eq!(actual.status(), expected.status());
+			logout(&client).await;
+		}
+	}
+
 	/// Get the default version requirement for tests.
 	fn version_req() -> &'static str
 	{
@@ -576,11 +627,10 @@ p, {admin_role_name}, {user}, {update}
 	#[cfg(feature = "postgres")]
 	mod postgres
 	{
-		use futures::{stream, StreamExt};
 		use pretty_assertions::assert_eq;
 		use sqlx::Postgres;
 		use winvoice_adapter_postgres::{
-			schema::{PgContact, PgEmployee},
+			schema::{PgContact, PgEmployee, PgLocation},
 			PgSchema,
 		};
 
@@ -592,77 +642,25 @@ p, {admin_role_name}, {user}, {update}
 
 		#[tokio::test]
 		#[traced_test]
-		async fn contact_get() -> DynResult<()>
-		{
-			let (client, pool, admin, admin_password, guest, guest_password) =
-				setup("contact_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
-
-			let client_get = || -> RequestBuilder {
-				client.get(routes::CONTACT).header(api::HEADER, version_req())
-			};
-
-			let contact =
-				PgContact::create(&pool, ContactKind::Other("Foo".into()), utils::random_string())
-					.await?;
-
-			{
-				// assert logged in user without permissions is rejected
-				login(&client, guest.username(), &guest_password).await;
-				let response = client_get()
-					.json(&request::Retrieve::new(MatchContact::default()))
-					.send()
-					.await;
-
-				let actual =
-					Response::new(response.status(), response.json::<Retrieve<Contact>>().await);
-				let expected = Response::from(Retrieve::<Contact>::from(Status::new(
-					Code::Unauthorized,
-					"".into(),
-				)));
-
-				assert_eq!(actual.status(), expected.status());
-				assert_eq!(actual.content().entities(), &[]);
-				assert_eq!(actual.content().status().code(), expected.content().status().code());
-				logout(&client).await;
-			}
-
-			{
-				// assert logged in user without permissions is rejected
-				login(&client, admin.username(), &admin_password).await;
-				let response = client_get()
-					.json(&request::Retrieve::new(MatchContact {
-						label: contact.label.clone().into(),
-						..Default::default()
-					}))
-					.send()
-					.await;
-
-				let actual =
-					Response::new(response.status(), response.json::<Retrieve<Contact>>().await);
-				let expected = Response::from(Retrieve::<Contact>::new(
-					[&contact].into_iter().cloned().collect(),
-					Code::Success.into(),
-				));
-
-				assert_eq!(actual.content(), expected.content());
-				assert_eq!(actual.status(), expected.status());
-				logout(&client).await;
-			}
-
-			PgContact::delete(&pool, [contact].iter()).await?;
-			Ok(())
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn employee_get() -> DynResult<()>
+		async fn get() -> DynResult<()>
 		{
 			let (client, pool, admin, admin_password, guest, guest_password) =
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
-			let client_get = || -> RequestBuilder {
-				client.get(routes::EMPLOYEE).header(api::HEADER, version_req())
-			};
+			let contact =
+				PgContact::create(&pool, ContactKind::Other("Foo".into()), utils::random_string())
+					.await?;
+			test_get(
+				&client,
+				routes::CONTACT,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				&contact,
+				MatchContact::from(contact.label.clone()),
+			)
+			.await;
 
 			let employee = PgEmployee::create(
 				&pool,
@@ -671,99 +669,46 @@ p, {admin_role_name}, {user}, {update}
 				utils::random_string(),
 			)
 			.await?;
+			test_get(
+				&client,
+				routes::EMPLOYEE,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				&employee,
+				MatchEmployee::from(employee.id),
+			)
+			.await;
 
-			{
-				// assert logged in user without permissions is rejected
-				login(&client, guest.username(), &guest_password).await;
-				let response = client_get()
-					.json(&request::Retrieve::new(MatchEmployee::default()))
-					.send()
-					.await;
+			let location = PgLocation::create(&pool, None, utils::random_string(), None).await?;
+			test_get(
+				&client,
+				routes::LOCATION,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				&location,
+				MatchLocation::from(location.id),
+			)
+			.await;
 
-				let actual =
-					Response::new(response.status(), response.json::<Retrieve<Employee>>().await);
-				let expected = Response::from(Retrieve::<Employee>::from(Status::new(
-					Code::Unauthorized,
-					"".into(),
-				)));
+			futures::try_join!(
+				PgContact::delete(&pool, [&contact].into_iter()),
+				PgEmployee::delete(&pool, [&employee].into_iter()),
+				PgLocation::delete(&pool, [&location].into_iter()),
+			)?;
 
-				assert_eq!(actual.status(), expected.status());
-				assert_eq!(actual.content().entities(), &[]);
-				assert_eq!(actual.content().status().code(), expected.content().status().code());
-				logout(&client).await;
-			}
+			todo!("organization");
+			todo!("job");
+			todo!("timesheet");
+			todo!("expenses");
 
-			{
-				// assert logged in user without permissions is rejected
-				login(&client, admin.username(), &admin_password).await;
-				let response = client_get()
-					.json(&request::Retrieve::new(MatchEmployee::from(employee.id)))
-					.send()
-					.await;
+			todo!("role");
+			todo!("user");
 
-				let actual =
-					Response::new(response.status(), response.json::<Retrieve<Employee>>().await);
-				let expected = Response::from(Retrieve::<Employee>::new(
-					[&employee].into_iter().cloned().collect(),
-					Code::Success.into(),
-				));
-
-				assert_eq!(actual.content(), expected.content());
-				assert_eq!(actual.status(), expected.status());
-				logout(&client).await;
-			}
-
-			PgEmployee::delete(&pool, [employee].iter()).await?;
 			Ok(())
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn expense_get() -> DynResult<()>
-		{
-			todo!()
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn job_get() -> DynResult<()>
-		{
-			todo!()
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn location_get() -> DynResult<()>
-		{
-			todo!()
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn organization_get() -> DynResult<()>
-		{
-			todo!()
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn role_get() -> DynResult<()>
-		{
-			todo!()
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn timesheet_get() -> DynResult<()>
-		{
-			todo!()
-		}
-
-		#[tokio::test]
-		#[traced_test]
-		async fn user_get() -> DynResult<()>
-		{
-			todo!()
 		}
 	}
 }
