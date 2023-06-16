@@ -47,6 +47,7 @@ mod tests
 	use core::time::Duration;
 	use std::collections::HashMap;
 
+	use mockd::{internet, password};
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::Transaction;
 	use tracing_test::traced_test;
@@ -60,7 +61,7 @@ mod tests
 			postgres::{role::role_adapter::tests as role, PgRole},
 			RoleAdapter,
 		},
-		utils::{connect_pg, different_string, random_string},
+		utils::{connect_pg, different_string},
 	};
 
 	/// `SELECT` from `users` where the joel or peggy id matches.
@@ -82,9 +83,9 @@ mod tests
 		let joel = PgUser::create(
 			&mut *tx,
 			None,
-			"foobar".into(),
+			password::generate(true, true, true, 8),
 			guest,
-			format!("joel{}", random_string()),
+			internet::username(),
 		)
 		.await?;
 
@@ -92,14 +93,9 @@ mod tests
 			PgEmployee::create(&mut *tx, "margaret".into(), "Hired".into(), "Manager".into())
 				.await?;
 
-		let peggy = PgUser::create(
-			&mut *tx,
-			margaret.into(),
-			"asldkj".into(),
-			admin,
-			format!("peggy{}", random_string()),
-		)
-		.await?;
+		let peggy =
+			PgUser::create(&mut *tx, margaret.into(), "asldkj".into(), admin, internet::username())
+				.await?;
 
 		Ok((joel, peggy))
 	}

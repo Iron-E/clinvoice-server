@@ -72,16 +72,14 @@ mod postgres
 	{
 		use core::time::Duration;
 
+		use mockd::words;
 		use pretty_assertions::{assert_eq, assert_str_eq};
 		use sqlx::{Error as SqlxError, Executor};
 		use tracing_test::traced_test;
 		use winvoice_adapter_postgres::fmt::DateTimeExt;
 
 		use super::{DbSessionStore, Postgres, Session, SessionStore};
-		use crate::{
-			dyn_result::DynResult,
-			utils::{connect_pg, random_string},
-		};
+		use crate::{dyn_result::DynResult, utils::connect_pg};
 
 		/// Get a row in the database matching `$id`.
 		macro_rules! select {
@@ -127,7 +125,7 @@ mod postgres
 
 			let (cookie_value, test_session) = {
 				let mut session = Session::new();
-				session.insert(&random_string(), random_string())?;
+				session.insert(&words::word(), words::word())?;
 
 				// needed to separate concern of testing `load` from `store`
 				let test_session = session.clone();

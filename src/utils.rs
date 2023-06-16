@@ -5,7 +5,6 @@ use winvoice_schema::chrono::{DateTime, Datelike, Local, NaiveDateTime, TimeZone
 #[cfg(test)]
 use {
 	core::fmt::{Display, Formatter, Result as FmtResult},
-	rand::distributions::Alphanumeric,
 	sqlx::Pool,
 	std::{env, path::PathBuf, sync::OnceLock},
 	tokio::{fs, io::Result as IoResult},
@@ -122,13 +121,6 @@ where
 pub fn leak_string(s: String) -> &'static str
 {
 	Box::leak(s.into_boxed_str())
-}
-
-/// Generate a [`rand::random`] [`String`] of [`len`](String::len) `8`.
-#[cfg(test)]
-pub fn random_string() -> String
-{
-	rand::thread_rng().sample_iter(&Alphanumeric).take(8).map(char::from).collect()
 }
 
 /// A temporary directory which can be used to write files into for `test`.

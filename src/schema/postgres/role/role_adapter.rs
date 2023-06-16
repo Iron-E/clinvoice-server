@@ -39,6 +39,7 @@ pub(in crate::schema::postgres) mod tests
 {
 	use std::collections::HashMap;
 
+	use mockd::words;
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::Transaction;
 	use tracing_test::traced_test;
@@ -49,7 +50,7 @@ pub(in crate::schema::postgres) mod tests
 	use crate::{
 		dyn_result::DynResult,
 		schema::Role,
-		utils::{connect_pg, different_string, random_string},
+		utils::{connect_pg, different_string},
 	};
 
 	/// `SECONDS_PER_MINUTE * MINUTES_PER_SECOND * HOURS_PER_DAY * DAYS_PER_MONTH`
@@ -72,12 +73,12 @@ pub(in crate::schema::postgres) mod tests
 	{
 		let admin = PgRole::create(
 			&mut *tx,
-			format!("admin{}", random_string()),
+			words::sentence(4),
 			Duration::from_secs(SECONDS_PER_MONTH).into(),
 		)
 		.await?;
 
-		let guest = PgRole::create(&mut *tx, format!("guest{}", random_string()), None).await?;
+		let guest = PgRole::create(&mut *tx, words::sentence(4), None).await?;
 
 		Ok((admin, guest))
 	}
