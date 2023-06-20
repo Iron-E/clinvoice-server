@@ -3801,8 +3801,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter"
-version = "0.23.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.23#dd197a66029d0f440c63269570af94c1c62bd172"
+version = "0.24.5"
+source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.24#3993d2fcaadef98cb7f6ec5bf6cc4b115e6c54f9"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
@@ -3813,8 +3813,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter-postgres"
-version = "0.13.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.13#0641c717e7a01dcbdb8ec93f318a27b15bb23b05"
+version = "0.15.0"
+source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.15#7915c6d2594873cc05fa09c6aca2249a8a1bf39b"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
@@ -3832,8 +3832,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-export"
-version = "0.5.0"
-source = "git+https://github.com/Iron-E/winvoice-export?branch=release/0.5#1f0d373235fd0f19e46a7e333cfe300b2fd2db9e"
+version = "0.6.0"
+source = "git+https://github.com/Iron-E/winvoice-export?branch=release/0.6#7a2ffe290110cf5d53e1a7e91b03ece9da2eb086"
 dependencies = [
  "strum",
  "thiserror",
@@ -3842,8 +3842,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-match"
-version = "0.12.1"
-source = "git+https://github.com/Iron-E/winvoice-match?branch=release/0.12#4939723931f8ed8a1afc40e68cc1c1544daf18a2"
+version = "0.13.1"
+source = "git+https://github.com/Iron-E/winvoice-match?branch=release/0.13#6ed3633423151583bd0b80a43c4eb3c3bd28513c"
 dependencies = [
  "humantime-serde",
  "money2",
@@ -3854,13 +3854,12 @@ dependencies = [
 
 [[package]]
 name = "winvoice-schema"
-version = "0.14.1"
-source = "git+https://github.com/Iron-E/winvoice-schema?branch=release/0.14#1b0d6c1d57adf98d989dc28aeed79fdbd08f4131"
+version = "0.15.2"
+source = "git+https://github.com/Iron-E/winvoice-schema?branch=release/0.15#6f0b210fe4f744f132b9a719d83f7fbd95628937"
 dependencies = [
  "chrono",
  "futures 0.3.28",
  "humantime-serde",
- "lazy_static",
  "money2",
  "serde",
  "thiserror",

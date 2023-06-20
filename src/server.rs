@@ -678,8 +678,10 @@ p, {admin_role_name}, {user}, {update}
 			)
 			.await;
 
-			let c = loop {
-				match currency::short().parse::<Currency>() {
+			let c = loop
+			{
+				match currency::short().parse::<Currency>()
+				{
 					Ok(c) => break c,
 					Err(_) => (),
 				}
