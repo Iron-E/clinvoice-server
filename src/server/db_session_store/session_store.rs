@@ -67,7 +67,7 @@ mod postgres
 		}
 	}
 
-	#[cfg(test)]
+	#[cfg(all(feature = "test-postgres", test))]
 	mod tests
 	{
 		use core::time::Duration;
@@ -76,10 +76,10 @@ mod postgres
 		use pretty_assertions::{assert_eq, assert_str_eq};
 		use sqlx::{Error as SqlxError, Executor};
 		use tracing_test::traced_test;
-		use winvoice_adapter_postgres::fmt::DateTimeExt;
+		use winvoice_adapter_postgres::{fmt::DateTimeExt, schema::util::connect};
 
 		use super::{DbSessionStore, Postgres, Session, SessionStore};
-		use crate::{dyn_result::DynResult, utils::connect_pg};
+		use crate::dyn_result::DynResult;
 
 		/// Get a row in the database matching `$id`.
 		macro_rules! select {
@@ -120,7 +120,7 @@ mod postgres
 				Ok(())
 			}
 
-			let store = DbSessionStore::new(connect_pg());
+			let store = DbSessionStore::new(connect());
 			store.init().await?;
 
 			let (cookie_value, test_session) = {

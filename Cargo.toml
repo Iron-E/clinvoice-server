@@ -104,6 +104,7 @@ bin = [
 ]
 default = ['postgres']
 postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/postgres']
+test-postgres = ['postgres', 'winvoice-adapter-postgres/test-utils']
 
 [patch.crates-io.sqlx]
 git = "https://github.com/Iron-E/sqlx"

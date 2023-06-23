@@ -11,6 +11,7 @@ impl Display for Object
 		match self
 		{
 			Self::Contact => "contact",
+			Self::Department => "department",
 			Self::Employee => "employee",
 			Self::Expenses => "expense",
 			Self::Job => "job",

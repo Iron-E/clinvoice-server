@@ -5,8 +5,7 @@ use winvoice_schema::chrono::{DateTime, Datelike, Local, NaiveDateTime, TimeZone
 #[cfg(test)]
 use {
 	core::fmt::{Display, Formatter, Result as FmtResult},
-	sqlx::Pool,
-	std::{env, path::PathBuf, sync::OnceLock},
+	std::{env, path::PathBuf},
 	tokio::{fs, io::Result as IoResult},
 };
 
@@ -19,27 +18,12 @@ pub fn naive_local_datetime_to_utc(d: NaiveDateTime) -> DateTime<Utc>
 		.into()
 }
 
-/// Connect to the test [`Postgres`](sqlx::Postgres) database.
-#[cfg(all(test, feature = "postgres"))]
-pub fn connect_pg() -> sqlx::PgPool
-{
-	static URL: OnceLock<String> = OnceLock::new();
-	Pool::connect_lazy(&URL.get_or_init(|| dotenvy::var("DATABASE_URL").unwrap())).unwrap()
-}
-
 /// Create a cryptographically-secure, randomly generated key for signing cookies.
 pub fn cookie_secret() -> Vec<u8>
 {
 	let mut arr = [0u8; 64];
 	rand::thread_rng().fill(&mut arr);
 	arr.to_vec()
-}
-
-/// Create a string which is guaranteed to be different from `s`.
-#[cfg(test)]
-pub fn different_string(s: &str) -> String
-{
-	format!("!{s}")
 }
 
 #[cfg(test)]

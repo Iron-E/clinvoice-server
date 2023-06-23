@@ -34,7 +34,7 @@ impl RoleAdapter for PgRole
 	}
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "test-postgres", test))]
 pub(in crate::schema::postgres) mod tests
 {
 	use std::collections::HashMap;
@@ -44,14 +44,10 @@ pub(in crate::schema::postgres) mod tests
 	use sqlx::Transaction;
 	use tracing_test::traced_test;
 	use winvoice_adapter::{Deletable, Retrievable, Updatable};
-	use winvoice_adapter_postgres::schema::util::duration_from;
+	use winvoice_adapter_postgres::schema::util::{connect, different_string, duration_from};
 
 	use super::{Duration, PgRole, Postgres, Result, RoleAdapter};
-	use crate::{
-		dyn_result::DynResult,
-		schema::Role,
-		utils::{connect_pg, different_string},
-	};
+	use crate::{dyn_result::DynResult, schema::Role};
 
 	/// `SECONDS_PER_MINUTE * MINUTES_PER_SECOND * HOURS_PER_DAY * DAYS_PER_MONTH`
 	const SECONDS_PER_MONTH: u64 = 60 * 60 * 24 * 30;
@@ -87,7 +83,7 @@ pub(in crate::schema::postgres) mod tests
 	#[traced_test]
 	async fn create() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
 		let (admin, guest) = setup(&mut tx).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
@@ -118,7 +114,7 @@ pub(in crate::schema::postgres) mod tests
 	#[traced_test]
 	async fn delete() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
 		let (admin, guest) = setup(&mut tx).await?;
 
@@ -135,7 +131,7 @@ pub(in crate::schema::postgres) mod tests
 	#[traced_test]
 	async fn retrieve() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
 		let (admin, guest) = setup(&mut tx).await?;
 
@@ -164,7 +160,7 @@ pub(in crate::schema::postgres) mod tests
 	#[traced_test]
 	async fn update() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
 		let (mut admin, guest) = setup(&mut tx).await?;
 		admin = Role::new(

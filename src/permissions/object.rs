@@ -12,6 +12,9 @@ pub enum Object
 	/// Permission to operate on [`winvoice_schema::Contact`]s
 	Contact,
 
+	/// Permission to operate on [`winvoice_schema::Contact`]s
+	Department,
+
 	/// Permission to operate on [`winvoice_schema::Employee`]s
 	Employee,
 

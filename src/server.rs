@@ -39,6 +39,7 @@ use winvoice_adapter::{
 	fmt::sql,
 	schema::{
 		ContactAdapter,
+		DepartmentAdapter,
 		EmployeeAdapter,
 		ExpensesAdapter,
 		JobAdapter,
@@ -207,6 +208,10 @@ where
 		let mut router = Router::new()
 			.route(routes::CONTACT, route!(Contact).post(|| async move { todo("contact create") }))
 			.route(
+				routes::DEPARTMENT,
+				route!(Department).post(|| async move { todo("department create") }),
+			)
+			.route(
 				routes::EMPLOYEE,
 				route!(Employee).post(|| async move { todo("employee create") }),
 			)
@@ -357,12 +362,19 @@ mod tests
 	use casbin::{CoreApi, Enforcer};
 	use futures::{stream, StreamExt, TryFutureExt};
 	use mockd::{address, company, contact, currency, internet, job, name, password, words};
-	use money2::Currency;
+	use money2::{Currency, Exchange, ExchangeRates};
 	use serde::{de::DeserializeOwned, Serialize};
 	use sqlx::Pool;
 	use tracing_test::traced_test;
-	use winvoice_match::{MatchContact, MatchEmployee, MatchJob, MatchLocation, MatchOrganization};
-	use winvoice_schema::ContactKind;
+	use winvoice_match::{
+		MatchContact,
+		MatchDepartment,
+		MatchEmployee,
+		MatchJob,
+		MatchLocation,
+		MatchOrganization,
+	};
+	use winvoice_schema::{ContactKind, Invoice, Money};
 
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
@@ -376,7 +388,7 @@ mod tests
 	const DEFAULT_TIMEOUT: Option<Duration> = Some(Duration::from_secs(60 * 3));
 
 	macro_rules! fn_setup {
-		($Adapter:ty, $Db:ty, $connect:path) => {
+		($Adapter:ty, $Db:ty, $connect:path, $rand_department_name:path) => {
 			/// Setup for the tests.
 			///
 			/// # Returns
@@ -388,12 +400,16 @@ mod tests
 				time_out: Option<Duration>,
 			) -> DynResult<(TestClient, Pool<$Db>, User, String, User, String)>
 			{
-				let admin_role_name = name::full();
+				let admin_role_name = words::sentence(5);
 				let policy = format!(
 					"p, {admin_role_name}, {contact}, {create}
 p, {admin_role_name}, {contact}, {delete}
 p, {admin_role_name}, {contact}, {retrieve}
 p, {admin_role_name}, {contact}, {update}
+p, {admin_role_name}, {department}, {create}
+p, {admin_role_name}, {department}, {delete}
+p, {admin_role_name}, {department}, {retrieve}
+p, {admin_role_name}, {department}, {update}
 p, {admin_role_name}, {employee}, {create}
 p, {admin_role_name}, {employee}, {delete}
 p, {admin_role_name}, {employee}, {retrieve}
@@ -432,6 +448,7 @@ p, {admin_role_name}, {user}, {update}
 					retrieve = Action::Retrieve,
 					update = Action::Update,
 					contact = Object::Contact,
+					department = Object::Department,
 					employee = Object::Employee,
 					expenses = Object::Expenses,
 					job = Object::Job,
@@ -471,25 +488,29 @@ p, {admin_role_name}, {user}, {update}
 
 				#[rustfmt::skip]
 				let (admin, guest) = futures::try_join!(
-					<$Adapter as winvoice_adapter::schema::Adapter>::Employee::create(&pool,
-						"Geoff".into(), "Hired".into(), "Manager".into()
-					)
-					.and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
-						admin_role_name, Duration::from_secs(60).into(),
-					)
-					.and_then(|role| <$Adapter as Adapter>::User::create(&pool,
-						employee.into(), admin_password.to_owned(), role, internet::username(),
-					))),
+					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
+						$rand_department_name()
+					).and_then(|department|
+						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
+							department, name::full(), job::title(),
+						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
+							admin_role_name, Duration::from_secs(60).into(),
+						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
+							employee.into(), admin_password.to_owned(), role, internet::username(),
+						)))
+					),
 
-					<$Adapter as winvoice_adapter::schema::Adapter>::Employee::create(&pool,
-						"Jiff".into(), "Suspended".into(), "CEO".into()
-					)
-					.and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
-						words::sentence(4), Duration::from_secs(60).into(),
-					)
-					.and_then(|role| <$Adapter as Adapter>::User::create(&pool,
-						employee.into(), guest_password.to_owned(), role, internet::username(),
-					))),
+					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
+						$rand_department_name()
+					).and_then(|department|
+						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
+							department, name::full(), job::title(),
+						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
+							words::sentence(5), Duration::from_secs(60).into(),
+						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
+							employee.into(), guest_password.to_owned(), role, internet::username(),
+						)))
+					),
 				)?;
 
 				Ok((TestClient::new(server), pool, admin, admin_password, guest, guest_password))
@@ -542,6 +563,8 @@ p, {admin_role_name}, {user}, {update}
 
 	async fn login(client: &TestClient, username: &str, password: &str)
 	{
+		use pretty_assertions::assert_eq;
+
 		let response = client
 			.get(routes::LOGIN)
 			.header(api::HEADER, version_req())
@@ -559,6 +582,8 @@ p, {admin_role_name}, {user}, {update}
 
 	async fn logout(client: &TestClient)
 	{
+		use pretty_assertions::assert_eq;
+
 		let response = client.get(routes::LOGOUT).header(api::HEADER, version_req()).send().await;
 
 		let expected = LogoutResponse::from(Code::Success);
@@ -580,6 +605,8 @@ p, {admin_role_name}, {user}, {update}
 		E: Clone + Debug + DeserializeOwned + PartialEq + Serialize,
 		M: Default + Debug + Serialize,
 	{
+		use pretty_assertions::assert_eq;
+
 		// HACK: `tracing` doesn't work correctly with asyn cso I have to annotate this function
 		// like       this or else this function's span is skipped.
 		tracing::trace!("");
@@ -626,13 +653,21 @@ p, {admin_role_name}, {user}, {update}
 		VERSION_REQ.get_or_init(|| format!("={}", api::version()))
 	}
 
-	#[cfg(feature = "postgres")]
+	#[cfg(feature = "test-postgres")]
 	mod postgres
 	{
 		use pretty_assertions::assert_eq;
 		use sqlx::Postgres;
 		use winvoice_adapter_postgres::{
-			schema::{PgContact, PgEmployee, PgJob, PgLocation, PgOrganization},
+			schema::{
+				util::{connect, rand_department_name},
+				PgContact,
+				PgDepartment,
+				PgEmployee,
+				PgJob,
+				PgLocation,
+				PgOrganization,
+			},
 			PgSchema,
 		};
 
@@ -640,7 +675,7 @@ p, {admin_role_name}, {user}, {update}
 		use super::*;
 		use crate::schema::postgres::{PgRole, PgUser};
 
-		fn_setup!(PgSchema, Postgres, utils::connect_pg);
+		fn_setup!(PgSchema, Postgres, connect, rand_department_name);
 
 		#[tokio::test]
 		#[traced_test]
@@ -649,7 +684,7 @@ p, {admin_role_name}, {user}, {update}
 			let (client, pool, admin, admin_password, guest, guest_password) =
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
-			let contact =
+			let contact_ =
 				PgContact::create(&pool, ContactKind::Email(contact::email()), words::sentence(4))
 					.await?;
 			test_get(
@@ -659,13 +694,26 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&contact,
-				MatchContact::from(contact.label.clone()),
+				&contact_,
+				MatchContact::from(contact_.label.clone()),
+			)
+			.await;
+
+			let department = PgDepartment::create(&pool, rand_department_name()).await?;
+			test_get(
+				&client,
+				routes::DEPARTMENT,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				&department,
+				MatchDepartment::from(department.id),
 			)
 			.await;
 
 			let employee =
-				PgEmployee::create(&pool, name::full(), job::descriptor(), job::title()).await?;
+				PgEmployee::create(&pool, department.clone(), name::full(), job::title()).await?;
 			test_get(
 				&client,
 				routes::EMPLOYEE,
@@ -678,16 +726,20 @@ p, {admin_role_name}, {user}, {update}
 			)
 			.await;
 
-			let c = loop
-			{
-				match currency::short().parse::<Currency>()
+			let location = PgLocation::create(
+				&pool,
+				loop
 				{
-					Ok(c) => break c,
-					Err(_) => (),
+					if let Ok(c) = currency::short().parse::<Currency>()
+					{
+						break c;
+					}
 				}
-			};
-
-			let location = PgLocation::create(&pool, c.into(), address::country(), None).await?;
+				.into(),
+				address::country(),
+				None,
+			)
+			.await?;
 			test_get(
 				&client,
 				routes::LOCATION,
@@ -714,29 +766,60 @@ p, {admin_role_name}, {user}, {update}
 			)
 			.await;
 
-			// let job =
-			// 	PgJob::create(&pool, organization.clone(), ).await?;
-			// test_get(
-			// 	&client,
-			// 	routes::JOB,
-			// 	&admin,
-			// 	&admin_password,
-			// 	&guest,
-			// 	&guest_password,
-			// 	&job,
-			// 	MatchJob::from(job.id),
-			// )
-			// .await;
+			let rates = ExchangeRates::new().await?;
 
-			// PgJob::delete(&pool, [job].iter()).await?;
+			let job_ = {
+				let mut tx = pool.begin().await?;
+				let j = PgJob::create(
+					&mut tx,
+					organization.clone(),
+					None,
+					Utc::now(),
+					[department.clone()].into_iter().collect(),
+					Duration::new(7640, 0),
+					Invoice {
+						date: None,
+						hourly_rate: Money::new(
+							20_38,
+							2,
+							loop
+							{
+								if let Ok(c) = currency::short().parse::<Currency>()
+								{
+									break c;
+								}
+							},
+						),
+					},
+					words::sentence(5),
+					words::sentence(5),
+				)
+				.await?;
+
+				tx.commit().await?;
+				j.exchange(Default::default(), &rates)
+			};
+
+			test_get(
+				&client,
+				routes::JOB,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				&job_,
+				MatchJob::from(job_.id),
+			)
+			.await;
+
+			PgJob::delete(&pool, [job_].iter()).await?;
 			PgOrganization::delete(&pool, [organization].iter()).await?;
 			futures::try_join!(
-				PgContact::delete(&pool, [&contact].into_iter()),
+				PgContact::delete(&pool, [&contact_].into_iter()),
 				PgEmployee::delete(&pool, [&employee].into_iter()),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
 
-			todo!("job");
 			todo!("timesheet");
 			todo!("expenses");
 

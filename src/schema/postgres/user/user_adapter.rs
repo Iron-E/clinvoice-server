@@ -41,18 +41,27 @@ impl UserAdapter for PgUser
 	}
 }
 
-#[cfg(test)]
+#[cfg(all(feature = "test-postgres", test))]
 mod tests
 {
 	use core::time::Duration;
 	use std::collections::HashMap;
 
-	use mockd::{internet, password};
+	use mockd::{internet, job, name, password, words};
 	use pretty_assertions::{assert_eq, assert_str_eq};
 	use sqlx::Transaction;
 	use tracing_test::traced_test;
-	use winvoice_adapter::{schema::EmployeeAdapter, Deletable, Retrievable, Updatable};
-	use winvoice_adapter_postgres::schema::PgEmployee;
+	use winvoice_adapter::{
+		schema::{DepartmentAdapter, EmployeeAdapter},
+		Deletable,
+		Retrievable,
+		Updatable,
+	};
+	use winvoice_adapter_postgres::schema::{
+		util::{connect, different_string, rand_department_name},
+		PgDepartment,
+		PgEmployee,
+	};
 
 	use super::{DateTimeExt, PgUser, Postgres, Result, User, UserAdapter};
 	use crate::{
@@ -61,13 +70,12 @@ mod tests
 			postgres::{role::role_adapter::tests as role, PgRole},
 			RoleAdapter,
 		},
-		utils::{connect_pg, different_string},
 	};
 
-	/// `SELECT` from `users` where the joel or peggy id matches.
+	/// `SELECT` from `users` where the guest or admin id matches.
 	macro_rules! select {
-		($tx:expr, $joel_id:expr, $peggy_id:expr) => {
-			sqlx::query!("SELECT * FROM users WHERE id IN ($1, $2)", $joel_id, $peggy_id)
+		($tx:expr, $guest_id:expr, $admin_id:expr) => {
+			sqlx::query!("SELECT * FROM users WHERE id IN ($1, $2)", $guest_id, $admin_id)
 				.fetch_all($tx)
 				.await
 				.map(|v: Vec<_>| v.into_iter().map(|r| (r.id, r)).collect())?
@@ -76,11 +84,11 @@ mod tests
 
 	/// # Returns
 	///
-	/// `(joel, peggy)`.
+	/// `(guest, admin)`.
 	async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(User, User)>
 	{
 		let (admin, guest) = role::setup(&mut *tx).await?;
-		let joel = PgUser::create(
+		let guest_user = PgUser::create(
 			&mut *tx,
 			None,
 			password::generate(true, true, true, 8),
@@ -89,49 +97,54 @@ mod tests
 		)
 		.await?;
 
-		let margaret =
-			PgEmployee::create(&mut *tx, "margaret".into(), "Hired".into(), "Manager".into())
-				.await?;
+		let department = PgDepartment::create(&mut *tx, rand_department_name()).await?;
+		let admin_employee =
+			PgEmployee::create(&mut *tx, department, name::full(), job::title()).await?;
 
-		let peggy =
-			PgUser::create(&mut *tx, margaret.into(), "asldkj".into(), admin, internet::username())
-				.await?;
+		let admin_user = PgUser::create(
+			&mut *tx,
+			admin_employee.into(),
+			password::generate(true, true, true, 8),
+			admin,
+			internet::username(),
+		)
+		.await?;
 
-		Ok((joel, peggy))
+		Ok((guest_user, admin_user))
 	}
 
 	#[tokio::test]
 	#[traced_test]
 	async fn create() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
-		let (joel, peggy) = setup(&mut tx).await?;
-		let rows: HashMap<_, _> = select!(&mut tx, joel.id(), peggy.id());
+		let (guest, admin) = setup(&mut tx).await?;
+		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
 
-		let joel_row = rows
-			.get(&joel.id())
-			.ok_or_else(|| "The `joel` row does not exist in the database".to_owned())?;
-		let peggy_row = rows
-			.get(&peggy.id())
-			.ok_or_else(|| "The `peggy` row does not exist in the database".to_owned())?;
+		let guest_row = rows
+			.get(&guest.id())
+			.ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+		let admin_row = rows
+			.get(&admin.id())
+			.ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
 
-		assert_eq!(joel.employee().map(|e| e.id), joel_row.employee_id);
-		assert_eq!(joel.id(), joel_row.id);
-		assert_eq!(joel.password(), joel_row.password);
-		assert_eq!(joel.password_expires().map(|d| d.naive_utc()), joel_row.password_expires);
-		assert_eq!(joel.role().id(), joel_row.role_id);
-		assert_eq!(joel.username(), joel_row.username);
-		assert_eq!(peggy.employee().map(|e| e.id), peggy_row.employee_id);
-		assert_eq!(peggy.id(), peggy_row.id);
-		assert_eq!(peggy.password(), peggy_row.password);
-		assert_eq!(peggy.password_expires().map(|d| d.naive_utc()), peggy_row.password_expires);
-		assert_eq!(peggy.role().id(), peggy_row.role_id);
-		assert_eq!(peggy.username(), peggy_row.username);
-		assert_str_eq!(joel.password(), joel_row.password);
-		assert_str_eq!(joel.username(), joel_row.username);
-		assert_str_eq!(peggy.password(), peggy_row.password);
-		assert_str_eq!(peggy.username(), peggy_row.username);
+		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee_id);
+		assert_eq!(guest.id(), guest_row.id);
+		assert_eq!(guest.password(), guest_row.password);
+		assert_eq!(guest.password_expires().map(|d| d.naive_utc()), guest_row.password_expires);
+		assert_eq!(guest.role().id(), guest_row.role_id);
+		assert_eq!(guest.username(), guest_row.username);
+		assert_eq!(admin.employee().map(|e| e.id), admin_row.employee_id);
+		assert_eq!(admin.id(), admin_row.id);
+		assert_eq!(admin.password(), admin_row.password);
+		assert_eq!(admin.password_expires().map(|d| d.naive_utc()), admin_row.password_expires);
+		assert_eq!(admin.role().id(), admin_row.role_id);
+		assert_eq!(admin.username(), admin_row.username);
+		assert_str_eq!(guest.password(), guest_row.password);
+		assert_str_eq!(guest.username(), guest_row.username);
+		assert_str_eq!(admin.password(), admin_row.password);
+		assert_str_eq!(admin.username(), admin_row.username);
 
 		Ok(())
 	}
@@ -140,14 +153,14 @@ mod tests
 	#[traced_test]
 	async fn delete() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
-		let (joel, peggy) = setup(&mut tx).await?;
+		let (guest, admin) = setup(&mut tx).await?;
 
-		PgUser::delete(&mut tx, [&joel].into_iter()).await?;
-		let rows: HashMap<_, _> = select!(&mut tx, joel.id(), peggy.id());
-		assert!(!rows.contains_key(&joel.id()));
-		assert!(rows.contains_key(&peggy.id()));
+		PgUser::delete(&mut tx, [&guest].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
+		assert!(!rows.contains_key(&guest.id()));
+		assert!(rows.contains_key(&admin.id()));
 		assert_eq!(rows.len(), 1);
 
 		Ok(())
@@ -157,40 +170,41 @@ mod tests
 	#[traced_test]
 	async fn retrieve() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
-		let (joel, peggy) = setup(&mut tx).await?;
+		let (guest, admin) = setup(&mut tx).await?;
 		tx.commit().await?;
 
 		#[rustfmt::skip]
-		let peggy_row = PgUser::retrieve(&pool, peggy.id().into()).await.map(|mut v| v.remove(0))?;
-		let joel_row = PgUser::retrieve(&pool, joel.id().into()).await.map(|mut v| v.remove(0))?;
+		let admin_row = PgUser::retrieve(&pool, admin.id().into()).await.map(|mut v| v.remove(0))?;
+		let guest_row =
+			PgUser::retrieve(&pool, guest.id().into()).await.map(|mut v| v.remove(0))?;
 
-		assert_eq!(joel.employee().map(|e| e.id), joel_row.employee().map(|e| e.id));
-		assert_eq!(joel.id(), joel_row.id());
-		assert_eq!(joel.password(), joel_row.password());
-		assert_eq!(joel.password_expires(), joel_row.password_expires());
-		assert_eq!(joel.role().id(), joel_row.role().id());
-		assert_eq!(joel.username(), joel_row.username());
-		assert_eq!(peggy.employee().map(|e| e.id), peggy_row.employee().map(|e| e.id));
-		assert_eq!(peggy.id(), peggy_row.id());
-		assert_eq!(peggy.password(), peggy_row.password());
-		assert_eq!(peggy.password_expires(), peggy_row.password_expires());
-		assert_eq!(peggy.role().id(), peggy_row.role().id());
-		assert_eq!(peggy.username(), peggy_row.username());
-		assert_str_eq!(joel.password(), joel_row.password());
-		assert_str_eq!(joel.username(), joel_row.username());
-		assert_str_eq!(peggy.password(), peggy_row.password());
-		assert_str_eq!(peggy.username(), peggy_row.username());
+		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee().map(|e| e.id));
+		assert_eq!(guest.id(), guest_row.id());
+		assert_eq!(guest.password(), guest_row.password());
+		assert_eq!(guest.password_expires(), guest_row.password_expires());
+		assert_eq!(guest.role().id(), guest_row.role().id());
+		assert_eq!(guest.username(), guest_row.username());
+		assert_eq!(admin.employee().map(|e| e.id), admin_row.employee().map(|e| e.id));
+		assert_eq!(admin.id(), admin_row.id());
+		assert_eq!(admin.password(), admin_row.password());
+		assert_eq!(admin.password_expires(), admin_row.password_expires());
+		assert_eq!(admin.role().id(), admin_row.role().id());
+		assert_eq!(admin.username(), admin_row.username());
+		assert_str_eq!(guest.password(), guest_row.password());
+		assert_str_eq!(guest.username(), guest_row.username());
+		assert_str_eq!(admin.password(), admin_row.password());
+		assert_str_eq!(admin.username(), admin_row.username());
 
-		sqlx::query!("DELETE FROM users WHERE id IN ($1, $2);", joel.id(), peggy.id())
+		sqlx::query!("DELETE FROM users WHERE id IN ($1, $2);", guest.id(), admin.id())
 			.execute(&pool)
 			.await?;
 
 		sqlx::query!(
 			"DELETE FROM roles WHERE id IN ($1, $2);",
-			joel.role().id(),
-			peggy.role().id()
+			guest.role().id(),
+			admin.role().id()
 		)
 		.execute(&pool)
 		.await?;
@@ -202,45 +216,46 @@ mod tests
 	#[traced_test]
 	async fn update() -> DynResult<()>
 	{
-		let pool = connect_pg();
+		let pool = connect();
 		let mut tx = pool.begin().await?;
-		let (mut joel, peggy) = setup(&mut tx).await?;
+		let (mut guest, admin) = setup(&mut tx).await?;
 
-		joel = {
-			let joel_emp =
-				PgEmployee::create(&mut tx, "Joel".into(), "Hired".into(), "Intern".into()).await?;
+		guest = {
+			let guest_dept = PgDepartment::create(&mut tx, rand_department_name()).await?;
+			let guest_emp =
+				PgEmployee::create(&mut tx, guest_dept, name::full(), job::title()).await?;
 
 			let intern = PgRole::create(
 				&mut tx,
-				"intern".into(),
+				words::sentence(5),
 				Duration::from_secs(rand::random::<u32>().into()).into(),
 			)
 			.await?;
 
 			User::new(
-				joel_emp.into(),
-				joel.id(),
-				different_string(joel.password()),
+				guest_emp.into(),
+				guest.id(),
+				different_string(guest.password()),
 				intern,
-				different_string(joel.username()),
+				different_string(guest.username()),
 			)
 			.map(|u| u.pg_sanitize())?
 		};
 
-		PgUser::update(&mut tx, [&joel].into_iter()).await?;
-		let rows: HashMap<_, _> = select!(&mut tx, joel.id(), peggy.id());
-		let joel_row = rows
-			.get(&joel.id())
-			.ok_or_else(|| "The `joel` row does not exist in the database".to_owned())?;
+		PgUser::update(&mut tx, [&guest].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
+		let guest_row = rows
+			.get(&guest.id())
+			.ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
 
-		assert_eq!(joel.employee().map(|e| e.id), joel_row.employee_id);
-		assert_eq!(joel.id(), joel_row.id);
-		assert_eq!(joel.password(), joel_row.password);
-		assert_eq!(joel.password_expires().map(|d| d.naive_utc()), joel_row.password_expires);
-		assert_eq!(joel.role().id(), joel_row.role_id);
-		assert_eq!(joel.username(), joel_row.username);
-		assert_str_eq!(joel.password(), joel_row.password);
-		assert_str_eq!(joel.username(), joel_row.username);
+		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee_id);
+		assert_eq!(guest.id(), guest_row.id);
+		assert_eq!(guest.password(), guest_row.password);
+		assert_eq!(guest.password_expires().map(|d| d.naive_utc()), guest_row.password_expires);
+		assert_eq!(guest.role().id(), guest_row.role_id);
+		assert_eq!(guest.username(), guest_row.username);
+		assert_str_eq!(guest.password(), guest_row.password);
+		assert_str_eq!(guest.username(), guest_row.username);
 		assert_eq!(rows.len(), 2);
 
 		Ok(())

@@ -36,13 +36,18 @@ impl Retrievable for PgUser
 		PgSchema::write_where_clause(
 			PgSchema::write_where_clause(
 				PgSchema::write_where_clause(
-					Default::default(),
-					UserColumns::DEFAULT_ALIAS,
-					&match_condition,
+					PgSchema::write_where_clause(
+						Default::default(),
+						UserColumns::DEFAULT_ALIAS,
+						&match_condition,
+						&mut query,
+					),
+					EmployeeColumns::DEFAULT_ALIAS,
+					&match_condition.employee,
 					&mut query,
 				),
 				EmployeeColumns::DEFAULT_ALIAS,
-				&match_condition.employee,
+				&match_condition.employee.map(|m| m.department),
 				&mut query,
 			),
 			RoleColumns::DEFAULT_ALIAS,

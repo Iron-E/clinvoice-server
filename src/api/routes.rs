@@ -3,6 +3,9 @@
 /// The endpoint for [`winvoice_schema::Contact`]s.
 pub const CONTACT: &str = "/contact";
 
+/// The endpoint for [`winvoice_schema::Contact`]s.
+pub const DEPARTMENT: &str = "/department";
+
 /// The API endpoint for [`winvoice_schema::Employee`]
 pub const EMPLOYEE: &str = "/employee";
 
