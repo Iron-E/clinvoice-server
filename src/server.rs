@@ -330,11 +330,14 @@ where
 			return Err(LoginResponse::expired(user.password_expires().unwrap()));
 		}
 
-		auth.login(&user).await.map(|_| LoginResponse::from(Code::Success)).map_err(|e| {
-			const CODE: Code = Code::LoginError;
-			tracing::error!("Failed to to log in user {}: {e}", user.username());
-			LoginResponse::new(CODE.into(), Status::new(CODE, e.to_string()))
-		})
+		auth.login(&user).await.map_or_else(
+			|e| {
+				const CODE: Code = Code::LoginError;
+				tracing::error!("Failed to to log in user {}: {e}", user.username());
+				Err(LoginResponse::new(CODE.into(), Status::new(CODE, e.to_string())))
+			},
+			|_| Ok(LoginResponse::from(Code::Success)),
+		)
 	}
 
 	/// The [handler](axum::Handler) for [GET](routing::get) on "/logout".
@@ -367,20 +370,24 @@ mod tests
 	use sqlx::Pool;
 	use tracing_test::traced_test;
 	use winvoice_match::{
+		Match,
 		MatchContact,
 		MatchDepartment,
 		MatchEmployee,
+		MatchExpense,
 		MatchJob,
 		MatchLocation,
 		MatchOrganization,
+		MatchTimesheet,
 	};
-	use winvoice_schema::{ContactKind, Invoice, Money};
+	use winvoice_schema::{chrono::TimeZone, ContactKind, Invoice, Money};
 
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::{
 		api::response::{Login, Logout, Version},
 		lock,
+		r#match::{MatchRole, MatchUser},
 		utils,
 	};
 
@@ -458,6 +465,8 @@ p, {admin_role_name}, {user}, {update}
 					timesheet = Object::Timesheet,
 					user = Object::User,
 				);
+
+				tracing::debug!("Generated policy: {policy}");
 
 				#[rustfmt::skip]
 				let (model_path, policy_path) = utils::init_model_and_policy_files(
@@ -591,25 +600,27 @@ p, {admin_role_name}, {user}, {update}
 		assert_eq!(&response.json::<Logout>().await, expected.content());
 	}
 
-	#[tracing::instrument(skip(client, admin, admin_password, guest, guest_password))]
-	async fn test_get<E, M>(
+	#[tracing::instrument(skip(client))]
+	async fn test_get<'ent, E, Iter, M>(
 		client: &TestClient,
 		route: &str,
 		admin: &User,
 		admin_password: &str,
 		guest: &User,
 		guest_password: &str,
-		entity: &E,
+		entities: Iter,
 		condition: M,
 	) where
-		E: Clone + Debug + DeserializeOwned + PartialEq + Serialize,
-		M: Default + Debug + Serialize,
+		E: 'ent + Clone + Debug + DeserializeOwned + PartialEq + Serialize,
+		Iter: Debug + Iterator<Item = &'ent E>,
+		M: Debug + Default + Serialize,
 	{
 		use pretty_assertions::assert_eq;
 
 		// HACK: `tracing` doesn't work correctly with asyn cso I have to annotate this function
 		// like       this or else this function's span is skipped.
-		tracing::trace!("");
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
 
 		let get_client =
 			|| -> RequestBuilder { client.get(route).header(api::HEADER, version_req()) };
@@ -634,9 +645,15 @@ p, {admin_role_name}, {user}, {update}
 			login(&client, admin.username(), &admin_password).await;
 			let response = get_client().json(&request::Retrieve::new(condition)).send().await;
 
-			let actual = Response::new(response.status(), response.json::<Retrieve<E>>().await);
+			let status = response.status();
+			let text = response.text().await;
+
+			let actual = serde_json::from_str::<Retrieve<E>>(&text)
+				.map(|r| Response::new(status, r))
+				.unwrap();
+
 			let expected = Response::from(Retrieve::<E>::new(
-				[entity].into_iter().cloned().collect(),
+				entities.into_iter().cloned().collect(),
 				Code::Success.into(),
 			));
 
@@ -664,9 +681,11 @@ p, {admin_role_name}, {user}, {update}
 				PgContact,
 				PgDepartment,
 				PgEmployee,
+				PgExpenses,
 				PgJob,
 				PgLocation,
 				PgOrganization,
+				PgTimesheet,
 			},
 			PgSchema,
 		};
@@ -694,7 +713,7 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&contact_,
+				[&contact_].into_iter(),
 				MatchContact::from(contact_.label.clone()),
 			)
 			.await;
@@ -707,7 +726,7 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&department,
+				[&department].into_iter(),
 				MatchDepartment::from(department.id),
 			)
 			.await;
@@ -721,7 +740,7 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&employee,
+				[&employee].into_iter(),
 				MatchEmployee::from(employee.id),
 			)
 			.await;
@@ -747,7 +766,7 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&location,
+				[&location].into_iter(),
 				MatchLocation::from(location.id),
 			)
 			.await;
@@ -761,7 +780,7 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&organization,
+				[&organization].into_iter(),
 				MatchOrganization::from(organization.id),
 			)
 			.await;
@@ -807,24 +826,144 @@ p, {admin_role_name}, {user}, {update}
 				&admin_password,
 				&guest,
 				&guest_password,
-				&job_,
+				[&job_].into_iter(),
 				MatchJob::from(job_.id),
 			)
 			.await;
 
-			PgJob::delete(&pool, [job_].iter()).await?;
+			let timesheet = {
+				let mut tx = pool.begin().await?;
+				let t = PgTimesheet::create(
+					&mut tx,
+					employee.clone(),
+					Default::default(),
+					job_.clone(),
+					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
+					Utc.with_ymd_and_hms(2022, 06, 09, 07, 00, 00).latest(),
+					words::sentence(5),
+				)
+				.await?;
+
+				tx.commit().await?;
+				t.exchange(Default::default(), &rates)
+			};
+
+			test_get(
+				&client,
+				routes::TIMESHEET,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				[&timesheet].into_iter(),
+				MatchTimesheet::from(timesheet.id),
+			)
+			.await;
+
+			let expenses = PgExpenses::create(
+				&pool,
+				vec![
+					(
+						words::word(),
+						Money::new(
+							20_00,
+							2,
+							loop
+							{
+								if let Ok(c) = currency::short().parse::<Currency>()
+								{
+									break c;
+								}
+							},
+						),
+						words::sentence(5),
+					),
+					(
+						words::word(),
+						Money::new(
+							737_00,
+							2,
+							loop
+							{
+								if let Ok(c) = currency::short().parse::<Currency>()
+								{
+									break c;
+								}
+							},
+						),
+						words::sentence(5),
+					),
+					(
+						words::word(),
+						Money::new(
+							82_31,
+							2,
+							loop
+							{
+								if let Ok(c) = currency::short().parse::<Currency>()
+								{
+									break c;
+								}
+							},
+						),
+						words::sentence(5),
+					),
+				],
+				timesheet.id,
+			)
+			.await
+			.map(|x| x.exchange(Default::default(), &rates))?;
+
+			test_get(
+				&client,
+				routes::EXPENSE,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				expenses.iter(),
+				MatchExpense::from(Match::Or(expenses.iter().map(|x| x.id.into()).collect())),
+			)
+			.await;
+
+			let users = [&admin, &guest];
+			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
+			test_get(
+				&client,
+				routes::ROLE,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				roles.iter(),
+				MatchRole::from(Match::Or(roles.iter().map(|r| r.id().into()).collect())),
+			)
+			.await;
+
+			test_get(
+				&client,
+				routes::USER,
+				&admin,
+				&admin_password,
+				&guest,
+				&guest_password,
+				users.iter().map(|u| *u),
+				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
+			)
+			.await;
+
+			PgUser::delete(&pool, users.into_iter()).await?;
+			futures::try_join!(
+				PgRole::delete(&pool, roles.iter()),
+				PgJob::delete(&pool, [&job_].into_iter())
+			)?;
+
 			PgOrganization::delete(&pool, [organization].iter()).await?;
 			futures::try_join!(
 				PgContact::delete(&pool, [&contact_].into_iter()),
 				PgEmployee::delete(&pool, [&employee].into_iter()),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
-
-			todo!("timesheet");
-			todo!("expenses");
-
-			todo!("role");
-			todo!("user");
 
 			Ok(())
 		}

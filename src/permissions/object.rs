@@ -19,6 +19,7 @@ pub enum Object
 	Employee,
 
 	/// Permission to operate on [`winvoice_schema::Expense`]s
+	#[serde(rename = "expense")]
 	Expenses,
 
 	/// Permission to operate on [`winvoice_schema::Job`]s
