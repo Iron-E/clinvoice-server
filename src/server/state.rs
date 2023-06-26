@@ -54,7 +54,7 @@ where
 			true => Ok(()),
 			false => Err(Status::new(
 				Code::Unauthorized,
-				format!("{} is not authorized to {action} {object}s", user.username()),
+				format!("{} is not authorized to {action} {object}", user.username()),
 			)),
 		}
 	}

@@ -10,16 +10,22 @@ impl Display for Object
 	{
 		match self
 		{
-			Self::Contact => "contact",
-			Self::Department => "department",
-			Self::Employee => "employee",
-			Self::Expenses => "expense",
-			Self::Job => "job",
-			Self::Location => "location",
+			Self::AssignedDepartment => "the department they were assigned to",
+			Self::Contact => "contacts",
+			Self::CreatedExpenses => "expenses created by themselves",
+			Self::CreatedTimesheet => "timesheets created by themselves",
+			Self::Department => "departments",
+			Self::Employee => "employees",
+			Self::EmployeeInDepartment => "employees in their department",
+			Self::Expenses => "expenses",
+			Self::Job => "jobs",
+			Self::JobInDepartment => "jobs in their department",
+			Self::Location => "locations",
 			Self::Organization => "organization",
-			Self::Role => "role",
+			Self::Role => "roles",
 			Self::Timesheet => "timesheet",
-			Self::User => "user",
+			Self::User => "users",
+			Self::UserInDepartment => "users in their department",
 		}
 		.fmt(f)
 	}
