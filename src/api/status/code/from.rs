@@ -23,7 +23,7 @@ impl From<Code> for StatusCode
 		{
 			Code::ApiVersionMismatch => Self::GONE,
 			Code::InvalidCredentials | Code::PasswordExpired => Self::UNPROCESSABLE_ENTITY,
-			Code::Success => Self::OK,
+			Code::Success | Code::SuccessForPermissions => Self::OK,
 			Code::Unauthorized => Self::FORBIDDEN,
 
 			Code::ApiVersionHeaderMissing | Code::EncodingError => Self::BAD_REQUEST,

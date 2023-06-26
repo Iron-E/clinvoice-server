@@ -37,6 +37,10 @@ pub enum Code
 	/// accepted by the database.
 	InvalidCredentials = 2,
 
+	/// The requested operation has completed without error, but some actions had to be skipped
+	/// because of missing permissions.
+	SuccessForPermissions = 14,
+
 	/// The requested operation has completed without error.
 	Success = 1,
 

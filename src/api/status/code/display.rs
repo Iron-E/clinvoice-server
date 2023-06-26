@@ -51,6 +51,11 @@ impl Display for Code
 				 a bug in Winvoice"
 			},
 			Self::Success => "The requested operation has completed without error.",
+			Self::SuccessForPermissions =>
+			{
+				"The requested operation has completed without error, but some actions had to be \
+				 skipped because of missing permissions"
+			},
 			Self::Unauthorized =>
 			{
 				"A user has attempted to perform an operation while not having the correct \

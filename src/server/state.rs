@@ -40,23 +40,15 @@ where
 		user: &User,
 		object: Object,
 		action: Action,
-	) -> Result<(), Status>
+	) -> Result<bool, Status>
 	{
 		let permissions = self.permissions.read().await;
-
-		match permissions
+		permissions
 			.enforce((user.role().name(), object, action))
 			.and_then(|role_authorized| {
 				Ok(role_authorized || permissions.enforce((user.username(), object, action))?)
 			})
-			.map_err(|e| Status::from(&e))?
-		{
-			true => Ok(()),
-			false => Err(Status::new(
-				Code::Unauthorized,
-				format!("{} is not authorized to {action} {object}", user.username()),
-			)),
-		}
+			.map_err(|e| Status::from(&e))
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].

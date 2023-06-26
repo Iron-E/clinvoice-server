@@ -52,7 +52,8 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
-use winvoice_schema::chrono::Utc;
+use winvoice_match::{MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
+use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
 
 use crate::{
 	api::{self, request, response::Retrieve, routes, Code, Status},
@@ -70,13 +71,19 @@ macro_rules! route {
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Retrieve<<A::$Entity as Retrievable>::Match>>| async move {
-					state.has_permission(&user, Object::$Entity, Action::Retrieve).await.map_err(
-						|status| {
+					state
+						.has_permission(&user, Object::$Entity, Action::Retrieve)
+						.await
+						.and_then(|has_permission| match has_permission
+						{
+							true => Ok(()),
+							false => Err(Status::from((&user, Object::$Entity, Action::Retrieve))),
+						})
+						.map_err(|status| {
 							Response::from(Retrieve::<<A::$Entity as Retrievable>::Entity>::from(
 								status,
 							))
-						},
-					)?;
+						})?;
 
 					let condition = request.into_condition();
 					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
@@ -209,14 +216,138 @@ where
 			.route(routes::CONTACT, route!(Contact).post(|| async move { todo("contact create") }))
 			.route(
 				routes::DEPARTMENT,
-				route!(Department).post(|| async move { todo("department create") }),
+				routing::delete(|| async move { todo("Delete method not implemented") })
+					.get(
+						|Extension(user): Extension<User>,
+						 State(state): State<ServerState<A::Db>>,
+						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
+							let response_from_status =
+								|s: Status| -> Response<Retrieve<Department>> {
+									Response::from(s.into())
+								};
+
+							let can_get_all_depts = state
+								.has_permission(&user, Object::Department, Action::Retrieve)
+								.await
+								.map_err(response_from_status)?;
+
+							if !can_get_all_depts
+							{
+								state
+									.has_permission(
+										&user,
+										Object::AssignedDepartment,
+										Action::Retrieve,
+									)
+									.await
+									.and_then(|has_permission| match has_permission
+									{
+										true => Ok(()),
+										false => Err(Status::from((
+											&user,
+											Object::AssignedDepartment,
+											Action::Retrieve,
+										))),
+									})
+									.map_err(response_from_status)?;
+							}
+
+							let condition = request.into_condition();
+							A::Department::retrieve(state.pool(), condition).await.map_or_else(
+								#[rustfmt::skip]
+								|e| Err(Response::from(Retrieve::<Department>::from(Status::from(&e)))),
+								|mut vec| {
+									let code = match can_get_all_depts
+									{
+										true => Code::Success,
+										false =>
+										{
+											match user.employee()
+											{
+												Some(e) => vec.retain(|d| e.department.eq(d)),
+												None => vec.clear(),
+											};
+
+											Code::SuccessForPermissions
+										},
+									};
+
+									Ok(Response::from(Retrieve::new(vec, code.into())))
+								},
+							)
+						},
+					)
+					.patch(|| async move { todo("Update method not implemented") })
+					.post(|| async move { todo("department create") }),
 			)
 			.route(
 				routes::EMPLOYEE,
-				route!(Employee).post(|| async move { todo("employee create") }),
+				routing::delete(|| async move { todo("Delete method not implemented") })
+					.get(
+						|Extension(user): Extension<User>,
+						 State(state): State<ServerState<A::Db>>,
+						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
+							state
+								.has_permission(&user, Object::Employee, Action::Retrieve)
+								.await
+								.map_err(|status| Response::from(Retrieve::<Employee>::from(status)))?;
+
+							let condition = request.into_condition();
+							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
+								#[rustfmt::skip]
+								|e| Err(Response::from(Retrieve::<Employee>::from(Status::from(&e)))),
+								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+							)
+						},
+					)
+					.patch(|| async move { todo("Update method not implemented") })
+					.post(|| async move { todo("employee create") }),
 			)
-			.route(routes::EXPENSE, route!(Expenses).post(|| async move { todo("expense create") }))
-			.route(routes::JOB, route!(Job).post(|| async move { todo("job create") }))
+			.route(
+				routes::EXPENSE,
+				routing::delete(|| async move { todo("Delete method not implemented") })
+					.get(
+						|Extension(user): Extension<User>,
+						 State(state): State<ServerState<A::Db>>,
+						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
+							state
+								.has_permission(&user, Object::Expenses, Action::Retrieve)
+								.await
+								.map_err(|status| Response::from(Retrieve::<Expense>::from(status)))?;
+
+							let condition = request.into_condition();
+							A::Expenses::retrieve(state.pool(), condition).await.map_or_else(
+								#[rustfmt::skip]
+								|e| Err(Response::from(Retrieve::<Expense>::from(Status::from(&e)))),
+								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+							)
+						},
+					)
+					.patch(|| async move { todo("Update method not implemented") })
+					.post(|| async move { todo("expense create") }),
+			)
+			.route(
+				routes::JOB,
+				routing::delete(|| async move { todo("Delete method not implemented") })
+					.get(
+						|Extension(user): Extension<User>,
+						 State(state): State<ServerState<A::Db>>,
+						 Json(request): Json<request::Retrieve<MatchJob>>| async move {
+							state
+								.has_permission(&user, Object::Job, Action::Retrieve)
+								.await
+								.map_err(|status| Response::from(Retrieve::<Job>::from(status)))?;
+
+							let condition = request.into_condition();
+							A::Job::retrieve(state.pool(), condition).await.map_or_else(
+								|e| Err(Response::from(Retrieve::<Job>::from(Status::from(&e)))),
+								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+							)
+						},
+					)
+					.patch(|| async move { todo("Update method not implemented") })
+					.post(|| async move { todo("job create") }),
+			)
 			.route(
 				routes::LOCATION,
 				route!(Location).post(|| async move { todo("location create") }),
@@ -229,9 +360,51 @@ where
 			.route(routes::ROLE, route!(Role).post(|| async move { todo("role create") }))
 			.route(
 				routes::TIMESHEET,
-				route!(Timesheet).post(|| async move { todo("timesheet create") }),
+				routing::delete(|| async move { todo("Delete method not implemented") })
+					.get(
+						|Extension(user): Extension<User>,
+						 State(state): State<ServerState<A::Db>>,
+						 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
+							state
+								.has_permission(&user, Object::Timesheet, Action::Retrieve)
+								.await
+								.map_err(|status| {
+									Response::from(Retrieve::<Timesheet>::from(status))
+								})?;
+
+							let condition = request.into_condition();
+							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
+								#[rustfmt::skip]
+								|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
+								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+							)
+						},
+					)
+					.patch(|| async move { todo("Update method not implemented") })
+					.post(|| async move { todo("timesheet create") }),
 			)
-			.route(routes::USER, route!(User).post(|| async move { todo("user create") }))
+			.route(
+				routes::USER,
+				routing::delete(|| async move { todo("Delete method not implemented") })
+					.get(
+						|Extension(user): Extension<User>,
+						 State(state): State<ServerState<A::Db>>,
+						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
+							state
+								.has_permission(&user, Object::User, Action::Retrieve)
+								.await
+								.map_err(|status| Response::from(Retrieve::<User>::from(status)))?;
+
+							let condition = request.into_condition();
+							A::User::retrieve(state.pool(), condition).await.map_or_else(
+								|e| Err(Response::from(Retrieve::<User>::from(Status::from(&e)))),
+								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+							)
+						},
+					)
+					.patch(|| async move { todo("Update method not implemented") })
+					.post(|| async move { todo("user create") }),
+			)
 			.route_layer(RequireAuthLayer::login())
 			.route(routes::LOGIN, routing::get(Self::handle_get_login));
 
@@ -370,17 +543,7 @@ mod tests
 	use serde::{de::DeserializeOwned, Serialize};
 	use sqlx::Pool;
 	use tracing_test::traced_test;
-	use winvoice_match::{
-		Match,
-		MatchContact,
-		MatchDepartment,
-		MatchEmployee,
-		MatchExpense,
-		MatchJob,
-		MatchLocation,
-		MatchOrganization,
-		MatchTimesheet,
-	};
+	use winvoice_match::{Match, MatchContact, MatchLocation, MatchOrganization};
 	use winvoice_schema::{chrono::TimeZone, ContactKind, Invoice, Money};
 
 	#[allow(clippy::wildcard_imports)]
