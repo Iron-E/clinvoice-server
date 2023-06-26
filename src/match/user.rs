@@ -31,10 +31,10 @@ use super::MatchRole;
 ///   "employee": {"some": {
 ///     "name": {"regex": "[Aa]ndy$"}
 ///   }},
-///   "password": {"equal_to": "asdlkjasfhjdklasdklj"},
-///   "password_expires": {"some": {"equal_to": "2070-01-01T00:00:00"}},
-///   "role": {"name": {"equal_to": "Admin"}},
-///   "username": {"equal_to": "admin"}
+///   "password": "asdlkjasfhjdklasdklj",
+///   "password_expires": {"some": "2070-01-01T00:00:00"},
+///   "role": {"name": "Admin"},
+///   "username": "admin"
 /// }
 /// # "#).unwrap(), MatchUser {
 /// #   employee: Some(MatchEmployee {
