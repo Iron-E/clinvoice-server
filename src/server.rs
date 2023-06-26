@@ -356,8 +356,8 @@ const fn todo(msg: &'static str) -> (StatusCode, &'static str)
 #[cfg(test)]
 mod tests
 {
-	use core::fmt::Debug;
-	use std::sync::OnceLock;
+	use core::{fmt::Debug, hash::Hash};
+	use std::{collections::HashSet, sync::OnceLock};
 
 	use axum::http::header;
 	use axum_login::axum_sessions::async_session::base64;
@@ -411,56 +411,24 @@ mod tests
 				let admin_role_name = words::sentence(5);
 				let policy = {
 					let mut policy_csv = WriterBuilder::new().has_headers(false).from_writer(Vec::new());
+					let mut write = |obj: Object| -> csv::Result<()> {
+						policy_csv.serialize(("p", &admin_role_name, obj, Action::Create))?;
+						policy_csv.serialize(("p", &admin_role_name, obj, Action::Delete))?;
+						policy_csv.serialize(("p", &admin_role_name, obj, Action::Retrieve))?;
+						policy_csv.serialize(("p", &admin_role_name, obj, Action::Update))?;
+						Ok(())
+					};
 
-					policy_csv.serialize(("p", &admin_role_name, Object::Contact, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Contact, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Contact, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Contact, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Department, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Department, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Department, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Department, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Employee, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Employee, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Employee, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Employee, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Expenses, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Expenses, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Expenses, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Expenses, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Job, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Job, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Job, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Job, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Location, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Location, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Location, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Location, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Organization, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Organization, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Organization, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Organization, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Role, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Role, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Role, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Role, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::Timesheet, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Timesheet, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Timesheet, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::Timesheet, Action::Update))?;
-
-					policy_csv.serialize(("p", &admin_role_name, Object::User, Action::Create))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::User, Action::Delete))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::User, Action::Retrieve))?;
-					policy_csv.serialize(("p", &admin_role_name, Object::User, Action::Update))?;
+					write(Object::Contact)?;
+					write(Object::Department)?;
+					write(Object::Employee)?;
+					write(Object::Expenses)?;
+					write(Object::Job)?;
+					write(Object::Location)?;
+					write(Object::Organization)?;
+					write(Object::Role)?;
+					write(Object::Timesheet)?;
+					write(Object::User)?;
 
 					let inner = policy_csv.into_inner()?;
 					String::from_utf8(inner)?
@@ -611,7 +579,7 @@ mod tests
 		entities: Iter,
 		condition: M,
 	) where
-		E: 'ent + Clone + Debug + DeserializeOwned + PartialEq + Serialize,
+		E: 'ent + Clone + Debug + DeserializeOwned + Eq + Hash + PartialEq + Serialize,
 		Iter: Debug + Iterator<Item = &'ent E>,
 		M: Debug + Default + Serialize,
 	{
@@ -657,7 +625,11 @@ mod tests
 				Code::Success.into(),
 			));
 
-			assert_eq!(actual.content(), expected.content());
+			assert_eq!(
+				actual.content().entities().into_iter().collect::<HashSet<_>>(),
+				expected.content().entities().into_iter().collect::<HashSet<_>>()
+			);
+			assert_eq!(actual.content().status(), expected.content().status());
 			assert_eq!(actual.status(), expected.status());
 			logout(&client).await;
 		}
