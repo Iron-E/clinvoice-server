@@ -898,7 +898,13 @@ mod tests
 			)
 			.await;
 
-			let users = [&admin, &guest];
+			let admin_db = serde_json::to_string(&admin)
+				.and_then(|json| serde_json::from_str::<User>(&json))?;
+
+			let guest_db = serde_json::to_string(&guest)
+				.and_then(|json| serde_json::from_str::<User>(&json))?;
+
+			let users = [admin_db, guest_db];
 			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
 			test_get(
 				&client,
@@ -919,12 +925,12 @@ mod tests
 				&admin_password,
 				&guest,
 				&guest_password,
-				users.iter().map(|u| *u),
+				users.iter(),
 				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
 			)
 			.await;
 
-			PgUser::delete(&pool, users.into_iter()).await?;
+			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(
 				PgRole::delete(&pool, roles.iter()),
 				PgJob::delete(&pool, [&job_].into_iter())
