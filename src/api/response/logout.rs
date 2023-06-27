@@ -23,6 +23,7 @@ impl Logout
 	}
 
 	/// The [`Status`] of the logout request.
+	#[allow(dead_code)]
 	pub const fn status(&self) -> &Status
 	{
 		&self.status

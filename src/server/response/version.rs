@@ -1,6 +1,6 @@
 //! Contains [`Version`] JSON from the [`winvoice_server::api`] which is a proper HTTP [`Response`].
 
-use super::{Response, StatusCode};
+use super::Response;
 use crate::api::{response::Version, Code, Status};
 
 crate::new_response!(VersionResponse(Version): Clone, Debug, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
@@ -24,11 +24,5 @@ impl VersionResponse
 	pub fn missing() -> Self
 	{
 		Self(Response::from(Version::new(Code::ApiVersionHeaderMissing.into())))
-	}
-
-	/// Create a new [`VersionResponse`].
-	pub const fn new(code: StatusCode, status: Status) -> Self
-	{
-		Self(Response::new(code, Version::new(status)))
 	}
 }

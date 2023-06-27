@@ -13,6 +13,7 @@ pub struct Retrieve<Match>
 impl<Match> Retrieve<Match>
 {
 	/// Create a new GET request body.
+	#[allow(dead_code)]
 	pub const fn new(condition: Match) -> Self
 	{
 		Self { condition }
@@ -24,6 +25,7 @@ impl<Match> Retrieve<Match>
 	///
 	/// * [`winvoice_match`]
 	/// * [`winvoice_server::api::match`](crate::match)
+	#[allow(dead_code)]
 	pub const fn condition(&self) -> &Match
 	{
 		&self.condition

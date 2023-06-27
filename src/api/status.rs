@@ -29,6 +29,7 @@ impl Status
 	}
 
 	/// The specific message attached to the status.
+	#[allow(dead_code)]
 	pub fn message(&self) -> &str
 	{
 		self.message.as_ref()

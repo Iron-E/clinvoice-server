@@ -22,6 +22,7 @@ where
 	Db: Database,
 {
 	/// Get the current [`Connection`](sqlx::Connection).
+	#[allow(dead_code)]
 	pub fn connection(&self) -> impl Executor<'_, Database = Db>
 	where
 		for<'conn> &'conn Pool<Db>: Executor<'conn, Database = Db>,

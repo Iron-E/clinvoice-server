@@ -10,6 +10,7 @@ use {
 };
 
 /// Create a [`DateTime<Utc>`] out of some [`Local`] [`NaiveDateTime`].
+#[allow(dead_code)]
 pub fn naive_local_datetime_to_utc(d: NaiveDateTime) -> DateTime<Utc>
 {
 	Local
@@ -19,6 +20,7 @@ pub fn naive_local_datetime_to_utc(d: NaiveDateTime) -> DateTime<Utc>
 }
 
 /// Create a cryptographically-secure, randomly generated key for signing cookies.
+#[allow(dead_code)]
 pub fn cookie_secret() -> Vec<u8>
 {
 	let mut arr = [0u8; 64];
@@ -26,6 +28,7 @@ pub fn cookie_secret() -> Vec<u8>
 	arr.to_vec()
 }
 
+#[allow(dead_code)]
 #[cfg(test)]
 pub enum Model
 {
@@ -82,6 +85,7 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 /// # Returns
 ///
 /// * `(model_path, policy_path)`
+#[allow(dead_code)]
 #[cfg(test)]
 pub async fn init_model_and_policy_files<M, P>(
 	dir: &str,
@@ -102,6 +106,7 @@ where
 
 /// Convert `s` into a `'static` [`str`] by [`Box::leak`]ing it.
 /// TODO: use [`String::leak`] (rust-lang/rust#102929)
+#[allow(dead_code)]
 pub fn leak_string(s: String) -> &'static str
 {
 	Box::leak(s.into_boxed_str())

@@ -27,12 +27,16 @@ impl<T> Retrieve<T>
 		Self { entities, status }
 	}
 
+	/// The entities in the database which [match](winvoice_match)ed the
+	/// [request](crate::api::request::Retrieve) parameters.
+	#[allow(dead_code)]
 	pub fn entities(&self) -> &[T]
 	{
 		self.entities.as_ref()
 	}
 
 	/// The [`Status`] of the logout request.
+	#[allow(dead_code)]
 	pub const fn status(&self) -> &Status
 	{
 		&self.status

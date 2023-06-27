@@ -23,6 +23,7 @@ impl Version
 	}
 
 	/// The [`Status`] of the login request.
+	#[allow(dead_code)]
 	pub const fn status(&self) -> &Status
 	{
 		&self.status
