@@ -5,6 +5,7 @@ mod clone;
 use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
 
+use super::Response;
 use crate::{
 	api::{Code, Status},
 	lock::Lock,
@@ -34,13 +35,35 @@ where
 		Self { pool, permissions }
 	}
 
-	/// Check whether `subject` has permission to `action` on `object`.
-	pub async fn has_permission(
+	/// Check [`has_permission`](Self::has_permission), but also return [`Err`] if the [`Result`]
+	/// was [`Ok(false)`].
+	pub async fn enforce_permission<R>(
 		&self,
 		user: &User,
 		object: Object,
 		action: Action,
-	) -> Result<bool, Status>
+	) -> Result<(), Response<R>>
+	where
+		R: AsRef<Code> + From<Status>,
+	{
+		self.has_permission(user, object, action).await.and_then(|has_permission| {
+			match has_permission
+			{
+				true => Ok(()),
+				false => Err(Response::from(Status::from((user, object, action)).into())),
+			}
+		})
+	}
+
+	/// Check whether `subject` has permission to perform an `action` on the `object`.
+	pub async fn has_permission<R>(
+		&self,
+		user: &User,
+		object: Object,
+		action: Action,
+	) -> Result<bool, Response<R>>
+	where
+		R: AsRef<Code> + From<Status>,
 	{
 		let permissions = self.permissions.read().await;
 		permissions
@@ -48,7 +71,7 @@ where
 			.and_then(|role_authorized| {
 				Ok(role_authorized || permissions.enforce((user.username(), object, action))?)
 			})
-			.map_err(|e| Status::from(&e))
+			.map_err(|e| Response::from(Status::from(&e).into()))
 	}
 
 	/// Get the [`Pool`] of connections to the [`Database`].

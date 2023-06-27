@@ -72,18 +72,12 @@ macro_rules! route {
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Retrieve<<A::$Entity as Retrievable>::Match>>| async move {
 					state
-						.has_permission(&user, Object::$Entity, Action::Retrieve)
-						.await
-						.and_then(|has_permission| match has_permission
-						{
-							true => Ok(()),
-							false => Err(Status::from((&user, Object::$Entity, Action::Retrieve))),
-						})
-						.map_err(|status| {
-							Response::from(Retrieve::<<A::$Entity as Retrievable>::Entity>::from(
-								status,
-							))
-						})?;
+						.enforce_permission::<Retrieve<<A::$Entity as Retrievable>::Entity>>(
+							&user,
+							Object::$Entity,
+							Action::Retrieve,
+						)
+						.await?;
 
 					let condition = request.into_condition();
 					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
@@ -221,41 +215,32 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
-							let response_from_status =
-								|s: Status| -> Response<Retrieve<Department>> {
-									Response::from(s.into())
-								};
-
 							let can_get_all_depts = state
-								.has_permission(&user, Object::Department, Action::Retrieve)
-								.await
-								.map_err(response_from_status)?;
+								.has_permission::<Retrieve<Department>>(
+									&user,
+									Object::Department,
+									Action::Retrieve,
+								)
+								.await?;
 
 							if !can_get_all_depts
 							{
 								state
-									.has_permission(
+									.enforce_permission::<Retrieve<Department>>(
 										&user,
 										Object::AssignedDepartment,
 										Action::Retrieve,
 									)
-									.await
-									.and_then(|has_permission| match has_permission
-									{
-										true => Ok(()),
-										false => Err(Status::from((
-											&user,
-											Object::AssignedDepartment,
-											Action::Retrieve,
-										))),
-									})
-									.map_err(response_from_status)?;
+									.await?;
 							}
 
 							let condition = request.into_condition();
 							A::Department::retrieve(state.pool(), condition).await.map_or_else(
-								#[rustfmt::skip]
-								|e| Err(Response::from(Retrieve::<Department>::from(Status::from(&e)))),
+								|e| {
+									Err(Response::from(Retrieve::<Department>::from(Status::from(
+										&e,
+									))))
+								},
 								|mut vec| {
 									let code = match can_get_all_depts
 									{
@@ -288,14 +273,20 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
 							state
-								.has_permission(&user, Object::Employee, Action::Retrieve)
-								.await
-								.map_err(|status| Response::from(Retrieve::<Employee>::from(status)))?;
+								.has_permission::<Retrieve<Employee>>(
+									&user,
+									Object::Employee,
+									Action::Retrieve,
+								)
+								.await?;
 
 							let condition = request.into_condition();
 							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
-								#[rustfmt::skip]
-								|e| Err(Response::from(Retrieve::<Employee>::from(Status::from(&e)))),
+								|e| {
+									Err(Response::from(Retrieve::<Employee>::from(Status::from(
+										&e,
+									))))
+								},
 								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
 							)
 						},
@@ -311,14 +302,18 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
 							state
-								.has_permission(&user, Object::Expenses, Action::Retrieve)
-								.await
-								.map_err(|status| Response::from(Retrieve::<Expense>::from(status)))?;
+								.has_permission::<Retrieve<Expense>>(
+									&user,
+									Object::Expenses,
+									Action::Retrieve,
+								)
+								.await?;
 
 							let condition = request.into_condition();
 							A::Expenses::retrieve(state.pool(), condition).await.map_or_else(
-								#[rustfmt::skip]
-								|e| Err(Response::from(Retrieve::<Expense>::from(Status::from(&e)))),
+								|e| {
+									Err(Response::from(Retrieve::<Expense>::from(Status::from(&e))))
+								},
 								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
 							)
 						},
@@ -334,9 +329,12 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchJob>>| async move {
 							state
-								.has_permission(&user, Object::Job, Action::Retrieve)
-								.await
-								.map_err(|status| Response::from(Retrieve::<Job>::from(status)))?;
+								.has_permission::<Retrieve<Job>>(
+									&user,
+									Object::Job,
+									Action::Retrieve,
+								)
+								.await?;
 
 							let condition = request.into_condition();
 							A::Job::retrieve(state.pool(), condition).await.map_or_else(
@@ -366,16 +364,20 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
 							state
-								.has_permission(&user, Object::Timesheet, Action::Retrieve)
-								.await
-								.map_err(|status| {
-									Response::from(Retrieve::<Timesheet>::from(status))
-								})?;
+								.has_permission::<Retrieve<Timesheet>>(
+									&user,
+									Object::Timesheet,
+									Action::Retrieve,
+								)
+								.await?;
 
 							let condition = request.into_condition();
 							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
-								#[rustfmt::skip]
-								|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
+								|e| {
+									Err(Response::from(Retrieve::<Timesheet>::from(Status::from(
+										&e,
+									))))
+								},
 								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
 							)
 						},
@@ -391,9 +393,12 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
 							state
-								.has_permission(&user, Object::User, Action::Retrieve)
-								.await
-								.map_err(|status| Response::from(Retrieve::<User>::from(status)))?;
+								.has_permission::<Retrieve<User>>(
+									&user,
+									Object::User,
+									Action::Retrieve,
+								)
+								.await?;
 
 							let condition = request.into_condition();
 							A::User::retrieve(state.pool(), condition).await.map_or_else(
