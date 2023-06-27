@@ -25,6 +25,7 @@ impl TryFrom<u8> for Code
 			v if v == Self::PermissionsError as u8 => Self::PermissionsError,
 			v if v == Self::SqlError as u8 => Self::SqlError,
 			v if v == Self::Success as u8 => Self::Success,
+			v if v == Self::SuccessForPermissions as u8 => Self::SuccessForPermissions,
 			v if v == Self::Unauthorized as u8 => Self::Unauthorized,
 
 			// HACK: `TryFromIntError` has a private constructor… why?
