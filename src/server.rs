@@ -272,13 +272,22 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
-							state
+							let can_get_all_employees = state
 								.has_permission::<Retrieve<Employee>>(
 									&user,
 									Object::Employee,
 									Action::Retrieve,
 								)
 								.await?;
+
+							let can_get_employees_in_dept = can_get_all_employees ||
+								state
+									.has_permission::<Retrieve<Employee>>(
+										&user,
+										Object::EmployeeInDepartment,
+										Action::Retrieve,
+									)
+									.await?;
 
 							let condition = request.into_condition();
 							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
@@ -287,7 +296,32 @@ where
 										&e,
 									))))
 								},
-								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+								|mut vec| {
+									let code = match can_get_all_employees
+									{
+										true => Code::Success,
+										false =>
+										{
+											match can_get_employees_in_dept
+											{
+												true =>
+												{
+													let d = user.employee().map(|e| &e.department);
+													vec.retain(|e| Some(&e.department) == d);
+												},
+												false =>
+												{
+													let emp = user.employee();
+													vec.retain(|e| Some(e) == emp);
+												},
+											};
+
+											Code::SuccessForPermissions
+										},
+									};
+
+									Ok(Response::from(Retrieve::new(vec, code.into())))
+								},
 							)
 						},
 					)
@@ -531,6 +565,7 @@ const fn todo(msg: &'static str) -> (StatusCode, &'static str)
 	(StatusCode::NOT_IMPLEMENTED, msg)
 }
 
+#[allow(dead_code, unused_imports, unused_macros)]
 #[cfg(test)]
 mod tests
 {
