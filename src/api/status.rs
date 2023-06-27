@@ -35,8 +35,7 @@ impl Status
 		self.message.as_ref()
 	}
 
-	/// Create a new [`Status`]. If the `message` is left out, a default message based on the `code`
-	/// will be used.
+	/// Create a new [`Status`].
 	pub const fn new(code: Code, message: String) -> Self
 	{
 		Self { code, message }

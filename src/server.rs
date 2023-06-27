@@ -336,7 +336,7 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
 							state
-								.has_permission::<Retrieve<Expense>>(
+								.enforce_permission::<Retrieve<Expense>>(
 									&user,
 									Object::Expenses,
 									Action::Retrieve,
@@ -363,7 +363,7 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchJob>>| async move {
 							state
-								.has_permission::<Retrieve<Job>>(
+								.enforce_permission::<Retrieve<Job>>(
 									&user,
 									Object::Job,
 									Action::Retrieve,
@@ -398,7 +398,7 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
 							state
-								.has_permission::<Retrieve<Timesheet>>(
+								.enforce_permission::<Retrieve<Timesheet>>(
 									&user,
 									Object::Timesheet,
 									Action::Retrieve,
@@ -427,7 +427,7 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
 							state
-								.has_permission::<Retrieve<User>>(
+								.enforce_permission::<Retrieve<User>>(
 									&user,
 									Object::User,
 									Action::Retrieve,
@@ -577,7 +577,7 @@ mod tests
 	use axum_test_helper::{RequestBuilder, TestClient};
 	use casbin::{CoreApi, Enforcer};
 	use csv::WriterBuilder;
-	use futures::{stream, StreamExt, TryFutureExt};
+	use futures::{stream, FutureExt, StreamExt, TryFutureExt};
 	use mockd::{address, company, contact, currency, internet, job, name, password, words};
 	use money2::{Currency, Exchange, ExchangeRates};
 	use serde::{de::DeserializeOwned, Serialize};
@@ -741,6 +741,12 @@ mod tests
 		};
 	}
 
+	/// Make a GET [`RequestBuilder`] on the given `route`.
+	fn get_request_builder(client: &TestClient, route: &str) -> RequestBuilder
+	{
+		client.get(route).header(api::HEADER, version_req())
+	}
+
 	async fn login(client: &TestClient, username: &str, password: &str)
 	{
 		use pretty_assertions::assert_eq;
@@ -772,13 +778,11 @@ mod tests
 	}
 
 	#[tracing::instrument(skip(client))]
-	async fn test_get<'ent, E, Iter, M>(
+	async fn test_get_admin<'ent, E, Iter, M>(
 		client: &TestClient,
 		route: &str,
 		admin: &User,
 		admin_password: &str,
-		guest: &User,
-		guest_password: &str,
 		entities: Iter,
 		condition: M,
 	) where
@@ -793,49 +797,63 @@ mod tests
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		let get_client =
-			|| -> RequestBuilder { client.get(route).header(api::HEADER, version_req()) };
+		// assert logged in user without permissions is rejected
+		login(&client, admin.username(), &admin_password).await;
+		let response = get_request_builder(client, route)
+			.json(&request::Retrieve::new(condition))
+			.send()
+			.await;
 
-		{
-			// assert logged in user without permissions is rejected
-			login(&client, guest.username(), &guest_password).await;
-			let response = get_client().json(&request::Retrieve::new(M::default())).send().await;
+		let status = response.status();
+		let text = response.text().await;
 
-			let actual = Response::new(response.status(), response.json::<Retrieve<E>>().await);
-			let expected =
-				Response::from(Retrieve::<E>::from(Status::new(Code::Unauthorized, "".into())));
+		let actual =
+			serde_json::from_str::<Retrieve<E>>(&text).map(|r| Response::new(status, r)).unwrap();
 
-			assert_eq!(actual.status(), expected.status());
-			assert_eq!(actual.content().entities(), &[]);
-			assert_eq!(actual.content().status().code(), expected.content().status().code());
-			logout(&client).await;
-		}
+		let expected = Response::from(Retrieve::<E>::new(
+			entities.into_iter().cloned().collect(),
+			Code::Success.into(),
+		));
 
-		{
-			// assert logged in user without permissions is rejected
-			login(&client, admin.username(), &admin_password).await;
-			let response = get_client().json(&request::Retrieve::new(condition)).send().await;
+		assert_eq!(
+			actual.content().entities().into_iter().collect::<HashSet<_>>(),
+			expected.content().entities().into_iter().collect::<HashSet<_>>()
+		);
+		assert_eq!(actual.content().status(), expected.content().status());
+		assert_eq!(actual.status(), expected.status());
+		logout(&client).await;
+	}
 
-			let status = response.status();
-			let text = response.text().await;
+	#[tracing::instrument(skip(client))]
+	async fn test_get_guest<'ent, M>(
+		client: &TestClient,
+		route: &str,
+		guest: &User,
+		guest_password: &str,
+	) where
+		M: Debug + Default + Serialize,
+	{
+		use pretty_assertions::assert_eq;
 
-			let actual = serde_json::from_str::<Retrieve<E>>(&text)
-				.map(|r| Response::new(status, r))
-				.unwrap();
+		// HACK: `tracing` doesn't work correctly with asyn cso I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
 
-			let expected = Response::from(Retrieve::<E>::new(
-				entities.into_iter().cloned().collect(),
-				Code::Success.into(),
-			));
+		// assert logged in user without permissions is rejected
+		login(&client, guest.username(), &guest_password).await;
+		let response = get_request_builder(client, route)
+			.json(&request::Retrieve::new(M::default()))
+			.send()
+			.await;
 
-			assert_eq!(
-				actual.content().entities().into_iter().collect::<HashSet<_>>(),
-				expected.content().entities().into_iter().collect::<HashSet<_>>()
-			);
-			assert_eq!(actual.content().status(), expected.content().status());
-			assert_eq!(actual.status(), expected.status());
-			logout(&client).await;
-		}
+		let actual = Response::new(response.status(), response.json::<Retrieve<()>>().await);
+		let expected = Response::from(Retrieve::<()>::from(Status::from(Code::Unauthorized)));
+
+		assert_eq!(actual.status(), expected.status());
+		assert_eq!(actual.content().entities(), &[]);
+		assert_eq!(actual.content().status().code(), expected.content().status().code());
+		logout(&client).await;
 	}
 
 	/// Get the default version requirement for tests.
@@ -881,44 +899,51 @@ mod tests
 			let contact_ =
 				PgContact::create(&pool, ContactKind::Email(contact::email()), words::sentence(4))
 					.await?;
-			test_get(
+			test_get_admin(
 				&client,
 				routes::CONTACT,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&contact_].into_iter(),
 				MatchContact::from(contact_.label.clone()),
 			)
+			.then(|_| {
+				test_get_guest::<MatchContact>(&client, routes::CONTACT, &guest, &guest_password)
+			})
 			.await;
 
 			let department = PgDepartment::create(&pool, rand_department_name()).await?;
-			test_get(
+			test_get_admin(
 				&client,
 				routes::DEPARTMENT,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&department].into_iter(),
 				MatchDepartment::from(department.id),
 			)
+			.then(|_| {
+				test_get_guest::<MatchDepartment>(
+					&client,
+					routes::DEPARTMENT,
+					&guest,
+					&guest_password,
+				)
+			})
 			.await;
 
 			let employee =
 				PgEmployee::create(&pool, department.clone(), name::full(), job::title()).await?;
-			test_get(
+			test_get_admin(
 				&client,
 				routes::EMPLOYEE,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&employee].into_iter(),
 				MatchEmployee::from(employee.id),
 			)
 			.await;
+
+			// TODO: test guest GET on "/employee" manually
 
 			let location = PgLocation::create(
 				&pool,
@@ -934,30 +959,37 @@ mod tests
 				None,
 			)
 			.await?;
-			test_get(
+			test_get_admin(
 				&client,
 				routes::LOCATION,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&location].into_iter(),
 				MatchLocation::from(location.id),
 			)
+			.then(|_| {
+				test_get_guest::<MatchLocation>(&client, routes::LOCATION, &guest, &guest_password)
+			})
 			.await;
 
 			let organization =
 				PgOrganization::create(&pool, location.clone(), company::company()).await?;
-			test_get(
+			test_get_admin(
 				&client,
 				routes::ORGANIZATION,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&organization].into_iter(),
 				MatchOrganization::from(organization.id),
 			)
+			.then(|_| {
+				test_get_guest::<MatchOrganization>(
+					&client,
+					routes::ORGANIZATION,
+					&guest,
+					&guest_password,
+				)
+			})
 			.await;
 
 			let rates = ExchangeRates::new().await?;
@@ -994,16 +1026,15 @@ mod tests
 				j.exchange(Default::default(), &rates)
 			};
 
-			test_get(
+			test_get_admin(
 				&client,
 				routes::JOB,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&job_].into_iter(),
 				MatchJob::from(job_.id),
 			)
+			.then(|_| test_get_guest::<MatchJob>(&client, routes::JOB, &guest, &guest_password))
 			.await;
 
 			let timesheet = {
@@ -1023,16 +1054,22 @@ mod tests
 				t.exchange(Default::default(), &rates)
 			};
 
-			test_get(
+			test_get_admin(
 				&client,
 				routes::TIMESHEET,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				[&timesheet].into_iter(),
 				MatchTimesheet::from(timesheet.id),
 			)
+			.then(|_| {
+				test_get_guest::<MatchTimesheet>(
+					&client,
+					routes::TIMESHEET,
+					&guest,
+					&guest_password,
+				)
+			})
 			.await;
 
 			let expenses = PgExpenses::create(
@@ -1089,16 +1126,17 @@ mod tests
 			.await
 			.map(|x| x.exchange(Default::default(), &rates))?;
 
-			test_get(
+			test_get_admin(
 				&client,
 				routes::EXPENSE,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				expenses.iter(),
 				MatchExpense::from(Match::Or(expenses.iter().map(|x| x.id.into()).collect())),
 			)
+			.then(|_| {
+				test_get_guest::<MatchExpense>(&client, routes::EXPENSE, &guest, &guest_password)
+			})
 			.await;
 
 			let admin_db = serde_json::to_string(&admin)
@@ -1109,28 +1147,26 @@ mod tests
 
 			let users = [admin_db, guest_db];
 			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
-			test_get(
+			test_get_admin(
 				&client,
 				routes::ROLE,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				roles.iter(),
 				MatchRole::from(Match::Or(roles.iter().map(|r| r.id().into()).collect())),
 			)
+			.then(|_| test_get_guest::<MatchRole>(&client, routes::ROLE, &guest, &guest_password))
 			.await;
 
-			test_get(
+			test_get_admin(
 				&client,
 				routes::USER,
 				&admin,
 				&admin_password,
-				&guest,
-				&guest_password,
 				users.iter(),
 				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
 			)
+			.then(|_| test_get_guest::<MatchUser>(&client, routes::USER, &guest, &guest_password))
 			.await;
 
 			PgUser::delete(&pool, users.iter()).await?;
