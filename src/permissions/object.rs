@@ -47,6 +47,11 @@ pub enum Object
 	#[serde(rename = "expense")]
 	Expenses,
 
+	/// Permission to operate on [`winvoice_schema::Expense`]s. Assumes
+	/// [`CreatedExpenses`](Self::CreatedExpenses)
+	#[serde(rename = "expense")]
+	ExpensesInDepartment,
+
 	/// Permission to operate on [`winvoice_schema::Job`]s. Assumes
 	/// [`JobInDepartment`](Self::JobInDepartment`].
 	Job,
@@ -67,6 +72,10 @@ pub enum Object
 	/// Permission to operate on [`winvoice_schema::Timesheet`]s. Assumes
 	/// [`CreatedTimesheet`](Self::CreatedTimesheet).
 	Timesheet,
+
+	/// Permission to operate on [`winvoice_schema::Timesheet`]s. Assumes
+	/// [`CreatedTimesheet`](Self::CreatedTimesheet).
+	TimesheetInDepartment,
 
 	/// Permission to operate on [`User`](crate::schema::User)s
 	User,

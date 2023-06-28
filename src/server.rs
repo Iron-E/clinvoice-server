@@ -6,7 +6,7 @@ mod response;
 mod state;
 
 use core::{fmt::Display, marker::PhantomData, time::Duration};
-use std::net::SocketAddr;
+use std::{collections::HashSet, net::SocketAddr};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
@@ -52,7 +52,14 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
-use winvoice_match::{MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
+use winvoice_match::{
+	Match,
+	MatchDepartment,
+	MatchEmployee,
+	MatchExpense,
+	MatchJob,
+	MatchTimesheet,
+};
 use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
 
 use crate::{
@@ -215,51 +222,53 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
-							let can_get_all_depts = state
-								.has_permission::<Retrieve<Department>>(
-									&user,
-									Object::Department,
-									Action::Retrieve,
-								)
-								.await?;
+							#[rustfmt::skip]
+							let can_get_all = state.has_permission::<Retrieve<Department>>(
+								&user,
+								Object::Department,
+								Action::Retrieve,
+							).await?;
 
-							if !can_get_all_depts
+							if !can_get_all
 							{
-								state
-									.enforce_permission::<Retrieve<Department>>(
-										&user,
-										Object::AssignedDepartment,
-										Action::Retrieve,
-									)
-									.await?;
+								// if they cannot get their assigned department, then they cannot
+								// retrieve ANY departments.
+								#[rustfmt::skip]
+								state.enforce_permission::<Retrieve<Department>>(
+									&user,
+									Object::AssignedDepartment,
+									Action::Retrieve,
+								).await?;
 							}
 
 							let condition = request.into_condition();
-							A::Department::retrieve(state.pool(), condition).await.map_or_else(
-								|e| {
-									Err(Response::from(Retrieve::<Department>::from(Status::from(
-										&e,
-									))))
-								},
-								|mut vec| {
-									let code = match can_get_all_depts
-									{
-										true => Code::Success,
-										false =>
-										{
-											match user.employee()
-											{
-												Some(e) => vec.retain(|d| e.department.eq(d)),
-												None => vec.clear(),
-											};
+							#[rustfmt::skip]
+							let mut vec = A::Department::retrieve(state.pool(), condition).await.map_err(
+								|e| Response::from(Retrieve::<Department>::from(Status::from(&e)))
+							)?;
 
-											Code::SuccessForPermissions
-										},
+							let code = match can_get_all
+							{
+								true => Code::Success,
+
+								// they can get only their assigned department
+								false =>
+								{
+									match user.employee()
+									{
+										// they have a department, so filter using it.
+										Some(e) => vec.retain(|d| e.department.eq(d)),
+
+										// they have no department, so they can *effectively* not
+										// retrieve anything. Clear the vec.
+										None => vec.clear(),
 									};
 
-									Ok(Response::from(Retrieve::new(vec, code.into())))
+									Code::SuccessForPermissions
 								},
-							)
+							};
+
+							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
 						},
 					)
 					.patch(|| async move { todo("Update method not implemented") })
@@ -272,57 +281,59 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
-							let can_get_all_employees = state
-								.has_permission::<Retrieve<Employee>>(
-									&user,
-									Object::Employee,
-									Action::Retrieve,
-								)
-								.await?;
+							#[rustfmt::skip]
+							let can_get_all = state.has_permission::<Retrieve<Employee>>(
+								&user,
+								Object::Employee,
+								Action::Retrieve,
+							).await?;
 
-							let can_get_employees_in_dept = can_get_all_employees ||
-								state
-									.has_permission::<Retrieve<Employee>>(
-										&user,
-										Object::EmployeeInDepartment,
-										Action::Retrieve,
-									)
-									.await?;
+							#[rustfmt::skip]
+							let can_get_in_dept = can_get_all || state.has_permission::<Retrieve<Employee>>(
+								&user,
+								Object::EmployeeInDepartment,
+								Action::Retrieve,
+							).await?;
 
 							let condition = request.into_condition();
-							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
-								|e| {
-									Err(Response::from(Retrieve::<Employee>::from(Status::from(
-										&e,
-									))))
-								},
-								|mut vec| {
-									let code = match can_get_all_employees
-									{
-										true => Code::Success,
-										false =>
-										{
-											match can_get_employees_in_dept
-											{
-												true =>
-												{
-													let d = user.employee().map(|e| &e.department);
-													vec.retain(|e| Some(&e.department) == d);
-												},
-												false =>
-												{
-													let emp = user.employee();
-													vec.retain(|e| Some(e) == emp);
-												},
-											};
+							#[rustfmt::skip]
+							let mut vec = A::Employee::retrieve(state.pool(), condition).await.map_err(
+								|e| Response::from(Retrieve::<Employee>::from(Status::from(&e)))
+							)?;
 
-											Code::SuccessForPermissions
+							let code = match can_get_all
+							{
+								true => Code::Success,
+
+								// they can only get employees in their department || themselves
+								false =>
+								{
+									match user.employee()
+									{
+										// they have an employee record, so use it to filter the
+										// result.
+										Some(emp) => match can_get_in_dept
+										{
+											// filter all matching records where the employee is in
+											// the department.
+											true => vec.retain(|e| e.department == emp.department),
+
+											// filter all matching records to be the same as the
+											// user's
+											false => vec.retain(|e| e == emp),
 										},
+
+										// they neither have a department nor an employee record, so
+										// they effectively cannot retrieve employees. clear the
+										// vec.
+										None => vec.clear(),
 									};
 
-									Ok(Response::from(Retrieve::new(vec, code.into())))
+									Code::SuccessForPermissions
 								},
-							)
+							};
+
+							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
 						},
 					)
 					.patch(|| async move { todo("Update method not implemented") })
@@ -335,21 +346,89 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
-							state
-								.enforce_permission::<Retrieve<Expense>>(
+							#[rustfmt::skip]
+							let can_get_all = state.has_permission::<Retrieve<Expense>>(
+								&user,
+								Object::Expenses,
+								Action::Retrieve,
+							).await?;
+
+							#[rustfmt::skip]
+							let can_get_in_dept = can_get_all || state.has_permission::<Retrieve<Expense>>(
+								&user,
+								Object::ExpensesInDepartment,
+								Action::Retrieve,
+							).await?;
+
+							if !can_get_in_dept
+							{
+								#[rustfmt::skip]
+								state.enforce_permission::<Retrieve<Expense>>(
 									&user,
-									Object::Expenses,
+									Object::CreatedExpenses,
 									Action::Retrieve,
-								)
-								.await?;
+								).await?;
+							}
 
 							let condition = request.into_condition();
-							A::Expenses::retrieve(state.pool(), condition).await.map_or_else(
-								|e| {
-									Err(Response::from(Retrieve::<Expense>::from(Status::from(&e))))
+							#[rustfmt::skip]
+							let mut vec = A::Expenses::retrieve(state.pool(), condition).await.map_err(
+								|e| Response::from(Retrieve::<Expense>::from(Status::from(&e))),
+							)?;
+
+							let code = match can_get_all
+							{
+								true => Code::Success,
+
+								// The user can only get expenses iff they are in the same
+								// department, or were created by that user.
+								false =>
+								{
+									match user.employee()
+									{
+										Some(emp) =>
+										{
+											#[rustfmt::skip]
+											// retrieve IDs of expenses which the user has permission to access.
+											// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a
+											//       timesheet, not just the ones which match the `expenses`
+											//       field. Thus we still have to perform a second filter below.
+											let matching = A::Timesheet::retrieve(state.pool(), MatchTimesheet {
+												expenses: MatchExpense {
+													id: Match::Or(vec.iter().map(|x| x.id.into()).collect()),
+													..Default::default()
+												}
+												.into(),
+												..match can_get_in_dept
+												{
+													true => MatchEmployee::from(MatchDepartment::from(
+														emp.department.id
+													)).into(),
+													false => MatchEmployee::from(emp.id).into(),
+												}
+											})
+											.await
+											.map_or_else(
+												|e| Err(Response::from(Retrieve::from(Status::from(&e)))),
+												|vec| Ok(vec
+															.into_iter()
+															.flat_map(|t| t.expenses.into_iter().map(|x| x.id))
+															.collect::<HashSet<_>>()),
+											)?;
+
+											vec.retain(|x| matching.contains(&x.id));
+										},
+
+										// The user has no department, and no employee record, so
+										// they effectively cannot retrieve expenses. Clear the vec.
+										None => vec.clear(),
+									};
+
+									Code::SuccessForPermissions
 								},
-								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
-							)
+							};
+
+							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
 						},
 					)
 					.patch(|| async move { todo("Update method not implemented") })
