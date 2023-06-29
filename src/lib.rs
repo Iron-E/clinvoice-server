@@ -3,8 +3,11 @@
 //! [`clap`], etc.
 
 pub mod api;
+mod bool_ext;
 mod dyn_result;
 pub mod r#match;
 pub mod permissions;
 pub mod schema;
 mod utils;
+
+pub use bool_ext::BoolExt;

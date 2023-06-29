@@ -102,6 +102,7 @@
 
 mod api;
 mod args;
+mod bool_ext;
 mod dyn_result;
 mod lock;
 mod r#match;

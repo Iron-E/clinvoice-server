@@ -64,6 +64,7 @@ use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet
 
 use crate::{
 	api::{self, request, response::Retrieve, routes, Code, Status},
+	bool_ext::BoolExt,
 	permissions::{Action, Object},
 	r#match::MatchUser,
 	schema::{columns::UserColumns, Adapter, RoleAdapter, User, UserAdapter},
@@ -196,11 +197,8 @@ where
 					|version| {
 						version.to_str().map_or_else(encoding_err, |v| {
 							VersionReq::parse(v).map_or_else(encoding_err, |req| {
-								match req.matches(api::version())
-								{
-									false => Err(VersionResponse::mismatch()),
-									true => Ok(()),
-								}
+								req.matches(api::version())
+									.then_some_or(Err(VersionResponse::mismatch()), Ok(()))
 							})
 						})
 					},
@@ -222,24 +220,8 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
-							#[rustfmt::skip]
-							let can_get_all = state.has_permission::<Retrieve<Department>>(
-								&user,
-								Object::Department,
-								Action::Retrieve,
-							).await?;
-
-							if !can_get_all
-							{
-								// if they cannot get their assigned department, then they cannot
-								// retrieve ANY departments.
-								#[rustfmt::skip]
-								state.enforce_permission::<Retrieve<Department>>(
-									&user,
-									Object::AssignedDepartment,
-									Action::Retrieve,
-								).await?;
-							}
+							let permission =
+								state.department_permissions(&user, Action::Retrieve).await?;
 
 							let condition = request.into_condition();
 							#[rustfmt::skip]
@@ -247,25 +229,24 @@ where
 								|e| Response::from(Retrieve::<Department>::from(Status::from(&e)))
 							)?;
 
-							let code = match can_get_all
+							let code = match permission
 							{
-								true => Code::Success,
-
-								// they can get only their assigned department
-								false =>
+								Object::Department => Code::Success,
+								Object::AssignedDepartment =>
 								{
 									match user.employee()
 									{
-										// they have a department, so filter using it.
 										Some(e) => vec.retain(|d| e.department.eq(d)),
 
-										// they have no department, so they can *effectively* not
+										// they have no department, so they *effectively* can't
 										// retrieve anything. Clear the vec.
 										None => vec.clear(),
 									};
 
 									Code::SuccessForPermissions
 								},
+
+								p => unreachable!("unexpected permission: {p:?}"),
 							};
 
 							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
@@ -281,19 +262,9 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
-							#[rustfmt::skip]
-							let can_get_all = state.has_permission::<Retrieve<Employee>>(
-								&user,
-								Object::Employee,
-								Action::Retrieve,
-							).await?;
-
-							#[rustfmt::skip]
-							let can_get_in_dept = can_get_all || state.has_permission::<Retrieve<Employee>>(
-								&user,
-								Object::EmployeeInDepartment,
-								Action::Retrieve,
-							).await?;
+							let permission = state
+								.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve)
+								.await?;
 
 							let condition = request.into_condition();
 							#[rustfmt::skip]
@@ -301,26 +272,27 @@ where
 								|e| Response::from(Retrieve::<Employee>::from(Status::from(&e)))
 							)?;
 
-							let code = match can_get_all
+							let code = match permission
 							{
-								true => Code::Success,
-
-								// they can only get employees in their department || themselves
-								false =>
+								Some(Object::Employee) => Code::Success,
+								p =>
 								{
+									// HACK: no if-let guards…
 									match user.employee()
 									{
-										// they have an employee record, so use it to filter the
-										// result.
-										Some(emp) => match can_get_in_dept
+										Some(emp) => match p
 										{
-											// filter all matching records where the employee is in
-											// the department.
-											true => vec.retain(|e| e.department == emp.department),
+											Some(Object::EmployeeInDepartment) =>
+											{
+												vec.retain(|e| e.department == emp.department)
+											},
 
-											// filter all matching records to be the same as the
-											// user's
-											false => vec.retain(|e| e == emp),
+											None => vec.retain(|e| e == emp),
+
+											Some(inner) =>
+											{
+												unreachable!("unexpected permission: {inner:?}")
+											},
 										},
 
 										// they neither have a department nor an employee record, so
@@ -346,29 +318,9 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
-							#[rustfmt::skip]
-							let can_get_all = state.has_permission::<Retrieve<Expense>>(
-								&user,
-								Object::Expenses,
-								Action::Retrieve,
-							).await?;
-
-							#[rustfmt::skip]
-							let can_get_in_dept = can_get_all || state.has_permission::<Retrieve<Expense>>(
-								&user,
-								Object::ExpensesInDepartment,
-								Action::Retrieve,
-							).await?;
-
-							if !can_get_in_dept
-							{
-								#[rustfmt::skip]
-								state.enforce_permission::<Retrieve<Expense>>(
-									&user,
-									Object::CreatedExpenses,
-									Action::Retrieve,
-								).await?;
-							}
+							let permission = state
+								.expense_permissions::<Retrieve<Expense>>(&user, Action::Retrieve)
+								.await?;
 
 							let condition = request.into_condition();
 							#[rustfmt::skip]
@@ -376,14 +328,15 @@ where
 								|e| Response::from(Retrieve::<Expense>::from(Status::from(&e))),
 							)?;
 
-							let code = match can_get_all
+							let code = match permission
 							{
-								true => Code::Success,
+								Object::Expenses => Code::Success,
 
 								// The user can only get expenses iff they are in the same
 								// department, or were created by that user.
-								false =>
+								p =>
 								{
+									// HACK: no if-let guards…
 									match user.employee()
 									{
 										Some(emp) =>
@@ -399,12 +352,12 @@ where
 													..Default::default()
 												}
 												.into(),
-												..match can_get_in_dept
+												..match p
 												{
-													true => MatchEmployee::from(MatchDepartment::from(
-														emp.department.id
-													)).into(),
-													false => MatchEmployee::from(emp.id).into(),
+													Object::ExpensesInDepartment =>
+														MatchEmployee::from(MatchDepartment::from(emp.department.id)).into(),
+													Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
+													_ => unreachable!("unexpected permission: {p:?}"),
 												}
 											})
 											.await
@@ -531,15 +484,15 @@ where
 			router = router.layer(
 				ServiceBuilder::new()
 					.layer(HandleErrorLayer::new(|err: BoxError| async move {
-						match err.is::<timeout::error::Elapsed>()
-						{
-							#[rustfmt::skip]
-							true => (StatusCode::REQUEST_TIMEOUT, "Request took too long".to_owned()),
-							false => (
-								StatusCode::INTERNAL_SERVER_ERROR,
-								format!("Unhandled internal error: {err}"),
-							),
-						}
+						err.is::<timeout::error::Elapsed>().then_or_else(
+							|| (StatusCode::REQUEST_TIMEOUT, "Request took too long".to_owned()),
+							|| {
+								(
+									StatusCode::INTERNAL_SERVER_ERROR,
+									format!("Unhandled internal error: {err}"),
+								)
+							},
+						)
 					}))
 					.timeout(t),
 			);
