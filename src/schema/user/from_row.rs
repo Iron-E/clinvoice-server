@@ -29,13 +29,10 @@ mod postgres
 			let employee_id: Option<Id> = row.try_get(EMPLOYEE_COLUMNS.id)?;
 
 			Ok(Self {
-				employee: employee_id
-					.map(|_| PgEmployee::row_to_view(EMPLOYEE_COLUMNS, DEPARTMENT_COLUMNS, row)),
+				employee: employee_id.map(|_| PgEmployee::row_to_view(EMPLOYEE_COLUMNS, DEPARTMENT_COLUMNS, row)),
 				id: row.try_get(USER_COLUMNS.id)?,
 				password: row.try_get(USER_COLUMNS.password)?,
-				password_expires: row
-					.try_get(USER_COLUMNS.password_expires)
-					.map(pg_util::naive_date_opt_to_utc)?,
+				password_expires: row.try_get(USER_COLUMNS.password_expires).map(pg_util::naive_date_opt_to_utc)?,
 				role: PgRole::row_to_view(&ROLE_COLUMNS, row)?,
 				username: row.try_get(USER_COLUMNS.username)?,
 			})

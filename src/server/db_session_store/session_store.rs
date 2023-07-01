@@ -28,9 +28,7 @@ mod postgres
 		#[instrument(level = "trace", skip_all, err)]
 		async fn destroy_session(&self, session: Session) -> Result
 		{
-			sqlx::query!("DELETE FROM sessions WHERE id = $1;", session.id())
-				.execute(&self.pool)
-				.await?;
+			sqlx::query!("DELETE FROM sessions WHERE id = $1;", session.id()).execute(&self.pool).await?;
 
 			Ok(())
 		}
@@ -54,8 +52,8 @@ mod postgres
 		async fn store_session(&self, session: Session) -> Result<Option<String>>
 		{
 			sqlx::query!(
-				"INSERT INTO sessions (id, session, expiry) VALUES ($1, $2, $3) ON CONFLICT(id) \
-				 DO UPDATE SET expiry = EXCLUDED.expiry, session = EXCLUDED.session",
+				"INSERT INTO sessions (id, session, expiry) VALUES ($1, $2, $3) ON CONFLICT(id) DO UPDATE SET expiry \
+				 = EXCLUDED.expiry, session = EXCLUDED.session",
 				session.id(),
 				Json(&session) as _,
 				session.expiry().map(DateTime::naive_utc)
@@ -84,9 +82,7 @@ mod postgres
 		/// Get a row in the database matching `$id`.
 		macro_rules! select {
 			($connection:expr, $id:expr) => {
-				sqlx::query!("SELECT * FROM sessions WHERE id = $1", $id)
-					.fetch_optional($connection)
-					.await
+				sqlx::query!("SELECT * FROM sessions WHERE id = $1", $id).fetch_optional($connection).await
 			};
 		}
 
@@ -95,10 +91,7 @@ mod postgres
 		async fn session_store() -> DynResult<()>
 		{
 			/// assert session was stored properly
-			async fn assert_store_session<'conn, E>(
-				connection: E,
-				session: &Session,
-			) -> DynResult<()>
+			async fn assert_store_session<'conn, E>(connection: E, session: &Session) -> DynResult<()>
 			where
 				E: Executor<'conn, Database = Postgres>,
 			{
@@ -110,10 +103,7 @@ mod postgres
 				};
 
 				let json = serde_json::to_value(session)?;
-				assert_eq!(
-					session_row.expiry,
-					session.expiry().map(|d| d.pg_sanitize().naive_utc())
-				);
+				assert_eq!(session_row.expiry, session.expiry().map(|d| d.pg_sanitize().naive_utc()));
 				assert_eq!(session_row.session, json);
 				assert_str_eq!(session_row.id, session.id());
 
@@ -164,8 +154,7 @@ mod postgres
 			session.insert("key", "value")?;
 			store.store_session(session).await?;
 			store.clear_store().await?;
-			let retrieved =
-				sqlx::query!("SELECT * FROM sessions;").fetch_all(store.connection()).await?;
+			let retrieved = sqlx::query!("SELECT * FROM sessions;").fetch_all(store.connection()).await?;
 			assert_eq!(retrieved.len(), 0);
 
 			Ok(())

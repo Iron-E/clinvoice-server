@@ -12,23 +12,14 @@ use crate::schema::{Role, RoleAdapter};
 impl RoleAdapter for PgRole
 {
 	#[tracing::instrument(level = "trace", skip(connection), err)]
-	async fn create<'connection, Conn>(
-		connection: Conn,
-		name: String,
-		password_ttl: Option<Duration>,
-	) -> Result<Role>
+	async fn create<'connection, Conn>(connection: Conn, name: String, password_ttl: Option<Duration>) -> Result<Role>
 	where
 		Conn: Executor<'connection, Database = Postgres>,
 	{
 		let id = Id::new_v4();
-		sqlx::query!(
-			"INSERT INTO roles (id, name, password_ttl) VALUES ($1, $2, $3);",
-			id,
-			name,
-			password_ttl as _,
-		)
-		.execute(connection)
-		.await?;
+		sqlx::query!("INSERT INTO roles (id, name, password_ttl) VALUES ($1, $2, $3);", id, name, password_ttl as _,)
+			.execute(connection)
+			.await?;
 
 		Ok(Role::new(id, name, password_ttl))
 	}
@@ -67,12 +58,7 @@ pub(in crate::schema::postgres) mod tests
 	/// `(admin, guest)`.
 	pub async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(Role, Role)>
 	{
-		let admin = PgRole::create(
-			&mut *tx,
-			words::sentence(4),
-			Duration::from_secs(SECONDS_PER_MONTH).into(),
-		)
-		.await?;
+		let admin = PgRole::create(&mut *tx, words::sentence(4), Duration::from_secs(SECONDS_PER_MONTH).into()).await?;
 
 		let guest = PgRole::create(&mut *tx, words::sentence(4), None).await?;
 
@@ -88,17 +74,13 @@ pub(in crate::schema::postgres) mod tests
 		let (admin, guest) = setup(&mut tx).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
 
-		let admin_row = rows
-			.get(&admin.id())
-			.ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
-		let guest_row = rows
-			.get(&guest.id())
-			.ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+		let admin_row =
+			rows.get(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+		let guest_row =
+			rows.get(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
 
-		let admin_row_password_ttl =
-			admin_row.password_ttl.clone().map(duration_from).transpose()?;
-		let guest_row_password_ttl =
-			guest_row.password_ttl.clone().map(duration_from).transpose()?;
+		let admin_row_password_ttl = admin_row.password_ttl.clone().map(duration_from).transpose()?;
+		let guest_row_password_ttl = guest_row.password_ttl.clone().map(duration_from).transpose()?;
 
 		assert_eq!(admin.id(), admin_row.id);
 		assert_eq!(admin.password_ttl(), admin_row_password_ttl);
@@ -149,9 +131,7 @@ pub(in crate::schema::postgres) mod tests
 		assert_str_eq!(guest.name(), guest_row.name());
 		assert_eq!(guest.password_ttl(), guest_row.password_ttl());
 
-		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", admin.id(), guest.id())
-			.execute(&pool)
-			.await?;
+		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", admin.id(), guest.id()).execute(&pool).await?;
 
 		Ok(())
 	}
@@ -171,11 +151,9 @@ pub(in crate::schema::postgres) mod tests
 
 		PgRole::update(&mut tx, [&admin].into_iter()).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
-		let admin_row = rows
-			.get(&admin.id())
-			.ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
-		let admin_row_password_ttl =
-			admin_row.password_ttl.clone().map(duration_from).transpose()?;
+		let admin_row =
+			rows.get(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+		let admin_row_password_ttl = admin_row.password_ttl.clone().map(duration_from).transpose()?;
 
 		assert_eq!(admin.id(), admin_row.id);
 		assert_str_eq!(admin.name(), admin_row.name);

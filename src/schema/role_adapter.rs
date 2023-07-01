@@ -12,11 +12,8 @@ use crate::r#match::MatchRole;
 #[async_trait::async_trait]
 pub trait RoleAdapter:
 	Deletable<Entity = Role>
-	+ Retrievable<
-		Db = <Self as Deletable>::Db,
-		Entity = <Self as Deletable>::Entity,
-		Match = MatchRole,
-	> + Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
+	+ Retrievable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity, Match = MatchRole>
+	+ Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
 {
 	async fn create<'connection, Conn>(
 		connection: Conn,

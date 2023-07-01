@@ -110,19 +110,11 @@ impl Postgres
 			connect_options = connect_options.statement_cache_capacity(c);
 		}
 
-		let pool = PoolOptions::<sqlx::Postgres>::new()
-			.idle_timeout(connection_idle)
-			.connect_with(connect_options)
-			.await?;
+		let pool =
+			PoolOptions::<sqlx::Postgres>::new().idle_timeout(connection_idle).connect_with(connect_options).await?;
 
 		Server::<PgSchema>::new(address, tls)
-			.serve(
-				cookie_domain,
-				cookie_secret,
-				ServerState::new(permissions, pool),
-				session_ttl,
-				timeout,
-			)
+			.serve(cookie_domain, cookie_secret, ServerState::new(permissions, pool), session_ttl, timeout)
 			.await
 	}
 }

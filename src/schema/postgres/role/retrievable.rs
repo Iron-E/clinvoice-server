@@ -23,10 +23,7 @@ impl Retrievable for PgRole
 	type Match = MatchRole;
 
 	#[tracing::instrument(level = "trace", skip(connection), err)]
-	async fn retrieve(
-		connection: &Pool<Postgres>,
-		match_condition: Self::Match,
-	) -> Result<Vec<Self::Entity>>
+	async fn retrieve(connection: &Pool<Postgres>, match_condition: Self::Match) -> Result<Vec<Self::Entity>>
 	{
 		const COLUMNS: RoleColumns = RoleColumns::default();
 
@@ -35,12 +32,7 @@ impl Retrievable for PgRole
 
 		query.push_columns(&columns).push_default_from::<RoleColumns>();
 
-		PgSchema::write_where_clause(
-			Default::default(),
-			RoleColumns::DEFAULT_ALIAS,
-			&match_condition,
-			&mut query,
-		);
+		PgSchema::write_where_clause(Default::default(), RoleColumns::DEFAULT_ALIAS, &match_condition, &mut query);
 
 		tracing::debug!("Generated SQL: {}", query.sql());
 		query

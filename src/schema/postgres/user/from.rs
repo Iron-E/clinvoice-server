@@ -31,15 +31,9 @@ impl<'args> From<PgUser> for QueryBuilder<'args, Postgres>
 			.push_more_columns(&role_columns.r#as(ROLE_COLUMNS_UNIQUE))
 			.push_default_from::<UserColumns>()
 			.push(sql::LEFT)
-			.push_default_equijoin::<EmployeeColumns, _, _>(
-				employee_columns.id,
-				columns.employee_id,
-			)
+			.push_default_equijoin::<EmployeeColumns, _, _>(employee_columns.id, columns.employee_id)
 			.push(sql::LEFT)
-			.push_default_equijoin::<DepartmentColumns, _, _>(
-				department_columns.id,
-				employee_columns.department_id,
-			)
+			.push_default_equijoin::<DepartmentColumns, _, _>(department_columns.id, employee_columns.department_id)
 			.push_default_equijoin::<RoleColumns, _, _>(role_columns.id, columns.role_id);
 
 		query

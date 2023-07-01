@@ -2,12 +2,7 @@
 
 use futures::TryStreamExt;
 use sqlx::{Pool, Postgres, QueryBuilder, Result};
-use winvoice_adapter::{
-	fmt::TableToSql,
-	schema::columns::EmployeeColumns,
-	Retrievable,
-	WriteWhereClause,
-};
+use winvoice_adapter::{fmt::TableToSql, schema::columns::EmployeeColumns, Retrievable, WriteWhereClause};
 use winvoice_adapter_postgres::PgSchema;
 
 use super::PgUser;
@@ -27,10 +22,7 @@ impl Retrievable for PgUser
 	type Match = MatchUser;
 
 	#[tracing::instrument(level = "trace", skip_all, err)]
-	async fn retrieve(
-		connection: &Pool<Postgres>,
-		match_condition: Self::Match,
-	) -> Result<Vec<Self::Entity>>
+	async fn retrieve(connection: &Pool<Postgres>, match_condition: Self::Match) -> Result<Vec<Self::Entity>>
 	{
 		let mut query = QueryBuilder::<Postgres>::from(Self);
 		PgSchema::write_where_clause(

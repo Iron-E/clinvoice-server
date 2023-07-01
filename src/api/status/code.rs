@@ -7,9 +7,7 @@ mod try_from;
 use serde::{Deserialize, Serialize};
 
 /// The specific outcome of an operation.
-#[derive(
-	Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(into = "u8", try_from = "u8")]
 pub enum Code
 {

@@ -52,14 +52,7 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
-use winvoice_match::{
-	Match,
-	MatchDepartment,
-	MatchEmployee,
-	MatchExpense,
-	MatchJob,
-	MatchTimesheet,
-};
+use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
 use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Id, Job, Timesheet};
 
 use crate::{
@@ -90,11 +83,7 @@ macro_rules! route {
 					let condition = request.into_condition();
 					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
 						|e| {
-							Err(Response::from(
-								Retrieve::<<A::$Entity as Retrievable>::Entity>::from(
-									Status::from(&e),
-								),
-							))
+							Err(Response::from(Retrieve::<<A::$Entity as Retrievable>::Entity>::from(Status::from(&e))))
 						},
 						|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
 					)
@@ -126,10 +115,8 @@ where
 	DbSessionStore<A::Db>: Initializable<Db = A::Db> + SessionStore,
 	DbUserStore<A::Db>: UserStore,
 	for<'args> QueryBuilder<'args, A::Db>: From<A::User>,
-	for<'connection> &'connection mut <A::Db as Database>::Connection:
-		Executor<'connection, Database = A::Db>,
-	for<'connection> &'connection mut Transaction<'connection, A::Db>:
-		Executor<'connection, Database = A::Db>,
+	for<'connection> &'connection mut <A::Db as Database>::Connection: Executor<'connection, Database = A::Db>,
+	for<'connection> &'connection mut Transaction<'connection, A::Db>: Executor<'connection, Database = A::Db>,
 {
 	/// Create a new [`Server`]
 	pub const fn new(address: SocketAddr, tls: RustlsConfig) -> Self
@@ -149,8 +136,7 @@ where
 		timeout: Option<Duration>,
 	) -> DynResult<()>
 	{
-		let router =
-			Self::router(cookie_domain, cookie_secret, state, session_ttl, timeout).await?;
+		let router = Self::router(cookie_domain, cookie_secret, state, session_ttl, timeout).await?;
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
@@ -197,8 +183,7 @@ where
 					|version| {
 						version.to_str().map_or_else(encoding_err, |v| {
 							VersionReq::parse(v).map_or_else(encoding_err, |req| {
-								req.matches(api::version())
-									.then_some_or(Err(VersionResponse::mismatch()), Ok(()))
+								req.matches(api::version()).then_some_or(Err(VersionResponse::mismatch()), Ok(()))
 							})
 						})
 					},
@@ -220,8 +205,7 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
-							let permission =
-								state.department_permissions(&user, Action::Retrieve).await?;
+							let permission = state.department_permissions(&user, Action::Retrieve).await?;
 
 							let mut condition = request.into_condition();
 							let code = match permission
@@ -230,11 +214,7 @@ where
 								Object::AssignedDepartment =>
 								{
 									condition = user.employee().map_or_else(
-										|| {
-											MatchDepartment::from(Match::<Id>::Not(
-												Default::default(),
-											))
-										},
+										|| MatchDepartment::from(Match::<Id>::Not(Default::default())),
 										|e| e.department.id.into(),
 									);
 
@@ -245,11 +225,7 @@ where
 							};
 
 							A::Department::retrieve(state.pool(), condition).await.map_or_else(
-								|e| {
-									Err(Response::from(Retrieve::<Department>::from(Status::from(
-										&e,
-									))))
-								},
+								|e| Err(Response::from(Retrieve::<Department>::from(Status::from(&e)))),
 								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
 							)
 						},
@@ -264,9 +240,8 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
-							let permission = state
-								.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve)
-								.await?;
+							let permission =
+								state.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve).await?;
 
 							let condition = request.into_condition();
 							#[rustfmt::skip]
@@ -320,9 +295,8 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
-							let permission = state
-								.expense_permissions::<Retrieve<Expense>>(&user, Action::Retrieve)
-								.await?;
+							let permission =
+								state.expense_permissions::<Retrieve<Expense>>(&user, Action::Retrieve).await?;
 
 							let condition = request.into_condition();
 							#[rustfmt::skip]
@@ -396,13 +370,7 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchJob>>| async move {
-							state
-								.enforce_permission::<Retrieve<Job>>(
-									&user,
-									Object::Job,
-									Action::Retrieve,
-								)
-								.await?;
+							state.enforce_permission::<Retrieve<Job>>(&user, Object::Job, Action::Retrieve).await?;
 
 							let condition = request.into_condition();
 							A::Job::retrieve(state.pool(), condition).await.map_or_else(
@@ -414,15 +382,9 @@ where
 					.patch(|| async move { todo("Update method not implemented") })
 					.post(|| async move { todo("job create") }),
 			)
-			.route(
-				routes::LOCATION,
-				route!(Location).post(|| async move { todo("location create") }),
-			)
+			.route(routes::LOCATION, route!(Location).post(|| async move { todo("location create") }))
 			.route(routes::LOGOUT, routing::get(Self::handle_get_logout))
-			.route(
-				routes::ORGANIZATION,
-				route!(Organization).post(|| async move { todo("organization create") }),
-			)
+			.route(routes::ORGANIZATION, route!(Organization).post(|| async move { todo("organization create") }))
 			.route(routes::ROLE, route!(Role).post(|| async move { todo("role create") }))
 			.route(
 				routes::TIMESHEET,
@@ -432,20 +394,12 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
 							state
-								.enforce_permission::<Retrieve<Timesheet>>(
-									&user,
-									Object::Timesheet,
-									Action::Retrieve,
-								)
+								.enforce_permission::<Retrieve<Timesheet>>(&user, Object::Timesheet, Action::Retrieve)
 								.await?;
 
 							let condition = request.into_condition();
 							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
-								|e| {
-									Err(Response::from(Retrieve::<Timesheet>::from(Status::from(
-										&e,
-									))))
-								},
+								|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
 								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
 							)
 						},
@@ -460,13 +414,7 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
-							state
-								.enforce_permission::<Retrieve<User>>(
-									&user,
-									Object::User,
-									Action::Retrieve,
-								)
-								.await?;
+							state.enforce_permission::<Retrieve<User>>(&user, Object::User, Action::Retrieve).await?;
 
 							let condition = request.into_condition();
 							A::User::retrieve(state.pool(), condition).await.map_or_else(
@@ -488,12 +436,7 @@ where
 					.layer(HandleErrorLayer::new(|err: BoxError| async move {
 						err.is::<timeout::error::Elapsed>().then_or_else(
 							|| (StatusCode::REQUEST_TIMEOUT, "Request took too long".to_owned()),
-							|| {
-								(
-									StatusCode::INTERNAL_SERVER_ERROR,
-									format!("Unhandled internal error: {err}"),
-								)
-							},
+							|| (StatusCode::INTERNAL_SERVER_ERROR, format!("Unhandled internal error: {err}")),
 						)
 					}))
 					.timeout(t),
@@ -504,17 +447,13 @@ where
 			.layer(AuthLayer::new(
 				SqlxStore::<_, User>::new(state.pool().clone()).with_query({
 					let mut query = QueryBuilder::<A::Db>::from(A::User::default());
-					query
-						.push(sql::WHERE)
-						.push(UserColumns::default().default_scope().id)
-						.push(" = $1");
+					query.push(sql::WHERE).push(UserColumns::default().default_scope().id).push(" = $1");
 					query.into_sql()
 				}),
 				&cookie_secret,
 			))
 			.layer({
-				let mut layer = SessionLayer::new(session_store, &cookie_secret)
-					.with_session_ttl(session_ttl.into());
+				let mut layer = SessionLayer::new(session_store, &cookie_secret).with_session_ttl(session_ttl.into());
 
 				if let Some(s) = cookie_domain
 				{
@@ -551,22 +490,17 @@ where
 
 		PasswordHash::new(user.password()).map_or_else(
 			|e| {
-				tracing::error!(
-					"Failed to decode user {}'s password hash stored in database",
-					user.username()
-				);
+				tracing::error!("Failed to decode user {}'s password hash stored in database", user.username());
 				Err(LoginResponse::new(
 					StatusCode::INTERNAL_SERVER_ERROR,
 					Status::new(Code::EncodingError, e.to_string()),
 				))
 			},
 			|hash| {
-				Argon2::default().verify_password(credentials.password().as_bytes(), &hash).map_err(
-					|e| {
-						tracing::info!("Invalid login attempt for user {}", user.username());
-						LoginResponse::from(e)
-					},
-				)
+				Argon2::default().verify_password(credentials.password().as_bytes(), &hash).map_err(|e| {
+					tracing::info!("Invalid login attempt for user {}", user.username());
+					LoginResponse::from(e)
+				})
 			},
 		)?;
 
@@ -788,10 +722,7 @@ mod tests
 		let response = client
 			.get(routes::LOGIN)
 			.header(api::HEADER, version_req())
-			.header(
-				header::AUTHORIZATION,
-				format!("Basic {}", base64::encode(format!("{username}:{password}"))),
-			)
+			.header(header::AUTHORIZATION, format!("Basic {}", base64::encode(format!("{username}:{password}"))))
 			.send()
 			.await;
 
@@ -833,21 +764,15 @@ mod tests
 
 		// assert logged in user without permissions is rejected
 		login(&client, admin.username(), &admin_password).await;
-		let response = get_request_builder(client, route)
-			.json(&request::Retrieve::new(condition))
-			.send()
-			.await;
+		let response = get_request_builder(client, route).json(&request::Retrieve::new(condition)).send().await;
 
 		let status = response.status();
 		let text = response.text().await;
 
-		let actual =
-			serde_json::from_str::<Retrieve<E>>(&text).map(|r| Response::new(status, r)).unwrap();
+		let actual = serde_json::from_str::<Retrieve<E>>(&text).map(|r| Response::new(status, r)).unwrap();
 
-		let expected = Response::from(Retrieve::<E>::new(
-			entities.into_iter().cloned().collect(),
-			Code::Success.into(),
-		));
+		let expected =
+			Response::from(Retrieve::<E>::new(entities.into_iter().cloned().collect(), Code::Success.into()));
 
 		assert_eq!(
 			actual.content().entities().into_iter().collect::<HashSet<_>>(),
@@ -859,12 +784,8 @@ mod tests
 	}
 
 	#[tracing::instrument(skip(client))]
-	async fn test_get_guest<'ent, M>(
-		client: &TestClient,
-		route: &str,
-		guest: &User,
-		guest_password: &str,
-	) where
+	async fn test_get_guest<'ent, M>(client: &TestClient, route: &str, guest: &User, guest_password: &str)
+	where
 		M: Debug + Default + Serialize,
 	{
 		use pretty_assertions::assert_eq;
@@ -876,10 +797,7 @@ mod tests
 
 		// assert logged in user without permissions is rejected
 		login(&client, guest.username(), &guest_password).await;
-		let response = get_request_builder(client, route)
-			.json(&request::Retrieve::new(M::default()))
-			.send()
-			.await;
+		let response = get_request_builder(client, route).json(&request::Retrieve::new(M::default())).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Retrieve<()>>().await);
 		let expected = Response::from(Retrieve::<()>::from(Status::from(Code::Unauthorized)));
@@ -930,9 +848,7 @@ mod tests
 			let (client, pool, admin, admin_password, guest, guest_password) =
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
-			let contact_ =
-				PgContact::create(&pool, ContactKind::Email(contact::email()), words::sentence(4))
-					.await?;
+			let contact_ = PgContact::create(&pool, ContactKind::Email(contact::email()), words::sentence(4)).await?;
 			test_get_admin(
 				&client,
 				routes::CONTACT,
@@ -941,9 +857,7 @@ mod tests
 				[&contact_].into_iter(),
 				MatchContact::from(contact_.label.clone()),
 			)
-			.then(|_| {
-				test_get_guest::<MatchContact>(&client, routes::CONTACT, &guest, &guest_password)
-			})
+			.then(|_| test_get_guest::<MatchContact>(&client, routes::CONTACT, &guest, &guest_password))
 			.await;
 
 			let department = PgDepartment::create(&pool, rand_department_name()).await?;
@@ -955,18 +869,10 @@ mod tests
 				[&department].into_iter(),
 				MatchDepartment::from(department.id),
 			)
-			.then(|_| {
-				test_get_guest::<MatchDepartment>(
-					&client,
-					routes::DEPARTMENT,
-					&guest,
-					&guest_password,
-				)
-			})
+			.then(|_| test_get_guest::<MatchDepartment>(&client, routes::DEPARTMENT, &guest, &guest_password))
 			.await;
 
-			let employee =
-				PgEmployee::create(&pool, department.clone(), name::full(), job::title()).await?;
+			let employee = PgEmployee::create(&pool, department.clone(), name::full(), job::title()).await?;
 			test_get_admin(
 				&client,
 				routes::EMPLOYEE,
@@ -1001,13 +907,10 @@ mod tests
 				[&location].into_iter(),
 				MatchLocation::from(location.id),
 			)
-			.then(|_| {
-				test_get_guest::<MatchLocation>(&client, routes::LOCATION, &guest, &guest_password)
-			})
+			.then(|_| test_get_guest::<MatchLocation>(&client, routes::LOCATION, &guest, &guest_password))
 			.await;
 
-			let organization =
-				PgOrganization::create(&pool, location.clone(), company::company()).await?;
+			let organization = PgOrganization::create(&pool, location.clone(), company::company()).await?;
 			test_get_admin(
 				&client,
 				routes::ORGANIZATION,
@@ -1016,14 +919,7 @@ mod tests
 				[&organization].into_iter(),
 				MatchOrganization::from(organization.id),
 			)
-			.then(|_| {
-				test_get_guest::<MatchOrganization>(
-					&client,
-					routes::ORGANIZATION,
-					&guest,
-					&guest_password,
-				)
-			})
+			.then(|_| test_get_guest::<MatchOrganization>(&client, routes::ORGANIZATION, &guest, &guest_password))
 			.await;
 
 			let rates = ExchangeRates::new().await?;
@@ -1060,16 +956,9 @@ mod tests
 				j.exchange(Default::default(), &rates)
 			};
 
-			test_get_admin(
-				&client,
-				routes::JOB,
-				&admin,
-				&admin_password,
-				[&job_].into_iter(),
-				MatchJob::from(job_.id),
-			)
-			.then(|_| test_get_guest::<MatchJob>(&client, routes::JOB, &guest, &guest_password))
-			.await;
+			test_get_admin(&client, routes::JOB, &admin, &admin_password, [&job_].into_iter(), MatchJob::from(job_.id))
+				.then(|_| test_get_guest::<MatchJob>(&client, routes::JOB, &guest, &guest_password))
+				.await;
 
 			let timesheet = {
 				let mut tx = pool.begin().await?;
@@ -1096,14 +985,7 @@ mod tests
 				[&timesheet].into_iter(),
 				MatchTimesheet::from(timesheet.id),
 			)
-			.then(|_| {
-				test_get_guest::<MatchTimesheet>(
-					&client,
-					routes::TIMESHEET,
-					&guest,
-					&guest_password,
-				)
-			})
+			.then(|_| test_get_guest::<MatchTimesheet>(&client, routes::TIMESHEET, &guest, &guest_password))
 			.await;
 
 			let expenses = PgExpenses::create(
@@ -1168,16 +1050,12 @@ mod tests
 				expenses.iter(),
 				MatchExpense::from(Match::Or(expenses.iter().map(|x| x.id.into()).collect())),
 			)
-			.then(|_| {
-				test_get_guest::<MatchExpense>(&client, routes::EXPENSE, &guest, &guest_password)
-			})
+			.then(|_| test_get_guest::<MatchExpense>(&client, routes::EXPENSE, &guest, &guest_password))
 			.await;
 
-			let admin_db = serde_json::to_string(&admin)
-				.and_then(|json| serde_json::from_str::<User>(&json))?;
+			let admin_db = serde_json::to_string(&admin).and_then(|json| serde_json::from_str::<User>(&json))?;
 
-			let guest_db = serde_json::to_string(&guest)
-				.and_then(|json| serde_json::from_str::<User>(&json))?;
+			let guest_db = serde_json::to_string(&guest).and_then(|json| serde_json::from_str::<User>(&json))?;
 
 			let users = [admin_db, guest_db];
 			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
@@ -1204,10 +1082,7 @@ mod tests
 			.await;
 
 			PgUser::delete(&pool, users.iter()).await?;
-			futures::try_join!(
-				PgRole::delete(&pool, roles.iter()),
-				PgJob::delete(&pool, [&job_].into_iter())
-			)?;
+			futures::try_join!(PgRole::delete(&pool, roles.iter()), PgJob::delete(&pool, [&job_].into_iter()))?;
 
 			PgOrganization::delete(&pool, [organization].iter()).await?;
 			futures::try_join!(

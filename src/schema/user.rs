@@ -69,33 +69,16 @@ where
 impl User
 {
 	/// Create a new [`User`].
-	pub fn new(
-		employee: Option<Employee>,
-		id: Id,
-		password: String,
-		role: Role,
-		username: String,
-	) -> DynResult<Self>
+	pub fn new(employee: Option<Employee>, id: Id, password: String, role: Role, username: String) -> DynResult<Self>
 	{
-		let password_expires = role
-			.password_ttl()
-			.map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d))
-			.transpose()?;
+		let password_expires =
+			role.password_ttl().map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d)).transpose()?;
 
 		let argon = ARGON.get_or_init(Argon2::default);
 		let salt = SaltString::generate(&mut OsRng);
 		argon.hash_password(password.as_bytes(), &salt).map_or_else(
 			|e| Err(format!("{e}").into()),
-			|hash| {
-				Ok(Self {
-					employee,
-					id,
-					role,
-					password: hash.to_string(),
-					password_expires,
-					username,
-				})
-			},
+			|hash| Ok(Self { employee, id, role, password: hash.to_string(), password_expires, username }),
 		)
 	}
 

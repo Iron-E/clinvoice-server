@@ -12,11 +12,8 @@ use crate::r#match::MatchUser;
 #[async_trait::async_trait]
 pub trait UserAdapter:
 	Deletable<Entity = User>
-	+ Retrievable<
-		Db = <Self as Deletable>::Db,
-		Entity = <Self as Deletable>::Entity,
-		Match = MatchUser,
-	> + Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
+	+ Retrievable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity, Match = MatchUser>
+	+ Updatable<Db = <Self as Deletable>::Db, Entity = <Self as Deletable>::Entity>
 {
 	/// Initialize and return a new [`User`] via the `connection`.
 	async fn create<'connection, Conn>(

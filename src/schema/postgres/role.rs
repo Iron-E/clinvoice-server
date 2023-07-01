@@ -22,9 +22,8 @@ impl PgRole
 	{
 		let id = row.try_get::<Id, _>(columns.id)?;
 		let name = row.try_get::<String, _>(columns.name)?;
-		let password_ttl = row
-			.try_get::<Option<_>, _>(columns.password_ttl)
-			.and_then(|ttl| ttl.map(duration_from).transpose())?;
+		let password_ttl =
+			row.try_get::<Option<_>, _>(columns.password_ttl).and_then(|ttl| ttl.map(duration_from).transpose())?;
 
 		Ok(Role::new(id, name, password_ttl))
 	}

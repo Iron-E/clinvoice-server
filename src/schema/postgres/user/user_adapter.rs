@@ -21,12 +21,11 @@ impl UserAdapter for PgUser
 	where
 		Conn: Executor<'connection, Database = Postgres>,
 	{
-		let user = User::new(employee, Id::new_v4(), password, role, username)
-			.map_err(|e| Error::Decode(e))?;
+		let user = User::new(employee, Id::new_v4(), password, role, username).map_err(|e| Error::Decode(e))?;
 
 		sqlx::query!(
-			"INSERT INTO users (id, employee_id, password, password_expires, role_id, username) \
-			 VALUES ($1, $2, $3, $4, $5, $6);",
+			"INSERT INTO users (id, employee_id, password, password_expires, role_id, username) VALUES ($1, $2, $3, \
+			 $4, $5, $6);",
 			user.id(),
 			user.employee().map(|e| e.id),
 			user.password(),
@@ -88,18 +87,12 @@ mod tests
 	async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(User, User)>
 	{
 		let (admin, guest) = role::setup(&mut *tx).await?;
-		let guest_user = PgUser::create(
-			&mut *tx,
-			None,
-			password::generate(true, true, true, 8),
-			guest,
-			internet::username(),
-		)
-		.await?;
+		let guest_user =
+			PgUser::create(&mut *tx, None, password::generate(true, true, true, 8), guest, internet::username())
+				.await?;
 
 		let department = PgDepartment::create(&mut *tx, rand_department_name()).await?;
-		let admin_employee =
-			PgEmployee::create(&mut *tx, department, name::full(), job::title()).await?;
+		let admin_employee = PgEmployee::create(&mut *tx, department, name::full(), job::title()).await?;
 
 		let admin_user = PgUser::create(
 			&mut *tx,
@@ -122,12 +115,10 @@ mod tests
 		let (guest, admin) = setup(&mut tx).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
 
-		let guest_row = rows
-			.get(&guest.id())
-			.ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
-		let admin_row = rows
-			.get(&admin.id())
-			.ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+		let guest_row =
+			rows.get(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+		let admin_row =
+			rows.get(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
 
 		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee_id);
 		assert_eq!(guest.id(), guest_row.id);
@@ -177,8 +168,7 @@ mod tests
 
 		#[rustfmt::skip]
 		let admin_row = PgUser::retrieve(&pool, admin.id().into()).await.map(|mut v| v.remove(0))?;
-		let guest_row =
-			PgUser::retrieve(&pool, guest.id().into()).await.map(|mut v| v.remove(0))?;
+		let guest_row = PgUser::retrieve(&pool, guest.id().into()).await.map(|mut v| v.remove(0))?;
 
 		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee().map(|e| e.id));
 		assert_eq!(guest.id(), guest_row.id());
@@ -197,17 +187,11 @@ mod tests
 		assert_str_eq!(admin.password(), admin_row.password());
 		assert_str_eq!(admin.username(), admin_row.username());
 
-		sqlx::query!("DELETE FROM users WHERE id IN ($1, $2);", guest.id(), admin.id())
+		sqlx::query!("DELETE FROM users WHERE id IN ($1, $2);", guest.id(), admin.id()).execute(&pool).await?;
+
+		sqlx::query!("DELETE FROM roles WHERE id IN ($1, $2);", guest.role().id(), admin.role().id())
 			.execute(&pool)
 			.await?;
-
-		sqlx::query!(
-			"DELETE FROM roles WHERE id IN ($1, $2);",
-			guest.role().id(),
-			admin.role().id()
-		)
-		.execute(&pool)
-		.await?;
 
 		Ok(())
 	}
@@ -222,15 +206,11 @@ mod tests
 
 		guest = {
 			let guest_dept = PgDepartment::create(&mut tx, rand_department_name()).await?;
-			let guest_emp =
-				PgEmployee::create(&mut tx, guest_dept, name::full(), job::title()).await?;
+			let guest_emp = PgEmployee::create(&mut tx, guest_dept, name::full(), job::title()).await?;
 
-			let intern = PgRole::create(
-				&mut tx,
-				words::sentence(5),
-				Duration::from_secs(rand::random::<u32>().into()).into(),
-			)
-			.await?;
+			let intern =
+				PgRole::create(&mut tx, words::sentence(5), Duration::from_secs(rand::random::<u32>().into()).into())
+					.await?;
 
 			User::new(
 				guest_emp.into(),
@@ -244,9 +224,8 @@ mod tests
 
 		PgUser::update(&mut tx, [&guest].into_iter()).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
-		let guest_row = rows
-			.get(&guest.id())
-			.ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+		let guest_row =
+			rows.get(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
 
 		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee_id);
 		assert_eq!(guest.id(), guest_row.id);

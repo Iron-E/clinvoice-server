@@ -14,10 +14,7 @@ impl Updatable for PgUser
 	type Entity = User;
 
 	#[tracing::instrument(level = "trace", skip_all, err)]
-	async fn update<'entity, Iter>(
-		connection: &mut Transaction<Self::Db>,
-		entities: Iter,
-	) -> Result<()>
+	async fn update<'entity, Iter>(connection: &mut Transaction<Self::Db>, entities: Iter) -> Result<()>
 	where
 		Self::Entity: 'entity,
 		Iter: Clone + Iterator<Item = &'entity Self::Entity> + Send,

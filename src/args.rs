@@ -183,11 +183,7 @@ impl Args
 
 /// Initialize [`tracing`] using the [`tracing_appender`] implementation of
 /// [`tracing_subscriber`].
-fn init_tracing(
-	log_level: LevelFilter,
-	log_dir: Option<PathBuf>,
-	log_rotation: &str,
-) -> DynResult<()>
+fn init_tracing(log_level: LevelFilter, log_dir: Option<PathBuf>, log_rotation: &str) -> DynResult<()>
 {
 	let dir = log_dir
 		.or_else(|| {
@@ -196,9 +192,7 @@ fn init_tracing(
 				d
 			})
 		})
-		.ok_or_else(|| {
-			"Could not find suitable `--log-dir`. Please specify it manually.".to_owned()
-		})?;
+		.ok_or_else(|| "Could not find suitable `--log-dir`. Please specify it manually.".to_owned())?;
 
 	let (non_blocking, _) = tracing_appender::non_blocking(match log_rotation
 	{
@@ -259,9 +253,7 @@ pub(crate) async fn init_watchman(
 				{
 					Ok(SubscriptionData::Canceled) =>
 					{
-						tracing::error!(
-							"Watchman stopped unexpectedly. Hot reloading permissions is disabled."
-						);
+						tracing::error!("Watchman stopped unexpectedly. Hot reloading permissions is disabled.");
 						break;
 					},
 					Ok(SubscriptionData::FilesChanged(query)) =>
@@ -283,8 +275,8 @@ pub(crate) async fn init_watchman(
 					Err(e) =>
 					{
 						tracing::error!(
-							"Encountered an error while watching for file changes: {e}. Hot \
-							 reloading permissions is disabled"
+							"Encountered an error while watching for file changes: {e}. Hot reloading permissions is \
+							 disabled"
 						);
 						break;
 					},

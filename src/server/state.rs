@@ -35,11 +35,7 @@ where
 	///
 	/// If the `user` does not have this permission, it will [`enforce`](Self::enforce_permission)
 	/// the [`Object::AssignedDepartment`] permission.
-	pub async fn department_permissions<R>(
-		&self,
-		user: &User,
-		action: Action,
-	) -> Result<Object, Response<R>>
+	pub async fn department_permissions<R>(&self, user: &User, action: Action) -> Result<Object, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -66,11 +62,7 @@ where
 	///
 	/// If no relevant permissions were found, [`None`] is returned. This indicates that the `user`
 	/// can only operate on their own employee record.
-	pub async fn employee_permissions<R>(
-		&self,
-		user: &User,
-		action: Action,
-	) -> Result<Option<Object>, Response<R>>
+	pub async fn employee_permissions<R>(&self, user: &User, action: Action) -> Result<Option<Object>, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -87,20 +79,13 @@ where
 
 	/// Check [`has_permission`](Self::has_permission), but also return [`Err`] if the [`Result`]
 	/// was [`Ok(false)`].
-	pub async fn enforce_permission<R>(
-		&self,
-		user: &User,
-		object: Object,
-		action: Action,
-	) -> Result<(), Response<R>>
+	pub async fn enforce_permission<R>(&self, user: &User, object: Object, action: Action) -> Result<(), Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
 		self.has_permission(user, object, action).await.and_then(|has_permission| {
-			has_permission.then_some_or_else(
-				|| Err(Response::from(Status::from((user, object, action)).into())),
-				Ok(()),
-			)
+			has_permission
+				.then_some_or_else(|| Err(Response::from(Status::from((user, object, action)).into())), Ok(()))
 		})
 	}
 
@@ -113,11 +98,7 @@ where
 	///
 	/// If *that* permission is missing, then [`enforce`](Self::enforce_permission) the
 	/// [`Object::CreatedExpenses`] permission.
-	pub async fn expense_permissions<R>(
-		&self,
-		user: &User,
-		action: Action,
-	) -> Result<Object, Response<R>>
+	pub async fn expense_permissions<R>(&self, user: &User, action: Action) -> Result<Object, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -139,21 +120,14 @@ where
 	}
 
 	/// Check whether `user` has permission to perform an `action` on the `object`.
-	async fn has_permission<R>(
-		&self,
-		user: &User,
-		object: Object,
-		action: Action,
-	) -> Result<bool, Response<R>>
+	async fn has_permission<R>(&self, user: &User, object: Object, action: Action) -> Result<bool, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
 		let permissions = self.permissions.read().await;
 		permissions
 			.enforce((user.role().name(), object, action))
-			.and_then(|role_authorized| {
-				Ok(role_authorized || permissions.enforce((user.username(), object, action))?)
-			})
+			.and_then(|role_authorized| Ok(role_authorized || permissions.enforce((user.username(), object, action))?))
 			.map_err(|e| Response::from(Status::from(&e).into()))
 	}
 
@@ -162,11 +136,7 @@ where
 	///
 	/// If that permission is missing, then [`enforce`](Self::enforce_permission) that `user` can
 	/// perform an `action` on [`Object::JobInDepartment`].
-	pub async fn job_permissions<R>(
-		&self,
-		user: &User,
-		action: Action,
-	) -> Result<Object, Response<R>>
+	pub async fn job_permissions<R>(&self, user: &User, action: Action) -> Result<Object, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -203,11 +173,7 @@ where
 	///
 	/// If *that* permission is missing, then [`enforce`](Self::enforce_permission) the
 	/// [`Object::CreatedTimesheet`] permission.
-	pub async fn timesheet_permissions<R>(
-		&self,
-		user: &User,
-		action: Action,
-	) -> Result<Object, Response<R>>
+	pub async fn timesheet_permissions<R>(&self, user: &User, action: Action) -> Result<Object, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -237,11 +203,7 @@ where
 	///
 	/// If no relevant permissions were found, [`None`] is returned. This indicates that the `user`
 	/// can only operate on their own employee record.
-	pub async fn user_permissions<R>(
-		&self,
-		user: &User,
-		action: Action,
-	) -> Result<Option<Object>, Response<R>>
+	pub async fn user_permissions<R>(&self, user: &User, action: Action) -> Result<Option<Object>, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{

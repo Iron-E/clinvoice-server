@@ -13,10 +13,7 @@ use {
 #[allow(dead_code)]
 pub fn naive_local_datetime_to_utc(d: NaiveDateTime) -> DateTime<Utc>
 {
-	Local
-		.with_ymd_and_hms(d.year(), d.month(), d.day(), d.hour(), d.minute(), d.second())
-		.unwrap()
-		.into()
+	Local.with_ymd_and_hms(d.year(), d.month(), d.day(), d.hour(), d.minute(), d.second()).unwrap().into()
 }
 
 /// Create a cryptographically-secure, randomly generated key for signing cookies.
@@ -87,11 +84,7 @@ m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 /// * `(model_path, policy_path)`
 #[allow(dead_code)]
 #[cfg(test)]
-pub async fn init_model_and_policy_files<M, P>(
-	dir: &str,
-	model: M,
-	policy: P,
-) -> IoResult<(PathBuf, PathBuf)>
+pub async fn init_model_and_policy_files<M, P>(dir: &str, model: M, policy: P) -> IoResult<(PathBuf, PathBuf)>
 where
 	M: AsRef<[u8]>,
 	P: AsRef<[u8]>,

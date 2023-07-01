@@ -37,12 +37,7 @@ mod postgres
 
 			Self::write_where_clause(
 				Self::write_where_clause(
-					Self::write_where_clause(
-						context,
-						columns.id,
-						&match_condition.id.map_copied(PgUuid::from),
-						query,
-					),
+					Self::write_where_clause(context, columns.id, &match_condition.id.map_copied(PgUuid::from), query),
 					columns.name,
 					&match_condition.name,
 					query,
@@ -81,9 +76,7 @@ mod postgres
 						query,
 					),
 					columns.password_expires,
-					&match_condition
-						.password_expires
-						.map_ref(|m| m.map_copied(PgTimestampTz::from)),
+					&match_condition.password_expires.map_ref(|m| m.map_copied(PgTimestampTz::from)),
 					query,
 				),
 				columns.username,

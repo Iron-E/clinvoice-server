@@ -122,10 +122,6 @@ impl RoleColumns<&'static str>
 	/// ```
 	pub const fn unique() -> Self
 	{
-		Self {
-			id: "unique_8_role_id",
-			name: "unique_8_role_name",
-			password_ttl: "unique_8_role_password_ttl",
-		}
+		Self { id: "unique_8_role_id", name: "unique_8_role_name", password_ttl: "unique_8_role_password_ttl" }
 	}
 }
