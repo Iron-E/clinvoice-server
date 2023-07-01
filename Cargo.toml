@@ -24,7 +24,7 @@ dirs = {optional = true, version = '5'}
 futures = {optional = true, version = '0.3'}
 humantime = {optional = true, version = '2'}
 humantime-serde = '1'
-money2 = {features = ['serde'], optional = true, version = '0.8'}
+money2 = {features = ['serde'], optional = true, version = '1'}
 rand = {optional = true, version = '0.8'}
 semver = {optional = true, version = '1'}
 serde = '1'
@@ -42,29 +42,29 @@ optional = true
 version = '0.4'
 
 [dependencies.winvoice-adapter]
-branch = 'release/0.24'
+branch = 'release/0.25'
 default-features = false
 git = 'https://github.com/Iron-E/winvoice-adapter'
 optional = true
 
 [dependencies.winvoice-adapter-postgres]
-branch = 'release/0.15'
+branch = 'release/0.16'
 git = 'https://github.com/Iron-E/winvoice-adapter-postgres'
 optional = true
 
 [dependencies.winvoice-export]
-branch = 'release/0.6'
+branch = 'release/0.7'
 features = ['markdown']
 git = 'https://github.com/Iron-E/winvoice-export'
 optional = true
 
 [dependencies.winvoice-match]
-branch = 'release/0.13'
+branch = 'release/0.14'
 features = ['serde']
 git = 'https://github.com/Iron-E/winvoice-match'
 
 [dependencies.winvoice-schema]
-branch = 'release/0.15'
+branch = 'release/0.16'
 features = ['serde']
 git = 'https://github.com/Iron-E/winvoice-schema'
 
