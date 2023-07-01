@@ -60,7 +60,7 @@ use winvoice_match::{
 	MatchJob,
 	MatchTimesheet,
 };
-use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
+use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Id, Job, Timesheet};
 
 use crate::{
 	api::{self, request, response::Retrieve, routes, Code, Status},
@@ -223,33 +223,35 @@ where
 							let permission =
 								state.department_permissions(&user, Action::Retrieve).await?;
 
-							let condition = request.into_condition();
-							#[rustfmt::skip]
-							let mut vec = A::Department::retrieve(state.pool(), condition).await.map_err(
-								|e| Response::from(Retrieve::<Department>::from(Status::from(&e)))
-							)?;
-
+							let mut condition = request.into_condition();
 							let code = match permission
 							{
 								Object::Department => Code::Success,
 								Object::AssignedDepartment =>
 								{
-									match user.employee()
-									{
-										Some(e) => vec.retain(|d| e.department.eq(d)),
-
-										// they have no department, so they *effectively* can't
-										// retrieve anything. Clear the vec.
-										None => vec.clear(),
-									};
+									condition = user.employee().map_or_else(
+										|| {
+											MatchDepartment::from(Match::<Id>::Not(
+												Default::default(),
+											))
+										},
+										|e| e.department.id.into(),
+									);
 
 									Code::SuccessForPermissions
 								},
 
-								p => unreachable!("unexpected permission: {p:?}"),
+								_ => unreachable!("unexpected permission: {permission:?}"),
 							};
 
-							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
+							A::Department::retrieve(state.pool(), condition).await.map_or_else(
+								|e| {
+									Err(Response::from(Retrieve::<Department>::from(Status::from(
+										&e,
+									))))
+								},
+								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
+							)
 						},
 					)
 					.patch(|| async move { todo("Update method not implemented") })
