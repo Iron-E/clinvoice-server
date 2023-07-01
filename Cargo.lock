@@ -3884,7 +3884,7 @@ dependencies = [
 [[package]]
 name = "winvoice-adapter"
 version = "0.25.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.25#f459cd751ed196aaf40db78f9b1334d2bccb90a4"
+source = "git+https://github.com/Iron-E/winvoice-adapter?branch=release/0.25#d1f90283f5eb1cbb995c0105e7c3059e726c2937"
 dependencies = [
  "async-trait",
  "futures 0.3.28",
@@ -3896,7 +3896,7 @@ dependencies = [
 [[package]]
 name = "winvoice-adapter-postgres"
 version = "0.16.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.16#bf044832ac9e075df190701adf766522a5638540"
+source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.16#48719fcb4416b601ff509c8ffd6cc631e58f8930"
 dependencies = [
  "async-trait",
  "dotenvy",
@@ -3918,7 +3918,7 @@ dependencies = [
 [[package]]
 name = "winvoice-export"
 version = "0.7.0"
-source = "git+https://github.com/Iron-E/winvoice-export?branch=release/0.7#0cf3a8bb013849c51bdbb3ad3e2aff35f3a67242"
+source = "git+https://github.com/Iron-E/winvoice-export?branch=release/0.7#95b33002bdd145025e2e5c5c70eb0202503434c3"
 dependencies = [
  "strum",
  "thiserror",
@@ -3928,7 +3928,7 @@ dependencies = [
 [[package]]
 name = "winvoice-match"
 version = "0.14.0"
-source = "git+https://github.com/Iron-E/winvoice-match?branch=release/0.14#72c991707ed02a3bd03b98f5a6bc966f46a7fe3a"
+source = "git+https://github.com/Iron-E/winvoice-match?branch=release/0.14#f66298f8247c2eb81520cecd973bfbd347d3aa67"
 dependencies = [
  "humantime-serde",
  "money2",
@@ -3940,7 +3940,7 @@ dependencies = [
 [[package]]
 name = "winvoice-schema"
 version = "0.16.0"
-source = "git+https://github.com/Iron-E/winvoice-schema?branch=release/0.16#42ba312293b44302b0f7b2912d419f6c64c52e59"
+source = "git+https://github.com/Iron-E/winvoice-schema?branch=release/0.16#8fbfbb32ffbc7a88b6b344a8afbbb226ecfb9eae"
 dependencies = [
  "chrono",
  "futures 0.3.28",

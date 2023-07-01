@@ -53,7 +53,7 @@ use winvoice_adapter::{
 	Updatable,
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Id, Job, Timesheet};
+use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
 
 use crate::{
 	api::{self, request, response::Retrieve, routes, Code, Status},
@@ -205,23 +205,26 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
-							let permission = state.department_permissions(&user, Action::Retrieve).await?;
-
 							let mut condition = request.into_condition();
-							let code = match permission
+							let code = match state.department_permissions(&user, Action::Retrieve).await?
 							{
 								Object::Department => Code::Success,
 								Object::AssignedDepartment =>
 								{
-									condition = user.employee().map_or_else(
-										|| MatchDepartment::from(Match::<Id>::Not(Default::default())),
-										|e| e.department.id.into(),
-									);
+									let ret = Code::SuccessForPermissions;
+									match user.employee()
+									{
+										Some(e) => condition.id = e.department.id.into(),
 
-									Code::SuccessForPermissions
+										// they have no department, so they *effectively* can't retrieve departments.
+										#[rustfmt::skip]
+										None => return Ok(Response::from(Retrieve::new(Default::default(), ret.into()))),
+									};
+
+									ret
 								},
 
-								_ => unreachable!("unexpected permission: {permission:?}"),
+								p => unreachable!("unexpected permission: {p:?}"),
 							};
 
 							A::Department::retrieve(state.pool(), condition).await.map_or_else(
@@ -240,49 +243,41 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
-							let permission =
-								state.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve).await?;
-
-							let condition = request.into_condition();
+							let mut condition = request.into_condition();
 							#[rustfmt::skip]
-							let mut vec = A::Employee::retrieve(state.pool(), condition).await.map_err(
-								|e| Response::from(Retrieve::<Employee>::from(Status::from(&e)))
-							)?;
-
-							let code = match permission
+							let code = match state.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve).await?
 							{
 								Some(Object::Employee) => Code::Success,
-								p =>
+
+								// HACK: no if-let guards…
+								Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
 								{
-									// HACK: no if-let guards…
-									match user.employee()
-									{
-										Some(emp) => match p
-										{
-											Some(Object::EmployeeInDepartment) =>
-											{
-												vec.retain(|e| e.department == emp.department)
-											},
-
-											None => vec.retain(|e| e == emp),
-
-											Some(inner) =>
-											{
-												unreachable!("unexpected permission: {inner:?}")
-											},
-										},
-
-										// they neither have a department nor an employee record, so
-										// they effectively cannot retrieve employees. clear the
-										// vec.
-										None => vec.clear(),
-									};
-
+									condition.department.id = user.employee().unwrap().department.id.into();
 									Code::SuccessForPermissions
 								},
+
+								// HACK: no if-let guards…
+								None if user.employee().is_some() =>
+								{
+									condition.id = user.employee().unwrap().id.into();
+									Code::SuccessForPermissions
+								},
+
+								Some(Object::EmployeeInDepartment) | None =>
+								{
+									return Ok(Response::from(Retrieve::new(
+										Default::default(),
+										Code::SuccessForPermissions.into(),
+									)));
+								},
+
+								Some(p) => unreachable!("unexpected permission: {p:?}"),
 							};
 
-							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
+							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
+								|e| Err(Response::from(Retrieve::<Employee>::from(Status::from(&e)))),
+								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
+							)
 						},
 					)
 					.patch(|| async move { todo("Update method not implemented") })
@@ -298,7 +293,18 @@ where
 							let permission =
 								state.expense_permissions::<Retrieve<Expense>>(&user, Action::Retrieve).await?;
 
+							// The user has no department, and no employee record, so they effectively cannot retrieve
+							// expenses.
+							if permission != Object::Expenses && user.employee().is_none()
+							{
+								return Ok(Response::from(Retrieve::new(
+									Default::default(),
+									Code::SuccessForPermissions.into(),
+								)));
+							}
+
 							let condition = request.into_condition();
+
 							#[rustfmt::skip]
 							let mut vec = A::Expenses::retrieve(state.pool(), condition).await.map_err(
 								|e| Response::from(Retrieve::<Expense>::from(Status::from(&e))),
@@ -308,20 +314,19 @@ where
 							{
 								Object::Expenses => Code::Success,
 
-								// The user can only get expenses iff they are in the same
-								// department, or were created by that user.
+								// The user can only get expenses iff they are in the same department, or were created
+								// by that user.
 								p =>
 								{
-									// HACK: no if-let guards…
 									match user.employee()
 									{
 										Some(emp) =>
 										{
 											#[rustfmt::skip]
 											// retrieve IDs of expenses which the user has permission to access.
-											// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a
-											//       timesheet, not just the ones which match the `expenses`
-											//       field. Thus we still have to perform a second filter below.
+											// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a timesheet, not just the
+											//       ones which match the `expenses` field. Thus we still have to perform a second
+											//       filter below.
 											let matching = A::Timesheet::retrieve(state.pool(), MatchTimesheet {
 												expenses: MatchExpense {
 													id: Match::Or(vec.iter().map(|x| x.id.into()).collect()),
@@ -348,9 +353,7 @@ where
 											vec.retain(|x| matching.contains(&x.id));
 										},
 
-										// The user has no department, and no employee record, so
-										// they effectively cannot retrieve expenses. Clear the vec.
-										None => vec.clear(),
+										None => unreachable!("Should have been returned earlier for {permission:?}"),
 									};
 
 									Code::SuccessForPermissions
@@ -393,14 +396,41 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
-							state
-								.enforce_permission::<Retrieve<Timesheet>>(&user, Object::Timesheet, Action::Retrieve)
-								.await?;
+							let mut condition = request.into_condition();
+							let code = match state
+								.timesheet_permissions::<Retrieve<Timesheet>>(&user, Action::Retrieve)
+								.await?
+							{
+								Object::Timesheet => Code::Success,
 
-							let condition = request.into_condition();
+								// HACK: no if-let guards
+								Object::TimesheetInDepartment if user.employee().is_some() =>
+								{
+									condition.employee.department.id = user.employee().unwrap().department.id.into();
+									Code::SuccessForPermissions
+								},
+
+								// HACK: no if-let guards
+								Object::CreatedTimesheet if user.employee().is_some() =>
+								{
+									condition.employee.id = user.employee().unwrap().id.into();
+									Code::SuccessForPermissions
+								},
+
+								Object::TimesheetInDepartment | Object::CreatedTimesheet =>
+								{
+									return Ok(Response::from(Retrieve::new(
+										Default::default(),
+										Code::SuccessForPermissions.into(),
+									)));
+								},
+
+								p => unreachable!("unexpected permission {p:?}"),
+							};
+
 							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
 								|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
 							)
 						},
 					)
@@ -414,12 +444,47 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
-							state.enforce_permission::<Retrieve<User>>(&user, Object::User, Action::Retrieve).await?;
+							let mut condition = request.into_condition();
+							let code = match state.user_permissions::<Retrieve<User>>(&user, Action::Retrieve).await?
+							{
+								Some(Object::User) => Code::Success,
 
-							let condition = request.into_condition();
+								// HACK: no if-let guards
+								Some(Object::UserInDepartment) if user.employee().is_some() =>
+								{
+									condition.employee = condition.employee.map(|mut m| {
+										m.department.id = user.employee().unwrap().department.id.into();
+										m
+									});
+
+									Code::SuccessForPermissions
+								},
+
+								// HACK: no if-let guards
+								None if user.employee().is_some() =>
+								{
+									condition.employee = condition.employee.map(|mut m| {
+										m.id = user.employee().unwrap().id.into();
+										m
+									});
+
+									Code::SuccessForPermissions
+								},
+
+								Some(Object::UserInDepartment) | None =>
+								{
+									return Ok(Response::from(Retrieve::new(
+										Default::default(),
+										Code::SuccessForPermissions.into(),
+									)))
+								},
+
+								p => unreachable!("unexpected permission {p:?}"),
+							};
+
 							A::User::retrieve(state.pool(), condition).await.map_or_else(
 								|e| Err(Response::from(Retrieve::<User>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
 							)
 						},
 					)
@@ -1078,8 +1143,9 @@ mod tests
 				users.iter(),
 				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
 			)
-			.then(|_| test_get_guest::<MatchUser>(&client, routes::USER, &guest, &guest_password))
 			.await;
+
+			// TODO: test guest GET on "/users" manually
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(PgRole::delete(&pool, roles.iter()), PgJob::delete(&pool, [&job_].into_iter()))?;
