@@ -631,6 +631,30 @@ mod tests
 	const DEFAULT_SESSION_TTL: Duration = Duration::from_secs(60 * 2);
 	const DEFAULT_TIMEOUT: Option<Duration> = Some(Duration::from_secs(60 * 3));
 
+	/// Data used for tests.
+	struct TestData<Db>
+	where
+		Db: Database,
+	{
+		/// A user with every top-level permissions.
+		admin: (User, String),
+
+		/// An HTTP client which can be used to communicate with a local instance of the winvoice server.
+		client: TestClient,
+
+		/// A user with mid-level permissions.
+		manager: (User, String),
+
+		/// A user with bottom-level permissions.
+		grunt: (User, String),
+
+		/// A user with no permissions.
+		guest: (User, String),
+
+		/// A connection to the database.
+		pool: Pool<Db>,
+	}
+
 	macro_rules! fn_setup {
 		($Adapter:ty, $Db:ty, $connect:path, $rand_department_name:path) => {
 			/// Setup for the tests.
@@ -638,33 +662,51 @@ mod tests
 			/// # Returns
 			///
 			/// * `(client, pool, admin, admin_password, guest, guest_password)`
-			async fn setup(
-				test: &str,
-				session_ttl: Duration,
-				time_out: Option<Duration>,
-			) -> DynResult<(TestClient, Pool<$Db>, User, String, User, String)>
+			async fn setup(test: &str, session_ttl: Duration, time_out: Option<Duration>) -> DynResult<TestData<$Db>>
 			{
 				let admin_role_name = words::sentence(5);
+				let grunt_role_name = words::sentence(5);
+				let manager_role_name = words::sentence(5);
+
 				let policy = {
 					let mut policy_csv = WriterBuilder::new().has_headers(false).from_writer(Vec::new());
-					let mut write = |obj: Object| -> csv::Result<()> {
-						policy_csv.serialize(("p", &admin_role_name, obj, Action::Create))?;
-						policy_csv.serialize(("p", &admin_role_name, obj, Action::Delete))?;
-						policy_csv.serialize(("p", &admin_role_name, obj, Action::Retrieve))?;
-						policy_csv.serialize(("p", &admin_role_name, obj, Action::Update))?;
+					let mut write = |role: &str, obj: Object| -> csv::Result<()> {
+						policy_csv.serialize(("p", role, obj, Action::Create))?;
+						policy_csv.serialize(("p", role, obj, Action::Delete))?;
+						policy_csv.serialize(("p", role, obj, Action::Retrieve))?;
+						policy_csv.serialize(("p", role, obj, Action::Update))?;
 						Ok(())
 					};
 
-					write(Object::Contact)?;
-					write(Object::Department)?;
-					write(Object::Employee)?;
-					write(Object::Expenses)?;
-					write(Object::Job)?;
-					write(Object::Location)?;
-					write(Object::Organization)?;
-					write(Object::Role)?;
-					write(Object::Timesheet)?;
-					write(Object::User)?;
+					{
+						let mut admin = |obj: Object| -> csv::Result<()> { write(&admin_role_name, obj) };
+						admin(Object::Contact)?;
+						admin(Object::Department)?;
+						admin(Object::Employee)?;
+						admin(Object::Expenses)?;
+						admin(Object::Job)?;
+						admin(Object::Location)?;
+						admin(Object::Organization)?;
+						admin(Object::Role)?;
+						admin(Object::Timesheet)?;
+						admin(Object::User)?;
+					}
+
+					{
+						let mut grunt = |obj: Object| -> csv::Result<()> { write(&grunt_role_name, obj) };
+						grunt(Object::CreatedExpenses)?;
+						grunt(Object::CreatedTimesheet)?;
+					}
+
+					{
+						let mut manager = |obj: Object| -> csv::Result<()> { write(&manager_role_name, obj) };
+						manager(Object::AssignedDepartment)?;
+						manager(Object::EmployeeInDepartment)?;
+						manager(Object::ExpensesInDepartment)?;
+						manager(Object::JobInDepartment)?;
+						manager(Object::TimesheetInDepartment)?;
+						manager(Object::UserInDepartment)?;
+					}
 
 					let inner = policy_csv.into_inner()?;
 					String::from_utf8(inner)?
@@ -672,17 +714,15 @@ mod tests
 
 				tracing::debug!("Generated policy: {policy}");
 
-				#[rustfmt::skip]
 				let (model_path, policy_path) = utils::init_model_and_policy_files(
 					&format!("server::{}::{test}", stringify!($Adapter)),
 					utils::Model::Rbac.to_string(),
 					policy,
 				)
 				.await
-				.map(|(m, p)| (
-						utils::leak_string(m.to_string_lossy().into()),
-						utils::leak_string(p.to_string_lossy().into()),
-				))?;
+				.map(|(m, p)| {
+					(utils::leak_string(m.to_string_lossy().into()), utils::leak_string(p.to_string_lossy().into()))
+				})?;
 
 				let enforcer = Enforcer::new(model_path, policy_path).await.map(lock::new)?;
 
@@ -697,10 +737,12 @@ mod tests
 				.await?;
 
 				let admin_password = password::generate(true, true, true, 8);
+				let grunt_password = password::generate(true, true, true, 8);
 				let guest_password = password::generate(true, true, true, 8);
+				let manager_password = password::generate(true, true, true, 8);
 
 				#[rustfmt::skip]
-				let (admin, guest) = futures::try_join!(
+							let (admin, grunt, guest, manager) = futures::try_join!(
 					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
 						$rand_department_name()
 					).and_then(|department|
@@ -721,23 +763,54 @@ mod tests
 						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
 							words::sentence(5), Duration::from_secs(60).into(),
 						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
+							employee.into(), grunt_password.to_owned(), role, internet::username(),
+						)))
+					),
+
+					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
+						$rand_department_name()
+					).and_then(|department|
+						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
+							department, name::full(), job::title(),
+						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
+							words::sentence(5), Duration::from_secs(60).into(),
+						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
 							employee.into(), guest_password.to_owned(), role, internet::username(),
+						)))
+					),
+
+					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
+						$rand_department_name()
+					).and_then(|department|
+						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
+							department, name::full(), job::title(),
+						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
+							words::sentence(5), Duration::from_secs(60).into(),
+						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
+							employee.into(), manager_password.to_owned(), role, internet::username(),
 						)))
 					),
 				)?;
 
-				Ok((TestClient::new(server), pool, admin, admin_password, guest, guest_password))
+				Ok(TestData {
+					client: TestClient::new(server),
+					pool,
+					admin: (admin, admin_password),
+					grunt: (grunt, grunt_password),
+					guest: (guest, guest_password),
+					manager: (manager, manager_password),
+				})
 			}
 
 			#[tokio::test]
 			#[traced_test]
 			async fn rejections() -> DynResult<()>
 			{
-				let (client, _, admin, admin_password, ..) =
+				let TestData { client, admin: (admin, admin_password), .. } =
 					setup("rejections", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 				#[rustfmt::skip]
-				stream::iter([
+							stream::iter([
 					routes::CONTACT, routes::EMPLOYEE, routes::EXPENSE, routes::JOB, routes::LOCATION,
 					routes::LOGOUT, routes::ORGANIZATION, routes::ROLE, routes::TIMESHEET, routes::USER,
 				])
@@ -910,8 +983,14 @@ mod tests
 		#[traced_test]
 		async fn get() -> DynResult<()>
 		{
-			let (client, pool, admin, admin_password, guest, guest_password) =
-				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+			let TestData {
+				admin: (admin, admin_password),
+				client,
+				grunt: (grunt, grunt_password),
+				guest: (guest, guest_password),
+				manager: (manager, manager_password),
+				pool,
+			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 			let contact_ = PgContact::create(&pool, ContactKind::Email(contact::email()), words::sentence(4)).await?;
 			test_get_admin(
