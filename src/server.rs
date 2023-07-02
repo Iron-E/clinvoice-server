@@ -922,6 +922,49 @@ mod tests
 	}
 
 	#[tracing::instrument(skip(client))]
+	async fn test_get_grunt<'ent, E, Iter, M>(
+		client: &TestClient,
+		route: &str,
+		grunt: &User,
+		grunt_password: &str,
+		entities: Iter,
+		condition: M,
+	) where
+		E: 'ent + Clone + Debug + DeserializeOwned + Eq + Hash + PartialEq + Serialize,
+		Iter: Debug + Iterator<Item = &'ent E>,
+		M: Debug + Default + Serialize,
+	{
+		use pretty_assertions::assert_eq;
+
+		// HACK: `tracing` doesn't work correctly with asyn cso I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
+
+		// assert logged in user without permissions is rejected
+		login(&client, grunt.username(), &grunt_password).await;
+		let response = get_request_builder(client, route).json(&request::Retrieve::new(condition)).send().await;
+
+		let status = response.status();
+		let text = response.text().await;
+
+		let actual = serde_json::from_str::<Retrieve<E>>(&text).map(|r| Response::new(status, r)).unwrap();
+
+		let expected = Response::from(Retrieve::<E>::new(
+			entities.into_iter().cloned().collect(),
+			Code::SuccessForPermissions.into(),
+		));
+
+		assert_eq!(
+			actual.content().entities().into_iter().collect::<HashSet<_>>(),
+			expected.content().entities().into_iter().collect::<HashSet<_>>()
+		);
+		assert_eq!(actual.content().status(), expected.content().status());
+		assert_eq!(actual.status(), expected.status());
+		logout(&client).await;
+	}
+
+	#[tracing::instrument(skip(client))]
 	async fn test_get_guest<'ent, M>(client: &TestClient, route: &str, guest: &User, guest_password: &str)
 	where
 		M: Debug + Default + Serialize,
@@ -1130,6 +1173,16 @@ mod tests
 				MatchTimesheet::from(timesheet.id),
 			)
 			.then(|_| test_get_guest::<MatchTimesheet>(&client, routes::TIMESHEET, &guest, &guest_password))
+			.then(|_| {
+				test_get_grunt(
+					&client,
+					routes::TIMESHEET,
+					&grunt,
+					&grunt_password,
+					[&timesheet].into_iter(),
+					MatchTimesheet::default(),
+				)
+			})
 			.await;
 
 			let expenses = PgExpenses::create(
@@ -1195,6 +1248,16 @@ mod tests
 				MatchExpense::from(Match::Or(expenses.iter().map(|x| x.id.into()).collect())),
 			)
 			.then(|_| test_get_guest::<MatchExpense>(&client, routes::EXPENSE, &guest, &guest_password))
+			.then(|_| {
+				test_get_grunt(
+					&client,
+					routes::EXPENSE,
+					&grunt,
+					&grunt_password,
+					expenses.iter(),
+					MatchExpense::default(),
+				)
+			})
 			.await;
 
 			let admin_db = serde_json::to_string(&admin).and_then(|json| serde_json::from_str::<User>(&json))?;
