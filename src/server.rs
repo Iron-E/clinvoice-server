@@ -1260,9 +1260,8 @@ mod tests
 			})
 			.await;
 
-			let admin_db = serde_json::to_string(&admin).and_then(|json| serde_json::from_str::<User>(&json))?;
-
-			let guest_db = serde_json::to_string(&guest).and_then(|json| serde_json::from_str::<User>(&json))?;
+			let (admin_db, guest_db) = serde_json::to_string(&(&admin, &guest))
+				.and_then(|json| serde_json::from_str::<(User, User)>(&json))?;
 
 			let users = [admin_db, guest_db];
 			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
