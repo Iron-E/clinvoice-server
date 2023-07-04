@@ -83,3 +83,28 @@ pub enum Object
 	/// Permission to operate on [`User`](crate::schema::User)s
 	UserInDepartment,
 }
+
+impl Object
+{
+	/// Denote the given [`Object`] as an impossible match on a given match arm.
+	///
+	/// ```rust
+	/// use winvoice_server::permissions::Object;
+	/// match Object::Employee {
+	///   Object::Employee => println!("matched"),
+	///   o => o.unreachable(),
+	/// };
+	/// ```
+	///
+	/// ```rust,should_panic
+	/// # use winvoice_server::permissions::Object;
+	/// match Object::Employee {
+	///   Object::Department => println!("matched"),
+	///   o => o.unreachable(), // panics
+	/// };
+	/// ```
+	pub fn unreachable(&self) -> !
+	{
+		unreachable!("unexpected permission: {self:?}")
+	}
+}

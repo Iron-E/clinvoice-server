@@ -146,7 +146,7 @@ where
 		if !can_get_all
 		{
 			object = Object::JobInDepartment;
-			self.has_permission::<R>(&user, object, action).await?;
+			self.enforce_permission::<R>(&user, object, action).await?;
 		}
 
 		Ok(object)

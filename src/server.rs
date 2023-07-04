@@ -52,7 +52,7 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
-use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
+use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchSet, MatchTimesheet};
 use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
 
 use crate::{
@@ -224,7 +224,7 @@ where
 									ret
 								},
 
-								p => unreachable!("unexpected permission: {p:?}"),
+								p => p.unreachable(),
 							};
 
 							A::Department::retrieve(state.pool(), condition).await.map_or_else(
@@ -271,7 +271,7 @@ where
 									)));
 								},
 
-								Some(p) => unreachable!("unexpected permission: {p:?}"),
+								Some(p) => p.unreachable(),
 							};
 
 							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
@@ -338,7 +338,7 @@ where
 													Object::ExpensesInDepartment =>
 														MatchEmployee::from(MatchDepartment::from(emp.department.id)).into(),
 													Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
-													_ => unreachable!("unexpected permission: {p:?}"),
+													_ => p.unreachable(),
 												}
 											})
 											.await
@@ -373,12 +373,40 @@ where
 						|Extension(user): Extension<User>,
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchJob>>| async move {
-							state.enforce_permission::<Retrieve<Job>>(&user, Object::Job, Action::Retrieve).await?;
+							let mut condition = request.into_condition();
 
-							let condition = request.into_condition();
+							#[rustfmt::skip]
+							let code = match state.job_permissions(&user, Action::Retrieve).await?
+							{
+								Object::Job => Code::Success,
+
+								// HACK: no if-let guards…
+								Object::JobInDepartment if user.employee().is_some() =>
+								{
+									let match_department = MatchDepartment::from(user.employee().unwrap().department.id);
+									condition.departments = match condition.departments
+									{
+										MatchSet::Any => match_department.into(),
+										d => MatchSet::And(vec![d, match_department.into()]),
+									};
+
+									Code::SuccessForPermissions
+								},
+
+								Object::JobInDepartment =>
+								{
+									return Ok(Response::from(Retrieve::new(
+										Default::default(),
+										Code::SuccessForPermissions.into(),
+									)));
+								},
+
+								p => p.unreachable(),
+							};
+
 							A::Job::retrieve(state.pool(), condition).await.map_or_else(
 								|e| Err(Response::from(Retrieve::<Job>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
 							)
 						},
 					)
@@ -425,7 +453,7 @@ where
 									)));
 								},
 
-								p => unreachable!("unexpected permission {p:?}"),
+								p => p.unreachable(),
 							};
 
 							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
@@ -479,7 +507,7 @@ where
 									)))
 								},
 
-								p => unreachable!("unexpected permission {p:?}"),
+								Some(p) => p.unreachable(),
 							};
 
 							A::User::retrieve(state.pool(), condition).await.map_or_else(
@@ -1141,7 +1169,7 @@ mod tests
 					organization.clone(),
 					None,
 					Utc::now(),
-					[department.clone()].into_iter().collect(),
+					manager.employee().into_iter().map(|e| e.department.clone()).collect(),
 					Duration::new(7640, 0),
 					Invoice {
 						date: None,
