@@ -213,7 +213,7 @@ where
 								// HACK: no if-let guards…
 								Object::AssignedDepartment if user.employee().is_some() =>
 								{
-									condition.id = user.employee().unwrap().department.id.into();
+									condition.id &= user.employee().unwrap().department.id.into();
 									Code::SuccessForPermissions
 								},
 
@@ -254,14 +254,14 @@ where
 								// HACK: no if-let guards…
 								Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
 								{
-									condition.department.id = user.employee().unwrap().department.id.into();
+									condition.department.id &= user.employee().unwrap().department.id.into();
 									Code::SuccessForPermissions
 								},
 
 								// HACK: no if-let guards…
 								None if user.employee().is_some() =>
 								{
-									condition.id = user.employee().unwrap().id.into();
+									condition.id &= user.employee().unwrap().id.into();
 									Code::SuccessForPermissions
 								},
 
@@ -385,7 +385,9 @@ where
 								// HACK: no if-let guards…
 								Object::JobInDepartment if user.employee().is_some() =>
 								{
-									condition.departments.and_mut(MatchDepartment::from(user.employee().unwrap().department.id).into());
+									condition.departments &=
+										MatchDepartment::from(user.employee().unwrap().department.id).into();
+
 									Code::SuccessForPermissions
 								},
 
@@ -430,10 +432,8 @@ where
 								// HACK: no if-let guards
 								Object::TimesheetInDepartment if user.employee().is_some() =>
 								{
-									condition
-										.job
-										.departments
-										.and_mut(MatchDepartment::from(user.employee().unwrap().department.id).into());
+									condition.job.departments &=
+										MatchDepartment::from(user.employee().unwrap().department.id).into();
 
 									Code::SuccessForPermissions
 								},
@@ -441,7 +441,7 @@ where
 								// HACK: no if-let guards
 								Object::CreatedTimesheet if user.employee().is_some() =>
 								{
-									condition.employee.id = user.employee().unwrap().id.into();
+									condition.employee.id &= user.employee().unwrap().id.into();
 									Code::SuccessForPermissions
 								},
 
@@ -482,7 +482,7 @@ where
 								Some(Object::UserInDepartment) if user.employee().is_some() =>
 								{
 									condition.employee = condition.employee.map(|mut m| {
-										m.department.id = user.employee().unwrap().department.id.into();
+										m.department.id &= user.employee().unwrap().department.id.into();
 										m
 									});
 
@@ -493,7 +493,7 @@ where
 								None if user.employee().is_some() =>
 								{
 									condition.employee = condition.employee.map(|mut m| {
-										m.id = user.employee().unwrap().id.into();
+										m.id &= user.employee().unwrap().id.into();
 										m
 									});
 
@@ -1107,14 +1107,12 @@ mod tests
 			)
 			.await?;
 
+			#[rustfmt::skip]
 			test_get_success(
-				&client,
-				routes::LOCATION,
-				&admin,
-				&admin_password,
+				&client, routes::LOCATION,
+				&admin, &admin_password,
 				MatchLocation::from(location.id),
-				[&location].into_iter(),
-				None,
+				[&location].into_iter(), None,
 			)
 			.then(|_| test_get_unauthorized::<MatchLocation>(&client, routes::LOCATION, &guest, &guest_password))
 			.then(|_| test_get_unauthorized::<MatchLocation>(&client, routes::LOCATION, &grunt, &grunt_password))
@@ -1122,6 +1120,7 @@ mod tests
 			.await;
 
 			let organization = PgOrganization::create(&pool, location.clone(), company::company()).await?;
+
 			#[rustfmt::skip]
 			test_get_success(
 				&client, routes::ORGANIZATION,
