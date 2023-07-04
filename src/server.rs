@@ -52,7 +52,7 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
-use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchSet, MatchTimesheet};
+use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
 use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
 
 use crate::{
@@ -209,19 +209,21 @@ where
 							let code = match state.department_permissions(&user, Action::Retrieve).await?
 							{
 								Object::Department => Code::Success,
+
+								// HACK: no if-let guards…
+								Object::AssignedDepartment if user.employee().is_some() =>
+								{
+									condition.id = user.employee().unwrap().department.id.into();
+									Code::SuccessForPermissions
+								},
+
+								// they have no department, so they *effectively* can't retrieve departments.
 								Object::AssignedDepartment =>
 								{
-									let ret = Code::SuccessForPermissions;
-									match user.employee()
-									{
-										Some(e) => condition.id = e.department.id.into(),
-
-										// they have no department, so they *effectively* can't retrieve departments.
-										#[rustfmt::skip]
-										None => return Ok(Response::from(Retrieve::new(Default::default(), ret.into()))),
-									};
-
-									ret
+									return Ok(Response::from(Retrieve::new(
+										Default::default(),
+										Code::SuccessForPermissions.into(),
+									)));
 								},
 
 								p => p.unreachable(),
@@ -336,10 +338,10 @@ where
 												..match p
 												{
 													Object::ExpensesInDepartment =>
-														MatchEmployee::from(MatchDepartment::from(emp.department.id)).into(),
-													Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
+														MatchEmployee::from(MatchDepartment::from(emp.department.id)),
+													Object::CreatedExpenses => MatchEmployee::from(emp.id),
 													_ => p.unreachable(),
-												}
+												}.into()
 											})
 											.await
 											.map_or_else(
@@ -383,13 +385,7 @@ where
 								// HACK: no if-let guards…
 								Object::JobInDepartment if user.employee().is_some() =>
 								{
-									let match_department = MatchDepartment::from(user.employee().unwrap().department.id);
-									condition.departments = match condition.departments
-									{
-										MatchSet::Any => match_department.into(),
-										d => MatchSet::And(vec![d, match_department.into()]),
-									};
-
+									condition.departments.and_mut(MatchDepartment::from(user.employee().unwrap().department.id).into());
 									Code::SuccessForPermissions
 								},
 
@@ -434,7 +430,11 @@ where
 								// HACK: no if-let guards
 								Object::TimesheetInDepartment if user.employee().is_some() =>
 								{
-									condition.employee.department.id = user.employee().unwrap().department.id.into();
+									condition
+										.job
+										.departments
+										.and_mut(MatchDepartment::from(user.employee().unwrap().department.id).into());
+
 									Code::SuccessForPermissions
 								},
 
@@ -456,6 +456,7 @@ where
 								p => p.unreachable(),
 							};
 
+							tracing::debug!("Condition: {condition:#?}");
 							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
 								|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
 								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
@@ -1211,7 +1212,7 @@ mod tests
 			))
 			.await;
 
-			let timesheet = {
+			let (timesheet, timesheet2) = {
 				let mut tx = pool.begin().await?;
 				let t = PgTimesheet::create(
 					&mut tx,
@@ -1224,8 +1225,19 @@ mod tests
 				)
 				.await?;
 
+				let t2 = PgTimesheet::create(
+					&mut tx,
+					employee.clone(),
+					Default::default(),
+					job2.clone(),
+					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
+					Utc.with_ymd_and_hms(2022, 06, 09, 07, 00, 00).latest(),
+					words::sentence(5),
+				)
+				.await?;
+
 				tx.commit().await?;
-				t.exchange(Default::default(), &rates)
+				(t.exchange(Default::default(), &rates), t2.exchange(Default::default(), &rates))
 			};
 
 			#[rustfmt::skip]
@@ -1238,9 +1250,9 @@ mod tests
 			.then(|_| test_get_unauthorized::<MatchTimesheet>(&client, routes::TIMESHEET, &guest, &guest_password))
 			.then(|_| test_get_success(
 				&client, routes::TIMESHEET,
-				&grunt, &grunt_password,
+				&manager, &manager_password,
 				MatchTimesheet::default(),
-				[&timesheet].into_iter(), Code::SuccessForPermissions.into(),
+				[&timesheet2].into_iter(), Code::SuccessForPermissions.into(),
 			))
 			.await;
 
