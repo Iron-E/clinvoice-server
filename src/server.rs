@@ -52,7 +52,7 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
-use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchTimesheet};
+use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
 use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
 
 use crate::{
@@ -474,6 +474,7 @@ where
 						 State(state): State<ServerState<A::Db>>,
 						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
 							let mut condition = request.into_condition();
+							#[rustfmt::skip]
 							let code = match state.user_permissions::<Retrieve<User>>(&user, Action::Retrieve).await?
 							{
 								Some(Object::User) => Code::Success,
@@ -492,10 +493,12 @@ where
 								// HACK: no if-let guards
 								None if user.employee().is_some() =>
 								{
-									condition.employee = condition.employee.map(|mut m| {
-										m.id &= user.employee().unwrap().id.into();
-										m
-									});
+									let emp_id = user.employee().unwrap().id;
+									condition.employee = match condition.employee
+									{
+										MatchOption::Any => Some(emp_id.into()).into(),
+										e => e.map(|mut m| { m.id &= emp_id.into(); m }),
+									};
 
 									Code::SuccessForPermissions
 								},
@@ -1312,18 +1315,18 @@ mod tests
 				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
 				users.iter(), None,
 			)
-			// .then(|_| test_get_success(
-			// 	&client, routes::USER,
-			// 	&grunt, &grunt_password,
-			// 	MatchUser::default(),
-			// 	[&grunt].into_iter(), Code::SuccessForPermissions.into(),
-			// ))
-			// .then(|_| test_get_success(
-			// 	&client, routes::USER,
-			// 	&guest, &guest_password,
-			// 	MatchUser::default(),
-			// 	[&guest].into_iter(), Code::SuccessForPermissions.into(),
-			// ))
+			.then(|_| test_get_success(
+				&client, routes::USER,
+				&grunt, &grunt_password,
+				MatchUser::default(),
+				users.iter().filter(|u| u.id() == grunt.id()), Code::SuccessForPermissions.into(),
+			))
+			.then(|_| test_get_success(
+				&client, routes::USER,
+				&guest, &guest_password,
+				MatchUser::default(),
+				users.iter().filter(|u| u.id() == guest.id()), Code::SuccessForPermissions.into(),
+			))
 			// .then(|_| test_get_success(
 			// 	&client, routes::USER,
 			// 	&manager, &manager_password,
