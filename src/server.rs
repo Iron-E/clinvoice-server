@@ -773,6 +773,12 @@ mod tests
 				let grunt_password = password::generate(true, true, true, 8);
 				let guest_password = password::generate(true, true, true, 8);
 				let manager_password = password::generate(true, true, true, 8);
+				let manager_department = <$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(
+					&pool,
+					$rand_department_name(),
+				)
+				.await
+				.unwrap();
 
 				#[rustfmt::skip]
 				let (admin, grunt, guest, manager) = futures::try_join!(
@@ -788,17 +794,13 @@ mod tests
 						)))
 					),
 
-					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
-						$rand_department_name()
-					).and_then(|department|
-						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
-							department, name::full(), job::title(),
-						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
-							grunt_role_name, Duration::from_secs(60).into(),
-						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
-							employee.into(), grunt_password.to_owned(), role, internet::username(),
-						)))
-					),
+					<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
+						manager_department.clone(), name::full(), job::title(),
+					).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
+						grunt_role_name, Duration::from_secs(60).into(),
+					).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
+						employee.into(), grunt_password.to_owned(), role, internet::username(),
+					))),
 
 					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
 						$rand_department_name()
@@ -812,17 +814,13 @@ mod tests
 						)))
 					),
 
-					<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
-						$rand_department_name()
-					).and_then(|department|
-						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
-							department, name::full(), job::title(),
-						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
-							manager_role_name, Duration::from_secs(60).into(),
-						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
-							employee.into(), manager_password.to_owned(), role, internet::username(),
-						)))
-					),
+					<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
+						manager_department, name::full(), job::title(),
+					).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
+						manager_role_name, Duration::from_secs(60).into(),
+					).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
+						employee.into(), manager_password.to_owned(), role, internet::username(),
+					))),
 				)?;
 
 				Ok(TestData {
@@ -1060,10 +1058,7 @@ mod tests
 			))
 			.await;
 
-			let manager_department = manager.employee().unwrap().department.clone();
-
 			let employee = PgEmployee::create(&pool, department.clone(), name::full(), job::title()).await?;
-			let employee2 = PgEmployee::create(&pool, manager_department.clone(), name::full(), job::title()).await?;
 
 			#[rustfmt::skip]
 			test_get_success(
@@ -1088,7 +1083,7 @@ mod tests
 				&client, routes::EMPLOYEE,
 				&manager, &manager_password,
 				MatchEmployee::default(),
-				[&manager.employee().unwrap(), &employee2].into_iter(), Code::SuccessForPermissions.into(),
+				[&grunt, &manager].into_iter().map(|e| e.employee().unwrap()), Code::SuccessForPermissions.into(),
 			))
 			.await;
 
@@ -1329,23 +1324,9 @@ mod tests
 
 			// TODO: test grunt GET on "/expense"
 
-			let user = PgEmployee::create(&pool, manager_department, name::full(), job::title())
-				.and_then(|employee| {
-					PgUser::create(
-						&pool,
-						employee.into(),
-						manager_password.to_owned(),
-						grunt.role().clone(),
-						internet::username(),
-					)
-				})
-				.await?;
+			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
+				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
 
-			let (admin_db, guest_db, grunt_db, manager_db, user_db) =
-				serde_json::to_string(&(&admin, &guest, &grunt, &manager, &user))
-					.and_then(|json| serde_json::from_str::<(User, User, User, User, User)>(&json))?;
-
-			let users = [admin_db, guest_db, grunt_db, manager_db, user_db];
 			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
 			test_get_success(
 				&client,
@@ -1383,7 +1364,7 @@ mod tests
 			.then(|_| test_get_success(
 				&client, routes::USER,
 				&manager, &manager_password,
-				MatchUser::default(), [&manager, &user].into_iter(), Code::SuccessForPermissions.into(),
+				MatchUser::default(), [&grunt, &manager].into_iter(), Code::SuccessForPermissions.into(),
 			))
 			.await;
 
@@ -1393,7 +1374,7 @@ mod tests
 			PgOrganization::delete(&pool, [organization].iter()).await?;
 			futures::try_join!(
 				PgContact::delete(&pool, [&contact_].into_iter()),
-				PgEmployee::delete(&pool, [&employee, &employee2].into_iter()),
+				PgEmployee::delete(&pool, [&employee].into_iter()),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
 
