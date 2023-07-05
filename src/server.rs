@@ -338,10 +338,10 @@ where
 												..match p
 												{
 													Object::ExpensesInDepartment =>
-														MatchEmployee::from(MatchDepartment::from(emp.department.id)),
-													Object::CreatedExpenses => MatchEmployee::from(emp.id),
+														MatchJob::from(MatchDepartment::from(emp.department.id)).into(),
+													Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
 													_ => p.unreachable(),
-												}.into()
+												}
 											})
 											.await
 											.map_or_else(
@@ -1277,59 +1277,45 @@ mod tests
 			))
 			.await;
 
-			let expenses = PgExpenses::create(
-				&pool,
-				vec![
-					(
-						words::word(),
-						Money::new(
-							20_00,
-							2,
-							loop
-							{
-								if let Ok(c) = currency::short().parse::<Currency>()
+			let expenses = {
+				let mut x = Vec::with_capacity(2 * 3);
+				for t in [&timesheet, &timesheet2, &timesheet3]
+				{
+					#[rustfmt::skip]
+					PgExpenses::create(
+						&pool,
+						vec![
+							(
+								words::word(),
+								Money::new(20_00, 2, loop
 								{
-									break c;
-								}
-							},
-						),
-						words::sentence(5),
-					),
-					(
-						words::word(),
-						Money::new(
-							737_00,
-							2,
-							loop
-							{
-								if let Ok(c) = currency::short().parse::<Currency>()
+									if let Ok(c) = currency::short().parse::<Currency>()
+									{
+										break c;
+									}
+								}),
+								words::sentence(5),
+							),
+							(
+								words::word(),
+								Money::new(737_00, 2, loop
 								{
-									break c;
-								}
-							},
-						),
-						words::sentence(5),
-					),
-					(
-						words::word(),
-						Money::new(
-							82_31,
-							2,
-							loop
-							{
-								if let Ok(c) = currency::short().parse::<Currency>()
-								{
-									break c;
-								}
-							},
-						),
-						words::sentence(5),
-					),
-				],
-				timesheet.id,
-			)
-			.await
-			.map(|x| x.exchange(Default::default(), &rates))?;
+									if let Ok(c) = currency::short().parse::<Currency>()
+									{
+										break c;
+									}
+								}),
+								words::sentence(5),
+							),
+						],
+						t.id,
+					)
+					.await
+					.map(|mut v| x.append(&mut v))?;
+				}
+
+				x.exchange(Default::default(), &rates)
+			};
 
 			#[rustfmt::skip]
 			test_get_success(
@@ -1341,13 +1327,18 @@ mod tests
 			.then(|_| test_get_unauthorized::<MatchExpense>(&client, routes::EXPENSE, &guest, &guest_password))
 			.then(|_| test_get_success(
 				&client, routes::EXPENSE,
+				&grunt, &grunt_password,
+				MatchExpense::default(),
+				expenses.iter().filter(|x| x.timesheet_id == timesheet2.id), Code::SuccessForPermissions.into(),
+			))
+			.then(|_| test_get_success(
+				&client, routes::EXPENSE,
 				&manager, &manager_password,
 				MatchExpense::default(),
-				expenses.iter(), Code::SuccessForPermissions.into(),
+				expenses.iter().filter(|x| x.timesheet_id == timesheet2.id || x.timesheet_id == timesheet3.id),
+				Code::SuccessForPermissions.into(),
 			))
 			.await;
-
-			// TODO: test grunt GET on "/expense"
 
 			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
 				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
