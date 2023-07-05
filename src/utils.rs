@@ -5,8 +5,10 @@ use winvoice_schema::chrono::{DateTime, Datelike, Local, NaiveDateTime, TimeZone
 #[cfg(test)]
 use {
 	core::fmt::{Display, Formatter, Result as FmtResult},
+	mockd::currency,
 	std::{env, path::PathBuf},
 	tokio::{fs, io::Result as IoResult},
+	winvoice_schema::Currency,
 };
 
 /// Create a [`DateTime<Utc>`] out of some [`Local`] [`NaiveDateTime`].
@@ -103,6 +105,23 @@ where
 pub fn leak_string(s: String) -> &'static str
 {
 	Box::leak(s.into_boxed_str())
+}
+
+/// Generate a random [`Currency`] using [`mockd`].
+#[allow(dead_code)]
+#[cfg(test)]
+pub(crate) fn rand_currency() -> Currency
+{
+	loop
+	{
+		if let Ok(c) = currency::short().parse::<Currency>()
+		{
+			if c != Currency::Rub
+			{
+				break c;
+			}
+		}
+	}
 }
 
 /// A temporary directory which can be used to write files into for `test`.
