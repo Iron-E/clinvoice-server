@@ -1306,12 +1306,12 @@ mod tests
 			.await;
 
 			#[rustfmt::skip]
-			// test_get_success(
-			// 	&client, routes::USER,
-			// 	&admin, &admin_password,
-			// 	MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
-			// 	users.iter(), None,
-			// )
+			test_get_success(
+				&client, routes::USER,
+				&admin, &admin_password,
+				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
+				users.iter(), None,
+			)
 			// .then(|_| test_get_success(
 			// 	&client, routes::USER,
 			// 	&grunt, &grunt_password,
@@ -1330,7 +1330,7 @@ mod tests
 			// 	MatchUser::default(),
 			// 	[&grunt, &manager].into_iter(), Code::SuccessForPermissions.into(),
 			// ))
-			// .await;
+			.await;
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(PgRole::delete(&pool, roles.iter()), PgJob::delete(&pool, [&job_, &job2].into_iter()))?;
