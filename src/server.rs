@@ -1131,7 +1131,7 @@ mod tests
 
 			let rates = ExchangeRates::new().await?;
 
-			let (job_, job2) = {
+			let [job_, job2]: [_; 2] = {
 				let mut tx = pool.begin().await?;
 				let j = PgJob::create(
 					&mut tx,
@@ -1186,7 +1186,12 @@ mod tests
 				.await?;
 
 				tx.commit().await?;
-				(j.exchange(Default::default(), &rates), j2.exchange(Default::default(), &rates))
+				[j, j2]
+					.into_iter()
+					.map(|jo| jo.exchange(Default::default(), &rates))
+					.collect::<Vec<_>>()
+					.try_into()
+					.unwrap()
 			};
 
 			#[rustfmt::skip]
@@ -1206,7 +1211,7 @@ mod tests
 			))
 			.await;
 
-			let (timesheet, timesheet2) = {
+			let [timesheet, timesheet2, timesheet3]: [_; 3] = {
 				let mut tx = pool.begin().await?;
 				let t = PgTimesheet::create(
 					&mut tx,
@@ -1221,7 +1226,18 @@ mod tests
 
 				let t2 = PgTimesheet::create(
 					&mut tx,
-					employee.clone(),
+					grunt.employee().unwrap().clone(),
+					Default::default(),
+					job2.clone(),
+					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
+					Utc.with_ymd_and_hms(2022, 06, 09, 07, 00, 00).latest(),
+					words::sentence(5),
+				)
+				.await?;
+
+				let t3 = PgTimesheet::create(
+					&mut tx,
+					manager.employee().unwrap().clone(),
 					Default::default(),
 					job2.clone(),
 					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
@@ -1231,7 +1247,12 @@ mod tests
 				.await?;
 
 				tx.commit().await?;
-				(t.exchange(Default::default(), &rates), t2.exchange(Default::default(), &rates))
+				[t, t2, t3]
+					.into_iter()
+					.map(|ts| ts.exchange(Default::default(), &rates))
+					.collect::<Vec<_>>()
+					.try_into()
+					.unwrap()
 			};
 
 			#[rustfmt::skip]
@@ -1244,13 +1265,17 @@ mod tests
 			.then(|_| test_get_unauthorized::<MatchTimesheet>(&client, routes::TIMESHEET, &guest, &guest_password))
 			.then(|_| test_get_success(
 				&client, routes::TIMESHEET,
-				&manager, &manager_password,
+				&grunt, &grunt_password,
 				MatchTimesheet::default(),
 				[&timesheet2].into_iter(), Code::SuccessForPermissions.into(),
 			))
+			.then(|_| test_get_success(
+				&client, routes::TIMESHEET,
+				&manager, &manager_password,
+				MatchTimesheet::default(),
+				[&timesheet2, &timesheet3].into_iter(), Code::SuccessForPermissions.into(),
+			))
 			.await;
-
-			// TODO: test grunt GET on "/timesheet"
 
 			let expenses = PgExpenses::create(
 				&pool,
