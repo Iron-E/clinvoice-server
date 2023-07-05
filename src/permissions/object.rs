@@ -49,7 +49,7 @@ pub enum Object
 
 	/// Permission to operate on [`winvoice_schema::Expense`]s. Assumes
 	/// [`CreatedExpenses`](Self::CreatedExpenses)
-	#[serde(rename = "expense")]
+	#[serde(rename = "expense_in_department")]
 	ExpensesInDepartment,
 
 	/// Permission to operate on [`winvoice_schema::Job`]s. Assumes

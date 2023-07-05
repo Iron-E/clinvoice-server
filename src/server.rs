@@ -312,6 +312,7 @@ where
 								|e| Response::from(Retrieve::<Expense>::from(Status::from(&e))),
 							)?;
 
+							#[rustfmt::skip]
 							let code = match permission
 							{
 								Object::Expenses => Code::Success,
@@ -324,7 +325,12 @@ where
 									{
 										Some(emp) =>
 										{
-											let m = MatchTimesheet {
+											#[rustfmt::skip]
+											// retrieve IDs of expenses which the user has permission to access.
+											// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a timesheet, not just the
+											//       ones which match the `expenses` field. Thus we still have to perform a second
+											//       filter below.
+											let matching = A::Timesheet::retrieve(state.pool(), MatchTimesheet {
 												expenses: MatchExpense {
 													id: Match::Or(vec.iter().map(|x| x.id.into()).collect()),
 													..Default::default()
@@ -333,22 +339,11 @@ where
 												..match p
 												{
 													Object::ExpensesInDepartment =>
-													{
-														MatchJob::from(MatchDepartment::from(emp.department.id)).into()
-													},
+														MatchJob::from(MatchDepartment::from(emp.department.id)).into(),
 													Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
 													_ => p.unreachable(),
 												}
-											};
-
-											tracing::debug!("Generated {m:#?}");
-
-											#[rustfmt::skip]
-											// retrieve IDs of expenses which the user has permission to access.
-											// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a timesheet, not just the
-											//       ones which match the `expenses` field. Thus we still have to perform a second
-											//       filter below.
-											let matching = A::Timesheet::retrieve(state.pool(), m)
+											})
 											.await
 											.map_or_else(
 												|e| Err(Response::from(Retrieve::from(Status::from(&e)))),
@@ -1283,13 +1278,13 @@ mod tests
 				MatchExpense::default(),
 				expenses.iter().filter(|x| x.timesheet_id == timesheet2.id), Code::SuccessForPermissions.into(),
 			))
-			// .then(|_| test_get_success(
-			// 	&client, routes::EXPENSE,
-			// 	&manager, &manager_password,
-			// 	MatchExpense::default(),
-			// 	expenses.iter().filter(|x| x.timesheet_id == timesheet2.id || x.timesheet_id == timesheet3.id),
-			// 	Code::SuccessForPermissions.into(),
-			// ))
+			.then(|_| test_get_success(
+				&client, routes::EXPENSE,
+				&manager, &manager_password,
+				MatchExpense::default(),
+				expenses.iter().filter(|x| x.timesheet_id == timesheet2.id || x.timesheet_id == timesheet3.id),
+				Code::SuccessForPermissions.into(),
+			))
 			.await;
 
 			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
