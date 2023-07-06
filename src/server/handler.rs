@@ -18,7 +18,6 @@ use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
-	todo,
 	LoginResponse,
 	LogoutResponse,
 	Response,
@@ -58,6 +57,11 @@ macro_rules! route {
 			)
 			.patch(|| async move { todo("Update method not implemented") })
 	};
+}
+
+const fn todo(msg: &'static str) -> (StatusCode, &'static str)
+{
+	(StatusCode::NOT_IMPLEMENTED, msg)
 }
 
 /// A handler for [`routes`](crate::api::routes).

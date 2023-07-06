@@ -199,11 +199,6 @@ where
 	}
 }
 
-const fn todo(msg: &'static str) -> (StatusCode, &'static str)
-{
-	(StatusCode::NOT_IMPLEMENTED, msg)
-}
-
 #[allow(dead_code, unused_imports, unused_macros)]
 #[cfg(test)]
 mod tests
