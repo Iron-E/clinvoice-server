@@ -2,25 +2,20 @@
 
 mod auth;
 mod db_session_store;
+mod handler;
 mod response;
 mod state;
 
 use core::{fmt::Display, marker::PhantomData, time::Duration};
-use std::{collections::HashSet, net::SocketAddr};
+use std::net::SocketAddr;
 
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use auth::{AuthContext, DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
+use auth::{DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
 use axum::{
 	error_handling::HandleErrorLayer,
-	extract::{Extension, Json, State},
-	headers::{authorization::Basic, Authorization},
 	http::{HeaderMap, Request, StatusCode},
 	middleware::{self, Next},
-	response::IntoResponse,
-	routing,
 	BoxError,
 	Router,
-	TypedHeader,
 };
 use axum_login::{
 	axum_sessions::{async_session::SessionStore, SessionLayer},
@@ -29,69 +24,21 @@ use axum_login::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
+use handler::Handler;
 pub use response::{LoginResponse, LogoutResponse, Response, VersionResponse};
 use semver::VersionReq;
 use sqlx::{Connection, Database, Executor, QueryBuilder, Transaction};
 pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
-use winvoice_adapter::{
-	fmt::sql,
-	schema::{
-		ContactAdapter,
-		DepartmentAdapter,
-		EmployeeAdapter,
-		ExpensesAdapter,
-		JobAdapter,
-		LocationAdapter,
-		OrganizationAdapter,
-		TimesheetAdapter,
-	},
-	Deletable,
-	Initializable,
-	Retrievable,
-	Updatable,
-};
-use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
+use winvoice_adapter::{fmt::sql, Initializable};
 
 use crate::{
-	api::{self, request, response::Retrieve, routes, Code, Status},
+	api::{self, routes},
 	bool_ext::BoolExt,
-	permissions::{Action, Object},
-	r#match::MatchUser,
-	schema::{columns::UserColumns, Adapter, RoleAdapter, User, UserAdapter},
+	schema::{columns::UserColumns, Adapter, User},
 	DynResult,
 };
-
-/// Create routes which are able to be implemented generically.
-macro_rules! route {
-	($Entity:ident) => {
-		routing::delete(|| async move { todo("Delete method not implemented") })
-			.get(
-				|Extension(user): Extension<User>,
-				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<<A::$Entity as Retrievable>::Match>>| async move {
-					state
-						.enforce_permission::<Retrieve<<A::$Entity as Retrievable>::Entity>>(
-							&user,
-							Object::$Entity,
-							Action::Retrieve,
-						)
-						.await?;
-
-					let condition = request.into_condition();
-					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
-						|e| {
-							Err(Response::from(Retrieve::<<A::$Entity as Retrievable>::Entity>::from(Status::from(&e))))
-						},
-						|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
-					)
-				},
-			)
-			.patch(|| async move { todo("Update method not implemented") })
-	};
-}
 
 /// A Winvoice server.
 #[derive(Clone, Debug)]
@@ -196,337 +143,21 @@ where
 		let session_store = DbSessionStore::new(state.pool().clone());
 		futures::try_join!(A::init_with_auth(state.pool()), session_store.init())?;
 
+		let handler = Handler::<A>::new();
 		let mut router = Router::new()
-			.route(routes::CONTACT, route!(Contact).post(|| async move { todo("contact create") }))
-			.route(
-				routes::DEPARTMENT,
-				routing::delete(|| async move { todo("Delete method not implemented") })
-					.get(
-						|Extension(user): Extension<User>,
-						 State(state): State<ServerState<A::Db>>,
-						 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
-							let mut condition = request.into_condition();
-							let code = match state.department_permissions(&user, Action::Retrieve).await?
-							{
-								Object::Department => Code::Success,
-
-								// HACK: no if-let guards…
-								Object::AssignedDepartment if user.employee().is_some() =>
-								{
-									condition.id &= user.employee().unwrap().department.id.into();
-									Code::SuccessForPermissions
-								},
-
-								// they have no department, so they *effectively* can't retrieve departments.
-								Object::AssignedDepartment =>
-								{
-									return Ok(Response::from(Retrieve::new(
-										Default::default(),
-										Code::SuccessForPermissions.into(),
-									)));
-								},
-
-								p => p.unreachable(),
-							};
-
-							A::Department::retrieve(state.pool(), condition).await.map_or_else(
-								|e| Err(Response::from(Retrieve::<Department>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-							)
-						},
-					)
-					.patch(|| async move { todo("Update method not implemented") })
-					.post(|| async move { todo("department create") }),
-			)
-			.route(
-				routes::EMPLOYEE,
-				routing::delete(|| async move { todo("Delete method not implemented") })
-					.get(
-						|Extension(user): Extension<User>,
-						 State(state): State<ServerState<A::Db>>,
-						 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
-							let mut condition = request.into_condition();
-							#[rustfmt::skip]
-							let code = match state.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve).await?
-							{
-								Some(Object::Employee) => Code::Success,
-
-								// HACK: no if-let guards…
-								Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
-								{
-									condition.department.id &= user.employee().unwrap().department.id.into();
-									Code::SuccessForPermissions
-								},
-
-								// HACK: no if-let guards…
-								None if user.employee().is_some() =>
-								{
-									condition.id &= user.employee().unwrap().id.into();
-									Code::SuccessForPermissions
-								},
-
-								Some(Object::EmployeeInDepartment) | None =>
-								{
-									return Ok(Response::from(Retrieve::new(
-										Default::default(),
-										Code::SuccessForPermissions.into(),
-									)));
-								},
-
-								Some(p) => p.unreachable(),
-							};
-
-							A::Employee::retrieve(state.pool(), condition).await.map_or_else(
-								|e| Err(Response::from(Retrieve::<Employee>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-							)
-						},
-					)
-					.patch(|| async move { todo("Update method not implemented") })
-					.post(|| async move { todo("employee create") }),
-			)
-			.route(
-				routes::EXPENSE,
-				routing::delete(|| async move { todo("Delete method not implemented") })
-					.get(
-						|Extension(user): Extension<User>,
-						 State(state): State<ServerState<A::Db>>,
-						 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
-							let permission =
-								state.expense_permissions::<Retrieve<Expense>>(&user, Action::Retrieve).await?;
-
-							// The user has no department, and no employee record, so they effectively cannot retrieve
-							// expenses.
-							if permission != Object::Expenses && user.employee().is_none()
-							{
-								return Ok(Response::from(Retrieve::new(
-									Default::default(),
-									Code::SuccessForPermissions.into(),
-								)));
-							}
-
-							let condition = request.into_condition();
-
-							#[rustfmt::skip]
-							let mut vec = A::Expenses::retrieve(state.pool(), condition).await.map_err(
-								|e| Response::from(Retrieve::<Expense>::from(Status::from(&e))),
-							)?;
-
-							#[rustfmt::skip]
-							let code = match permission
-							{
-								Object::Expenses => Code::Success,
-
-								// The user can only get expenses iff they are in the same department, or were created
-								// by that user.
-								p =>
-								{
-									match user.employee()
-									{
-										Some(emp) =>
-										{
-											#[rustfmt::skip]
-											// retrieve IDs of expenses which the user has permission to access.
-											// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a timesheet, not just the
-											//       ones which match the `expenses` field. Thus we still have to perform a second
-											//       filter below.
-											let matching = A::Timesheet::retrieve(state.pool(), MatchTimesheet {
-												expenses: MatchExpense {
-													id: Match::Or(vec.iter().map(|x| x.id.into()).collect()),
-													..Default::default()
-												}
-												.into(),
-												..match p
-												{
-													Object::ExpensesInDepartment =>
-														MatchJob::from(MatchDepartment::from(emp.department.id)).into(),
-													Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
-													_ => p.unreachable(),
-												}
-											})
-											.await
-											.map_or_else(
-												|e| Err(Response::from(Retrieve::from(Status::from(&e)))),
-												|vec| Ok(vec
-															.into_iter()
-															.flat_map(|t| t.expenses.into_iter().map(|x| x.id))
-															.collect::<HashSet<_>>()),
-											)?;
-
-											vec.retain(|x| matching.contains(&x.id));
-										},
-
-										None => unreachable!("Should have been returned earlier for {permission:?}"),
-									};
-
-									Code::SuccessForPermissions
-								},
-							};
-
-							Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
-						},
-					)
-					.patch(|| async move { todo("Update method not implemented") })
-					.post(|| async move { todo("expense create") }),
-			)
-			.route(
-				routes::JOB,
-				routing::delete(|| async move { todo("Delete method not implemented") })
-					.get(
-						|Extension(user): Extension<User>,
-						 State(state): State<ServerState<A::Db>>,
-						 Json(request): Json<request::Retrieve<MatchJob>>| async move {
-							let mut condition = request.into_condition();
-
-							#[rustfmt::skip]
-							let code = match state.job_permissions(&user, Action::Retrieve).await?
-							{
-								Object::Job => Code::Success,
-
-								// HACK: no if-let guards…
-								Object::JobInDepartment if user.employee().is_some() =>
-								{
-									condition.departments &=
-										MatchDepartment::from(user.employee().unwrap().department.id).into();
-
-									Code::SuccessForPermissions
-								},
-
-								Object::JobInDepartment =>
-								{
-									return Ok(Response::from(Retrieve::new(
-										Default::default(),
-										Code::SuccessForPermissions.into(),
-									)));
-								},
-
-								p => p.unreachable(),
-							};
-
-							A::Job::retrieve(state.pool(), condition).await.map_or_else(
-								|e| Err(Response::from(Retrieve::<Job>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-							)
-						},
-					)
-					.patch(|| async move { todo("Update method not implemented") })
-					.post(|| async move { todo("job create") }),
-			)
-			.route(routes::LOCATION, route!(Location).post(|| async move { todo("location create") }))
-			.route(routes::LOGOUT, routing::get(Self::handle_get_logout))
-			.route(routes::ORGANIZATION, route!(Organization).post(|| async move { todo("organization create") }))
-			.route(routes::ROLE, route!(Role).post(|| async move { todo("role create") }))
-			.route(
-				routes::TIMESHEET,
-				routing::delete(|| async move { todo("Delete method not implemented") })
-					.get(
-						|Extension(user): Extension<User>,
-						 State(state): State<ServerState<A::Db>>,
-						 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
-							let mut condition = request.into_condition();
-							let code = match state
-								.timesheet_permissions::<Retrieve<Timesheet>>(&user, Action::Retrieve)
-								.await?
-							{
-								Object::Timesheet => Code::Success,
-
-								// HACK: no if-let guards
-								Object::TimesheetInDepartment if user.employee().is_some() =>
-								{
-									condition.job.departments &=
-										MatchDepartment::from(user.employee().unwrap().department.id).into();
-
-									Code::SuccessForPermissions
-								},
-
-								// HACK: no if-let guards
-								Object::CreatedTimesheet if user.employee().is_some() =>
-								{
-									condition.employee.id &= user.employee().unwrap().id.into();
-									Code::SuccessForPermissions
-								},
-
-								Object::TimesheetInDepartment | Object::CreatedTimesheet =>
-								{
-									return Ok(Response::from(Retrieve::new(
-										Default::default(),
-										Code::SuccessForPermissions.into(),
-									)));
-								},
-
-								p => p.unreachable(),
-							};
-
-							A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
-								|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-							)
-						},
-					)
-					.patch(|| async move { todo("Update method not implemented") })
-					.post(|| async move { todo("timesheet create") }),
-			)
-			.route(
-				routes::USER,
-				routing::delete(|| async move { todo("Delete method not implemented") })
-					.get(
-						|Extension(user): Extension<User>,
-						 State(state): State<ServerState<A::Db>>,
-						 Json(request): Json<request::Retrieve<MatchUser>>| async move {
-							let mut condition = request.into_condition();
-							#[rustfmt::skip]
-							let code = match state.user_permissions::<Retrieve<User>>(&user, Action::Retrieve).await?
-							{
-								Some(Object::User) => Code::Success,
-
-								// HACK: no if-let guards
-								Some(Object::UserInDepartment) if user.employee().is_some() =>
-								{
-									let dpt_id = user.employee().unwrap().department.id;
-									condition.employee = match condition.employee
-									{
-										MatchOption::Any => Some(MatchDepartment::from(dpt_id).into()).into(),
-										e => e.map(|mut m| { m.department.id &= dpt_id.into(); m }),
-									};
-
-									Code::SuccessForPermissions
-								},
-
-								// HACK: no if-let guards
-								None if user.employee().is_some() =>
-								{
-									let emp_id = user.employee().unwrap().id;
-									condition.employee = match condition.employee
-									{
-										MatchOption::Any => Some(emp_id.into()).into(),
-										e => e.map(|mut m| { m.id &= emp_id.into(); m }),
-									};
-
-									Code::SuccessForPermissions
-								},
-
-								Some(Object::UserInDepartment) | None =>
-								{
-									return Ok(Response::from(Retrieve::new(
-										Default::default(),
-										Code::SuccessForPermissions.into(),
-									)))
-								},
-
-								Some(p) => p.unreachable(),
-							};
-
-							A::User::retrieve(state.pool(), condition).await.map_or_else(
-								|e| Err(Response::from(Retrieve::<User>::from(Status::from(&e)))),
-								|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-							)
-						},
-					)
-					.patch(|| async move { todo("Update method not implemented") })
-					.post(|| async move { todo("user create") }),
-			)
+			.route(routes::CONTACT, handler.contact())
+			.route(routes::DEPARTMENT, handler.department())
+			.route(routes::EMPLOYEE, handler.employee())
+			.route(routes::EXPENSE, handler.expense())
+			.route(routes::JOB, handler.job())
+			.route(routes::LOCATION, handler.location())
+			.route(routes::LOGOUT, handler.logout())
+			.route(routes::ORGANIZATION, handler.organization())
+			.route(routes::ROLE, handler.role())
+			.route(routes::TIMESHEET, handler.timesheet())
+			.route(routes::USER, handler.user())
 			.route_layer(RequireAuthLayer::login())
-			.route(routes::LOGIN, routing::get(Self::handle_get_login));
+			.route(routes::LOGIN, handler.login());
 
 		if let Some(t) = timeout
 		{
@@ -566,69 +197,6 @@ where
 			.layer(TraceLayer::new_for_http())
 			.with_state(state))
 	}
-
-	/// The [handler](axum::Handler) for [GET](routing::get) on "/login".
-	#[tracing::instrument(skip_all)]
-	async fn handle_get_login(
-		mut auth: AuthContext<A::Db>,
-		State(state): State<ServerState<A::Db>>,
-		TypedHeader(credentials): TypedHeader<Authorization<Basic>>,
-	) -> impl IntoResponse
-	{
-		let user = match A::User::retrieve(state.pool(), MatchUser {
-			username: credentials.username().to_owned().into(),
-			..Default::default()
-		})
-		.await
-		.map(|mut v| v.pop())
-		{
-			Ok(Some(u)) => u,
-			Ok(None) => return Err(LoginResponse::invalid_credentials(None)),
-			Err(e) => return Err(LoginResponse::from(e)),
-		};
-
-		PasswordHash::new(user.password()).map_or_else(
-			|e| {
-				tracing::error!("Failed to decode user {}'s password hash stored in database", user.username());
-				Err(LoginResponse::new(
-					StatusCode::INTERNAL_SERVER_ERROR,
-					Status::new(Code::EncodingError, e.to_string()),
-				))
-			},
-			|hash| {
-				Argon2::default().verify_password(credentials.password().as_bytes(), &hash).map_err(|e| {
-					tracing::info!("Invalid login attempt for user {}", user.username());
-					LoginResponse::from(e)
-				})
-			},
-		)?;
-
-		// HACK: no if-let chain…
-		if let Some(date) = user.password_expires()
-		{
-			if date < Utc::now()
-			{
-				tracing::info!("User {} attempted to login with expired password", user.username());
-				return Err(LoginResponse::expired(date));
-			}
-		}
-
-		auth.login(&user).await.map_or_else(
-			|e| {
-				const CODE: Code = Code::LoginError;
-				tracing::error!("Failed to to log in user {}: {e}", user.username());
-				Err(LoginResponse::new(CODE.into(), Status::new(CODE, e.to_string())))
-			},
-			|_| Ok(LoginResponse::from(Code::Success)),
-		)
-	}
-
-	/// The [handler](axum::Handler) for [GET](routing::get) on "/logout".
-	async fn handle_get_logout(mut auth: AuthContext<A::Db>) -> impl IntoResponse
-	{
-		auth.logout().await;
-		LogoutResponse::from(Code::Success)
-	}
 }
 
 const fn todo(msg: &'static str) -> (StatusCode, &'static str)
@@ -654,15 +222,47 @@ mod tests
 	use serde::{de::DeserializeOwned, Serialize};
 	use sqlx::Pool;
 	use tracing_test::traced_test;
-	use winvoice_match::{Match, MatchContact, MatchLocation, MatchOrganization};
+	use winvoice_adapter::{
+		schema::{
+			ContactAdapter,
+			DepartmentAdapter,
+			EmployeeAdapter,
+			ExpensesAdapter,
+			JobAdapter,
+			LocationAdapter,
+			OrganizationAdapter,
+			TimesheetAdapter,
+		},
+		Deletable,
+		Retrievable,
+		Updatable,
+	};
+	use winvoice_match::{
+		Match,
+		MatchContact,
+		MatchDepartment,
+		MatchEmployee,
+		MatchExpense,
+		MatchJob,
+		MatchLocation,
+		MatchOrganization,
+		MatchTimesheet,
+	};
 	use winvoice_schema::{chrono::TimeZone, ContactKind, Invoice, Money};
 
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
 	use crate::{
-		api::response::{Login, Logout, Version},
+		api::{
+			request,
+			response::{Login, Logout, Retrieve, Version},
+			Code,
+			Status,
+		},
 		lock,
+		permissions::{Action, Object},
 		r#match::{MatchRole, MatchUser},
+		schema::{RoleAdapter, UserAdapter},
 		utils,
 	};
 
@@ -1008,6 +608,7 @@ mod tests
 			},
 			PgSchema,
 		};
+		use winvoice_schema::chrono::Utc;
 
 		#[allow(clippy::wildcard_imports)]
 		use super::*;
