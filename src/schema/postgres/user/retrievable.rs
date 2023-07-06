@@ -2,7 +2,12 @@
 
 use futures::TryStreamExt;
 use sqlx::{Pool, Postgres, QueryBuilder, Result};
-use winvoice_adapter::{fmt::TableToSql, schema::columns::EmployeeColumns, Retrievable, WriteWhereClause};
+use winvoice_adapter::{
+	fmt::TableToSql,
+	schema::columns::{DepartmentColumns, EmployeeColumns},
+	Retrievable,
+	WriteWhereClause,
+};
 use winvoice_adapter_postgres::PgSchema;
 
 use super::PgUser;
@@ -38,7 +43,7 @@ impl Retrievable for PgUser
 					&match_condition.employee,
 					&mut query,
 				),
-				EmployeeColumns::DEFAULT_ALIAS,
+				DepartmentColumns::DEFAULT_ALIAS,
 				&match_condition.employee.map(|m| m.department),
 				&mut query,
 			),

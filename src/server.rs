@@ -163,7 +163,7 @@ where
 			where
 				E: Display + ToString,
 			{
-				tracing::error!("{e}");
+				tracing::error!("Encoding error: {e}");
 				Err(VersionResponse::encoding_err(e.to_string()))
 			}
 
@@ -482,10 +482,12 @@ where
 								// HACK: no if-let guards
 								Some(Object::UserInDepartment) if user.employee().is_some() =>
 								{
-									condition.employee = condition.employee.map(|mut m| {
-										m.department.id &= user.employee().unwrap().department.id.into();
-										m
-									});
+									let dpt_id = user.employee().unwrap().department.id;
+									condition.employee = match condition.employee
+									{
+										MatchOption::Any => Some(MatchDepartment::from(dpt_id).into()).into(),
+										e => e.map(|mut m| { m.department.id &= dpt_id.into(); m }),
+									};
 
 									Code::SuccessForPermissions
 								},
@@ -1327,12 +1329,12 @@ mod tests
 				MatchUser::default(),
 				users.iter().filter(|u| u.id() == guest.id()), Code::SuccessForPermissions.into(),
 			))
-			// .then(|_| test_get_success(
-			// 	&client, routes::USER,
-			// 	&manager, &manager_password,
-			// 	MatchUser::default(),
-			// 	[&grunt, &manager].into_iter(), Code::SuccessForPermissions.into(),
-			// ))
+			.then(|_| test_get_success(
+				&client, routes::USER,
+				&manager, &manager_password,
+				MatchUser::default(),
+				users.iter().filter(|u| u.id() == grunt.id() || u.id() == manager.id()), Code::SuccessForPermissions.into(),
+			))
 			.await;
 
 			PgUser::delete(&pool, users.iter()).await?;
