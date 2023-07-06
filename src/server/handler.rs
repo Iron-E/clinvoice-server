@@ -374,7 +374,7 @@ where
 				auth.logout().await;
 				LogoutResponse::from(Code::Success)
 			}
-			.instrument(tracing::info_span!("login_handler"))
+			.instrument(tracing::info_span!("logout_handler"))
 		})
 	}
 
