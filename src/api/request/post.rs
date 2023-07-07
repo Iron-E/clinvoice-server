@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The request to [retrieve](winvoice_adapter::Retrievable) some information.
+/// The request to create some information.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Post<Args>
 {

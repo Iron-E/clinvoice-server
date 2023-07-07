@@ -5,6 +5,7 @@ mod delete;
 mod get;
 mod post;
 
+/// The request to [update](winvoice_adapter::Updatable::update) some information.
 pub type Patch<T> = Delete<T>;
 pub use delete::Delete;
 pub use get::Get;

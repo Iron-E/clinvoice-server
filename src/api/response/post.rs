@@ -7,40 +7,39 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::Status;
 
-/// The GET & [`winvoice_adapter::Retrievable::retrieve`] request response.
+/// The response for a POST / create operation.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Get<T>
+pub struct Post<T>
 {
-	/// The entities in the database which [match](winvoice_match)ed the
-	/// [request](crate::api::request::Retrieve) parameters.
-	entities: Vec<T>,
+	/// The entity in the database which was created as a result of the operation.
+	entity: Option<T>,
 
 	/// The [`Status`] of this request.
 	status: Status,
 }
 
-impl<T> Get<T>
+impl<T> Post<T>
 {
 	/// Create a new [`Retrieve`] response.
-	pub const fn new(entities: Vec<T>, status: Status) -> Self
+	pub const fn new(entity: Option<T>, status: Status) -> Self
 	{
-		Self { entities, status }
+		Self { entity, status }
 	}
 
 	/// The entities in the database which [match](winvoice_match)ed the
 	/// [request](crate::api::request::Retrieve) parameters.
 	#[allow(dead_code)]
-	pub fn entities(&self) -> &[T]
+	pub const fn entity(&self) -> Option<&T>
 	{
-		self.entities.as_ref()
+		self.entity.as_ref()
 	}
 
 	/// The entities in the database which [match](winvoice_match)ed the
 	/// [request](crate::api::request::Retrieve) parameters.
 	#[allow(dead_code)]
-	pub fn into_entities(self) -> Vec<T>
+	pub fn into_entity(self) -> Option<T>
 	{
-		self.entities
+		self.entity
 	}
 
 	/// The entities in the database which [match](winvoice_match)ed the

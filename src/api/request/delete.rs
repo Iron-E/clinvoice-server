@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The request to [retrieve](winvoice_adapter::Retrievable) some information.
+/// The request to [delete](winvoice_adapter::Deletable::delete) some information.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Delete<T>
 {
@@ -28,7 +28,7 @@ impl<T> Delete<T>
 	#[allow(dead_code)]
 	pub fn entities(&self) -> &[T]
 	{
-		&self.entities
+		self.entities.as_ref()
 	}
 
 	/// HACK: can't be an `Into` impl because rust-lang/rust#31844
