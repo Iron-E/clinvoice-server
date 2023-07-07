@@ -1,9 +1,9 @@
 //! Implementations for [`AsRef`] for [`Retrieve`]
 
-use super::Retrieve;
+use super::Get;
 use crate::api::Code;
 
-impl<T> AsRef<Code> for Retrieve<T>
+impl<T> AsRef<Code> for Get<T>
 {
 	fn as_ref(&self) -> &Code
 	{

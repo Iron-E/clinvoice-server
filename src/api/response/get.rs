@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::Status;
 
-/// The logout request response.
+/// The response for a GET / retrieve operation.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Retrieve<T>
+pub struct Get<T>
 {
 	/// The entities in the database which [match](winvoice_match)ed the
 	/// [request](crate::api::request::Retrieve) parameters.
@@ -19,7 +19,7 @@ pub struct Retrieve<T>
 	status: Status,
 }
 
-impl<T> Retrieve<T>
+impl<T> Get<T>
 {
 	/// Create a new [`Retrieve`] response.
 	pub const fn new(entities: Vec<T>, status: Status) -> Self

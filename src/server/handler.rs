@@ -23,7 +23,7 @@ use super::{
 	ServerState,
 };
 use crate::{
-	api::{request, response::Retrieve, Code, Status},
+	api::{request, response::Get, Code, Status},
 	permissions::{Action, Object},
 	r#match::MatchUser,
 	schema::{Adapter, User},
@@ -34,21 +34,21 @@ async fn retrieve<R>(
 	pool: &Pool<R::Db>,
 	condition: R::Match,
 	on_success: Code,
-) -> ResponseResult<Retrieve<<R as Retrievable>::Entity>>
+) -> ResponseResult<Get<<R as Retrievable>::Entity>>
 where
 	R: Retrievable,
 {
 	R::retrieve(pool, condition).await.map_or_else(
-		|e| Err(Response::from(Retrieve::from(Status::from(&e)))),
-		|vec| Ok(Response::from(Retrieve::new(vec, on_success.into()))),
+		|e| Err(Response::from(Get::from(Status::from(&e)))),
+		|vec| Ok(Response::from(Get::new(vec, on_success.into()))),
 	)
 }
 
 /// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
 /// have no permissions (rather than outright having no permissions).
-fn no_effective_get_perms<T>() -> ResponseResult<Retrieve<T>>
+fn no_effective_get_perms<T>() -> ResponseResult<Get<T>>
 {
-	Ok(Response::from(Retrieve::new(Default::default(), Code::SuccessForPermissions.into())))
+	Ok(Response::from(Get::new(Default::default(), Code::SuccessForPermissions.into())))
 }
 
 const fn todo(msg: &'static str) -> (StatusCode, &'static str)
@@ -63,9 +63,9 @@ macro_rules! route {
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<<A::$Entity as Retrievable>::Match>>| async move {
+				 Json(request): Json<request::Get<<A::$Entity as Retrievable>::Match>>| async move {
 					state
-						.enforce_permission::<Retrieve<<A::$Entity as Retrievable>::Entity>>(
+						.enforce_permission::<Get<<A::$Entity as Retrievable>::Entity>>(
 							&user,
 							Object::$Entity,
 							Action::Retrieve,
@@ -74,10 +74,8 @@ macro_rules! route {
 
 					let condition = request.into_condition();
 					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
-						|e| {
-							Err(Response::from(Retrieve::<<A::$Entity as Retrievable>::Entity>::from(Status::from(&e))))
-						},
-						|vec| Ok(Response::from(Retrieve::new(vec, Code::Success.into()))),
+						|e| Err(Response::from(Get::<<A::$Entity as Retrievable>::Entity>::from(Status::from(&e)))),
+						|vec| Ok(Response::from(Get::new(vec, Code::Success.into()))),
 					)
 				},
 			)
@@ -110,7 +108,7 @@ where
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<MatchDepartment>>| async move {
+				 Json(request): Json<request::Get<MatchDepartment>>| async move {
 					let mut condition = request.into_condition();
 					let code = match state.department_permissions(&user, Action::Retrieve).await?
 					{
@@ -142,9 +140,9 @@ where
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<MatchEmployee>>| async move {
+				 Json(request): Json<request::Get<MatchEmployee>>| async move {
 					let mut condition = request.into_condition();
-					let code = match state.employee_permissions::<Retrieve<Employee>>(&user, Action::Retrieve).await?
+					let code = match state.employee_permissions::<Get<Employee>>(&user, Action::Retrieve).await?
 					{
 						Some(Object::Employee) => Code::Success,
 
@@ -180,8 +178,8 @@ where
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<MatchExpense>>| async move {
-					let permission = state.expense_permissions::<Retrieve<Expense>>(&user, Action::Retrieve).await?;
+				 Json(request): Json<request::Get<MatchExpense>>| async move {
+					let permission = state.expense_permissions::<Get<Expense>>(&user, Action::Retrieve).await?;
 
 					// The user has no department, and no employee record, so they effectively cannot retrieve
 					// expenses.
@@ -194,7 +192,7 @@ where
 
 					let mut vec = A::Expenses::retrieve(state.pool(), condition)
 						.await
-						.map_err(|e| Response::from(Retrieve::<Expense>::from(Status::from(&e))))?;
+						.map_err(|e| Response::from(Get::<Expense>::from(Status::from(&e))))?;
 
 					let code = match permission
 					{
@@ -230,7 +228,7 @@ where
 									})
 									.await
 									.map_or_else(
-										|e| Err(Response::from(Retrieve::from(Status::from(&e)))),
+										|e| Err(Response::from(Get::from(Status::from(&e)))),
 										|vec| {
 											Ok(vec
 												.into_iter()
@@ -249,7 +247,7 @@ where
 						},
 					};
 
-					Ok::<_, Response<_>>(Response::from(Retrieve::new(vec, code.into())))
+					Ok::<_, Response<_>>(Response::from(Get::new(vec, code.into())))
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
@@ -263,7 +261,7 @@ where
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<MatchJob>>| async move {
+				 Json(request): Json<request::Get<MatchJob>>| async move {
 					let mut condition = request.into_condition();
 
 					let code = match state.job_permissions(&user, Action::Retrieve).await?
@@ -292,7 +290,11 @@ where
 	/// The handler for the [`routes::LOCATION`](crate::api::routes::LOCATION).
 	pub fn location(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Location).post(|| async move { todo("location create") })
+		route!(Location).post(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<winvoice_match::MatchLocation>>| async move { todo("location create") },
+		)
 	}
 
 	/// The handler for the [`routes::LOGIN`](crate::api::routes::LOGIN).
@@ -395,9 +397,9 @@ where
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<MatchTimesheet>>| async move {
+				 Json(request): Json<request::Get<MatchTimesheet>>| async move {
 					let mut condition = request.into_condition();
-					let code = match state.timesheet_permissions::<Retrieve<Timesheet>>(&user, Action::Retrieve).await?
+					let code = match state.timesheet_permissions::<Get<Timesheet>>(&user, Action::Retrieve).await?
 					{
 						Object::Timesheet => Code::Success,
 
@@ -434,9 +436,9 @@ where
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Retrieve<MatchUser>>| async move {
+				 Json(request): Json<request::Get<MatchUser>>| async move {
 					let mut condition = request.into_condition();
-					let code = match state.user_permissions::<Retrieve<User>>(&user, Action::Retrieve).await?
+					let code = match state.user_permissions::<Get<User>>(&user, Action::Retrieve).await?
 					{
 						Some(Object::User) => Code::Success,
 

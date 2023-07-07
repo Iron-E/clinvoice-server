@@ -250,7 +250,7 @@ mod tests
 	use crate::{
 		api::{
 			request,
-			response::{Login, Logout, Retrieve, Version},
+			response::{Get, Login, Logout, Version},
 			Code,
 			Status,
 		},
@@ -535,11 +535,11 @@ mod tests
 
 		// assert logged in user without permissions is rejected
 		login(&client, admin.username(), &admin_password).await;
-		let response = get_request_builder(client, route).json(&request::Retrieve::new(condition)).send().await;
+		let response = get_request_builder(client, route).json(&request::Get::new(condition)).send().await;
 		let status = response.status();
 
-		let actual = Response::new(status, response.json::<Retrieve<E>>().await);
-		let expected = Response::from(Retrieve::<E>::new(
+		let actual = Response::new(status, response.json::<Get<E>>().await);
+		let expected = Response::from(Get::<E>::new(
 			entities.into_iter().cloned().collect(),
 			code.unwrap_or(Code::Success).into(),
 		));
@@ -567,10 +567,10 @@ mod tests
 
 		// assert logged in user without permissions is rejected
 		login(&client, guest.username(), &guest_password).await;
-		let response = get_request_builder(client, route).json(&request::Retrieve::new(M::default())).send().await;
+		let response = get_request_builder(client, route).json(&request::Get::new(M::default())).send().await;
 
-		let actual = Response::new(response.status(), response.json::<Retrieve<()>>().await);
-		let expected = Response::from(Retrieve::<()>::from(Status::from(Code::Unauthorized)));
+		let actual = Response::new(response.status(), response.json::<Get<()>>().await);
+		let expected = Response::from(Get::<()>::from(Status::from(Code::Unauthorized)));
 
 		assert_eq!(actual.status(), expected.status());
 		assert_eq!(actual.content().entities(), &[]);

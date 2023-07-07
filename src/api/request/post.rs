@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 
 /// The request to [retrieve](winvoice_adapter::Retrievable) some information.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Retrieve<Match>
+pub struct Post<Args>
 {
 	/// See [`Retrieve::condition`]
-	condition: Match,
+	args: Args,
 }
 
-impl<Match> Retrieve<Match>
+impl<Args> Post<Args>
 {
 	/// Create a new GET request body.
 	#[allow(dead_code)]
-	pub const fn new(condition: Match) -> Self
+	pub const fn new(args: Args) -> Self
 	{
-		Self { condition }
+		Self { args }
 	}
 
 	/// The condition used to filter which entities should be retrieved.
@@ -26,9 +26,9 @@ impl<Match> Retrieve<Match>
 	/// * [`winvoice_match`]
 	/// * [`winvoice_server::api::match`](crate::match)
 	#[allow(dead_code)]
-	pub const fn condition(&self) -> &Match
+	pub const fn args(&self) -> &Args
 	{
-		&self.condition
+		&self.args
 	}
 
 	/// HACK: can't be an `Into` impl because rust-lang/rust#31844
@@ -37,8 +37,8 @@ impl<Match> Retrieve<Match>
 	///
 	/// * [`Retrieve::condition`]
 	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
-	pub fn into_condition(self) -> Match
+	pub fn into_args(self) -> Args
 	{
-		self.condition
+		self.args
 	}
 }
