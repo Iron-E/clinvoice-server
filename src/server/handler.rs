@@ -11,11 +11,11 @@ use axum::{
 	Json,
 	TypedHeader,
 };
-use sqlx::Pool;
+use sqlx::{Database, Executor, Pool, Result, Transaction};
 use tracing::Instrument;
-use winvoice_adapter::Retrievable;
+use winvoice_adapter::{schema::LocationAdapter, Retrievable};
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, Employee, Expense, Timesheet};
+use winvoice_schema::{chrono::Utc, Currency, Employee, Expense, Location, Timesheet};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
@@ -23,11 +23,25 @@ use super::{
 	ServerState,
 };
 use crate::{
-	api::{request, response::Get, Code, Status},
+	api::{
+		request,
+		response::{Get, Post},
+		Code,
+		Status,
+	},
 	permissions::{Action, Object},
 	r#match::MatchUser,
 	schema::{Adapter, User},
 };
+
+/// Map `result` of creating some enti`T`y into a [`ResponseResult`].
+fn create<T>(result: Result<T>, on_success: Code) -> ResponseResult<Post<T>>
+{
+	result.map_or_else(
+		|e| Err(Response::from(Post::from(Status::from(&e)))),
+		|t| Ok(Response::from(Post::new(t.into(), on_success.into()))),
+	)
+}
 
 /// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
 async fn retrieve<R>(
@@ -94,6 +108,8 @@ impl<A> Handler<A>
 where
 	A: Adapter,
 	DbUserStore<A::Db>: UserStore,
+	for<'connection> &'connection mut <A::Db as Database>::Connection: Executor<'connection, Database = A::Db>,
+	for<'connection> &'connection mut Transaction<'connection, A::Db>: Executor<'connection, Database = A::Db>,
 {
 	/// The handler for the [`routes::CONTACT`](crate::api::routes::CONTACT).
 	pub fn contact(&self) -> MethodRouter<ServerState<A::Db>>
@@ -293,7 +309,11 @@ where
 		route!(Location).post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<winvoice_match::MatchLocation>>| async move { todo("location create") },
+			 Json(request): Json<request::Post<(Option<Currency>, String, Option<Location>)>>| async move {
+				state.enforce_permission(&user, Object::Location, Action::Create).await?;
+				let (currency, name, outer) = request.into_args();
+				create(A::Location::create(state.pool(), currency, name, outer).await, Code::Success)
+			},
 		)
 	}
 
