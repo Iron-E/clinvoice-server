@@ -27,7 +27,7 @@ macro_rules! new_response {
 	($Name:ident($Type:ty) $(: $($derive:ident),+)*) => {
 		#[doc = concat!(" A [`", stringify!($Type), "`] [`Response`](crate::server::Response)")]
 		$(#[derive($($derive),+)])*
-		pub struct $Name($crate::server::Response<$Type>);
+		pub struct $Name($crate::server::response::Response<$Type>);
 
 		impl $Name
 		{
@@ -93,3 +93,6 @@ where
 		Self((*content.as_ref()).into(), Json(content))
 	}
 }
+
+/// A result where both sides are a [`Response`].
+pub type ResponseResult<T> = Result<Response<T>, Response<T>>;

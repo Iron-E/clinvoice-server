@@ -11,16 +11,15 @@ use axum::{
 	Json,
 	TypedHeader,
 };
+use sqlx::Pool;
 use tracing::Instrument;
 use winvoice_adapter::Retrievable;
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, Department, Employee, Expense, Job, Timesheet};
+use winvoice_schema::{chrono::Utc, Employee, Expense, Timesheet};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
-	LoginResponse,
-	LogoutResponse,
-	Response,
+	response::{LoginResponse, LogoutResponse, Response, ResponseResult},
 	ServerState,
 };
 use crate::{
@@ -29,6 +28,33 @@ use crate::{
 	r#match::MatchUser,
 	schema::{Adapter, User},
 };
+
+/// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
+async fn retrieve<R>(
+	pool: &Pool<R::Db>,
+	condition: R::Match,
+	on_success: Code,
+) -> ResponseResult<Retrieve<<R as Retrievable>::Entity>>
+where
+	R: Retrievable,
+{
+	R::retrieve(pool, condition).await.map_or_else(
+		|e| Err(Response::from(Retrieve::from(Status::from(&e)))),
+		|vec| Ok(Response::from(Retrieve::new(vec, on_success.into()))),
+	)
+}
+
+/// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
+/// have no permissions (rather than outright having no permissions).
+fn no_effective_get_perms<T>() -> ResponseResult<Retrieve<T>>
+{
+	Ok(Response::from(Retrieve::new(Default::default(), Code::SuccessForPermissions.into())))
+}
+
+const fn todo(msg: &'static str) -> (StatusCode, &'static str)
+{
+	(StatusCode::NOT_IMPLEMENTED, msg)
+}
 
 /// Create routes which are able to be implemented generically.
 macro_rules! route {
@@ -57,11 +83,6 @@ macro_rules! route {
 			)
 			.patch(|| async move { todo("Update method not implemented") })
 	};
-}
-
-const fn todo(msg: &'static str) -> (StatusCode, &'static str)
-{
-	(StatusCode::NOT_IMPLEMENTED, msg)
 }
 
 /// A handler for [`routes`](crate::api::routes).
@@ -103,21 +124,11 @@ where
 						},
 
 						// they have no department, so they *effectively* can't retrieve departments.
-						Object::AssignedDepartment =>
-						{
-							return Ok(Response::from(Retrieve::new(
-								Default::default(),
-								Code::SuccessForPermissions.into(),
-							)));
-						},
-
+						Object::AssignedDepartment => return no_effective_get_perms(),
 						p => p.unreachable(),
 					};
 
-					A::Department::retrieve(state.pool(), condition).await.map_or_else(
-						|e| Err(Response::from(Retrieve::<Department>::from(Status::from(&e)))),
-						|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-					)
+					retrieve::<A::Department>(state.pool(), condition, code).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
@@ -151,21 +162,11 @@ where
 							Code::SuccessForPermissions
 						},
 
-						Some(Object::EmployeeInDepartment) | None =>
-						{
-							return Ok(Response::from(Retrieve::new(
-								Default::default(),
-								Code::SuccessForPermissions.into(),
-							)));
-						},
-
+						Some(Object::EmployeeInDepartment) | None => return no_effective_get_perms(),
 						Some(p) => p.unreachable(),
 					};
 
-					A::Employee::retrieve(state.pool(), condition).await.map_or_else(
-						|e| Err(Response::from(Retrieve::<Employee>::from(Status::from(&e)))),
-						|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-					)
+					retrieve::<A::Employee>(state.pool(), condition, code).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
@@ -186,10 +187,7 @@ where
 					// expenses.
 					if permission != Object::Expenses && user.employee().is_none()
 					{
-						return Ok(Response::from(Retrieve::new(
-							Default::default(),
-							Code::SuccessForPermissions.into(),
-						)));
+						return no_effective_get_perms();
 					}
 
 					let condition = request.into_condition();
@@ -280,21 +278,11 @@ where
 							Code::SuccessForPermissions
 						},
 
-						Object::JobInDepartment =>
-						{
-							return Ok(Response::from(Retrieve::new(
-								Default::default(),
-								Code::SuccessForPermissions.into(),
-							)));
-						},
-
+						Object::JobInDepartment => return no_effective_get_perms(),
 						p => p.unreachable(),
 					};
 
-					A::Job::retrieve(state.pool(), condition).await.map_or_else(
-						|e| Err(Response::from(Retrieve::<Job>::from(Status::from(&e)))),
-						|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-					)
+					retrieve::<A::Job>(state.pool(), condition, code).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
@@ -428,21 +416,11 @@ where
 							Code::SuccessForPermissions
 						},
 
-						Object::TimesheetInDepartment | Object::CreatedTimesheet =>
-						{
-							return Ok(Response::from(Retrieve::new(
-								Default::default(),
-								Code::SuccessForPermissions.into(),
-							)));
-						},
-
+						Object::TimesheetInDepartment | Object::CreatedTimesheet => return no_effective_get_perms(),
 						p => p.unreachable(),
 					};
 
-					A::Timesheet::retrieve(state.pool(), condition).await.map_or_else(
-						|e| Err(Response::from(Retrieve::<Timesheet>::from(Status::from(&e)))),
-						|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-					)
+					retrieve::<A::Timesheet>(state.pool(), condition, code).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
@@ -494,21 +472,11 @@ where
 							Code::SuccessForPermissions
 						},
 
-						Some(Object::UserInDepartment) | None =>
-						{
-							return Ok(Response::from(Retrieve::new(
-								Default::default(),
-								Code::SuccessForPermissions.into(),
-							)))
-						},
-
+						Some(Object::UserInDepartment) | None => return no_effective_get_perms(),
 						Some(p) => p.unreachable(),
 					};
 
-					A::User::retrieve(state.pool(), condition).await.map_or_else(
-						|e| Err(Response::from(Retrieve::<User>::from(Status::from(&e)))),
-						|vec| Ok(Response::from(Retrieve::new(vec, code.into()))),
-					)
+					retrieve::<A::User>(state.pool(), condition, code).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })

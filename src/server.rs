@@ -25,7 +25,7 @@ use axum_login::{
 use axum_server::tls_rustls::RustlsConfig;
 use db_session_store::DbSessionStore;
 use handler::Handler;
-pub use response::{LoginResponse, LogoutResponse, Response, VersionResponse};
+pub use response::VersionResponse;
 use semver::VersionReq;
 use sqlx::{Connection, Database, Executor, QueryBuilder, Transaction};
 pub use state::ServerState;
@@ -258,6 +258,7 @@ mod tests
 		permissions::{Action, Object},
 		r#match::{MatchRole, MatchUser},
 		schema::{RoleAdapter, UserAdapter},
+		server::response::{LoginResponse, LogoutResponse, Response},
 		utils,
 	};
 

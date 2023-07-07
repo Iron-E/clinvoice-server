@@ -5,7 +5,7 @@ mod clone;
 use casbin::{CoreApi, Enforcer};
 use sqlx::{Database, Pool};
 
-use super::Response;
+use super::response::Response;
 use crate::{
 	api::{Code, Status},
 	bool_ext::BoolExt,
