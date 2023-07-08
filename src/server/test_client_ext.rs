@@ -58,7 +58,7 @@ pub trait TestClientExt
 	/// Make a POST [`RequestBuilder`] on the given `route`.
 	fn post_builder(&self, route: &str) -> RequestBuilder;
 
-    /// assert logged in user with permissions is accepted
+	/// assert logged in user with permissions is accepted
 	async fn test_get_success<'ent, M, E, Iter>(
 		&self,
 		route: &str,
@@ -72,24 +72,25 @@ pub trait TestClientExt
 		Iter: Debug + Iterator<Item = &'ent E> + Send,
 		M: Debug + Serialize + Send + Sync;
 
-    /// assert logged in user without permissions is rejected
+	/// assert logged in user without permissions is rejected
 	async fn test_get_unauthorized<M>(&self, route: &str, user: &User, password: &str)
 	where
 		M: Debug + Default + Serialize + Send + Sync;
 
 	async fn test_post_success<R, A>(
 		&self,
-        pool: &Pool<R::Db>,
+		pool: &Pool<R::Db>,
 		route: &str,
 		user: &User,
 		password: &str,
-        args: A,
+		args: A,
 		code: Option<Code>,
-	) where
+	) -> R::Entity
+	where
 		A: Debug + Send + Serialize + Sync,
-        R: Retrievable,
-        R::Entity: Clone + Debug + DeserializeOwned + PartialEq + Send,
-        R::Match: Debug + From<R::Entity> + Send;
+		R: Retrievable,
+		R::Entity: Clone + Debug + DeserializeOwned + PartialEq + Send,
+		R::Match: Debug + From<R::Entity> + Send;
 }
 
 #[async_trait::async_trait]
@@ -202,37 +203,38 @@ impl TestClientExt for TestClient
 	#[tracing::instrument(skip(self))]
 	async fn test_post_success<R, A>(
 		&self,
-        pool: &Pool<R::Db>,
+		pool: &Pool<R::Db>,
 		route: &str,
 		user: &User,
 		password: &str,
-        args: A,
+		args: A,
 		code: Option<Code>,
-	) where
+	) -> R::Entity
+	where
 		A: Debug + Send + Serialize + Sync,
-        R: Retrievable,
-        R::Entity: Clone + Debug + DeserializeOwned + PartialEq + Send,
-        R::Match: Debug + From<R::Entity> + Send,
-    {
+		R: Retrievable,
+		R::Entity: Clone + Debug + DeserializeOwned + PartialEq + Send,
+		R::Match: Debug + From<R::Entity> + Send,
+	{
 		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
 		// like       this or else this function's span is skipped.
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-        self.login(user.username(), password).await;
-        let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
-        let status = response.status();
+		self.login(user.username(), password).await;
+		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
+		let status = response.status();
 
-        let post = response.json::<Post<R::Entity>>().await;
-        let actual = Response::new(status, post.clone());
-		let expected =
-        {
-            let entity = post.into_entity().unwrap();
-            let row = R::retrieve(pool, R::Match::from(entity)).await.map(|mut v| v.remove(0)).unwrap();
-            Response::from(Post::new(row.into(), code.unwrap_or(Code::Success).into()))
-        };
+		let actual = Response::new(status, response.json::<Post<R::Entity>>().await);
+		let expected = {
+			let entity = actual.content().entity().unwrap().clone();
+			let row = R::retrieve(pool, R::Match::from(entity)).await.map(|mut v| v.remove(0)).unwrap();
+			Response::from(Post::new(row.into(), code.unwrap_or(Code::Success).into()))
+		};
 
-        assert_eq!(actual, expected);
+		assert_eq!(actual, expected);
 		self.logout().await;
-    }
+
+		actual.into_content().into_entity().unwrap()
+	}
 }

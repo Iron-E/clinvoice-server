@@ -240,7 +240,7 @@ mod tests
 		MatchOrganization,
 		MatchTimesheet,
 	};
-	use winvoice_schema::{chrono::TimeZone, ContactKind, Invoice, Money};
+	use winvoice_schema::{chrono::TimeZone, ContactKind, Currency, Invoice, Money};
 
 	#[allow(clippy::wildcard_imports)]
 	use super::*;
@@ -846,7 +846,17 @@ mod tests
 			// TODO: /contact
 			// TODO: /department
 			// TODO: /employee
-			// TODO: /location
+
+			#[rustfmt::skip]
+			let location = client.test_post_success::<PgLocation, _>(
+                &pool, routes::LOCATION,
+                &admin, &admin_password,
+                (Some(utils::rand_currency()), address::country(), None::<Currency>),
+                None,
+            )
+            .await;
+
+			// TODO: grunt,guest,manager /location
 			// TODO: /organization
 
 			let rates = ExchangeRates::new().await?;
@@ -870,11 +880,11 @@ mod tests
 			)?;
 
 			// PgOrganization::delete(&pool, [organization].iter()).await?;
-			// futures::try_join!(
-			// 	PgContact::delete(&pool, [&contact_].into_iter()),
-			// 	PgEmployee::delete(&pool, [&employee].into_iter()),
-			// 	PgLocation::delete(&pool, [&location].into_iter()),
-			// )?;
+			futures::try_join!(
+				// PgContact::delete(&pool, [&contact_].into_iter()),
+				// PgEmployee::delete(&pool, [&employee].into_iter()),
+				PgLocation::delete(&pool, [&location].into_iter()),
+			)?;
 
 			Ok(())
 		}

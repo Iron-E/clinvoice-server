@@ -69,6 +69,20 @@ impl<T> Response<T>
 		&self.1 .0
 	}
 
+	/// Get the content of this [`Response`]
+	#[allow(dead_code)]
+	pub fn into_content(self) -> T
+	{
+		self.1 .0
+	}
+
+	/// Get the content of this [`Response`]
+	#[allow(dead_code)]
+	pub fn into_status(self) -> StatusCode
+	{
+		self.0
+	}
+
 	/// Create a new [`Response`]
 	pub const fn new(status_code: StatusCode, content: T) -> Self
 	{
