@@ -1,4 +1,4 @@
-use core::marker::PhantomData;
+use core::{marker::PhantomData, time::Duration};
 use std::collections::HashSet;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
@@ -31,7 +31,7 @@ use crate::{
 	},
 	permissions::{Action, Object},
 	r#match::MatchUser,
-	schema::{Adapter, User},
+	schema::{Adapter, RoleAdapter, User},
 };
 
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
@@ -407,7 +407,15 @@ where
 	/// The handler for the [`routes::ROLE`](crate::api::routes::ROLE).
 	pub fn role(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Role).post(|| async move { todo("role create") })
+		route!(Role).post(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<(String, Option<Duration>)>>| async move {
+				state.enforce_permission(&user, Object::Role, Action::Create).await?;
+				let (name, password_ttl) = request.into_args();
+				create(A::Role::create(state.pool(), name, password_ttl).await, Code::Success)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::TIMESHEET`](crate::api::routes::TIMESHEET).
