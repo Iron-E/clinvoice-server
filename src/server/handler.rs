@@ -13,9 +13,12 @@ use axum::{
 };
 use sqlx::{Database, Executor, Pool, Result, Transaction};
 use tracing::Instrument;
-use winvoice_adapter::{schema::LocationAdapter, Retrievable};
+use winvoice_adapter::{
+	schema::{ContactAdapter, LocationAdapter, OrganizationAdapter},
+	Retrievable,
+};
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, Currency, Employee, Expense, Location, Timesheet};
+use winvoice_schema::{chrono::Utc, ContactKind, Currency, Employee, Expense, Location, Timesheet};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
@@ -116,7 +119,15 @@ where
 	/// The handler for the [`routes::CONTACT`](crate::api::routes::CONTACT).
 	pub fn contact(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Contact).post(|| async move { todo("contact create") })
+		route!(Contact).post(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<(ContactKind, String)>>| async move {
+				state.enforce_permission(&user, Object::Contact, Action::Create).await?;
+				let (kind, label) = request.into_args();
+				create(A::Contact::create(state.pool(), kind, label).await, Code::Success)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::DEPARTMENT`](crate::api::routes::DEPARTMENT).
@@ -405,7 +416,15 @@ where
 	/// The handler for the [`routes::ORGANIZATION`](crate::api::routes::ORGANIZATION).
 	pub fn organization(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Organization).post(|| async move { todo("organization create") })
+		route!(Organization).post(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<(Location, String)>>| async move {
+				state.enforce_permission(&user, Object::Organization, Action::Create).await?;
+				let (location, name) = request.into_args();
+				create(A::Organization::create(state.pool(), location, name).await, Code::Success)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::ROLE`](crate::api::routes::ROLE).
