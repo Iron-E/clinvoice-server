@@ -76,7 +76,7 @@ const fn todo(msg: &'static str) -> (StatusCode, &'static str)
 
 /// Create routes which are able to be implemented generically.
 macro_rules! route {
-	($Entity:ident) => {
+	($Entity:ident, $Args:ty, $($param:ident),+) => {
 		routing::delete(|| async move { todo("Delete method not implemented") })
 			.get(
 				|Extension(user): Extension<User>,
@@ -99,6 +99,17 @@ macro_rules! route {
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
+			.post(
+                #[allow(clippy::type_complexity)]
+				|Extension(user): Extension<User>,
+				 State(state): State<ServerState<A::Db>>,
+				 Json(request): Json<request::Post<$Args>>| async move {
+                    #[warn(clippy::type_complexity)]
+					state.enforce_permission(&user, Object::Contact, Action::Create).await?;
+					let ( $($param),+ ) = request.into_args();
+					create(A::$Entity::create(state.pool(), $($param),+).await, Code::Success)
+				},
+			)
 	};
 }
 
@@ -119,15 +130,7 @@ where
 	/// The handler for the [`routes::CONTACT`](crate::api::routes::CONTACT).
 	pub fn contact(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Contact).post(
-			|Extension(user): Extension<User>,
-			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(ContactKind, String)>>| async move {
-				state.enforce_permission(&user, Object::Contact, Action::Create).await?;
-				let (kind, label) = request.into_args();
-				create(A::Contact::create(state.pool(), kind, label).await, Code::Success)
-			},
-		)
+		route!(Contact, (ContactKind, String), kind, name)
 	}
 
 	/// The handler for the [`routes::DEPARTMENT`](crate::api::routes::DEPARTMENT).
@@ -319,17 +322,7 @@ where
 	/// The handler for the [`routes::LOCATION`](crate::api::routes::LOCATION).
 	pub fn location(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Location).post(
-			#[allow(clippy::type_complexity)]
-			|Extension(user): Extension<User>,
-			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(Option<Currency>, String, Option<Location>)>>| async move {
-				#[warn(clippy::type_complexity)]
-				state.enforce_permission(&user, Object::Location, Action::Create).await?;
-				let (currency, name, outer) = request.into_args();
-				create(A::Location::create(state.pool(), currency, name, outer).await, Code::Success)
-			},
-		)
+		route!(Location, (Option<Currency>, String, Option<Location>), currency, name, outer)
 	}
 
 	/// The handler for the [`routes::LOGIN`](crate::api::routes::LOGIN).
@@ -416,29 +409,13 @@ where
 	/// The handler for the [`routes::ORGANIZATION`](crate::api::routes::ORGANIZATION).
 	pub fn organization(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Organization).post(
-			|Extension(user): Extension<User>,
-			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(Location, String)>>| async move {
-				state.enforce_permission(&user, Object::Organization, Action::Create).await?;
-				let (location, name) = request.into_args();
-				create(A::Organization::create(state.pool(), location, name).await, Code::Success)
-			},
-		)
+		route!(Organization, (Location, String), location, name)
 	}
 
 	/// The handler for the [`routes::ROLE`](crate::api::routes::ROLE).
 	pub fn role(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Role).post(
-			|Extension(user): Extension<User>,
-			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(String, Option<Duration>)>>| async move {
-				state.enforce_permission(&user, Object::Role, Action::Create).await?;
-				let (name, password_ttl) = request.into_args();
-				create(A::Role::create(state.pool(), name, password_ttl).await, Code::Success)
-			},
-		)
+		route!(Role, (String, Option<Duration>), name, password_ttl)
 	}
 
 	/// The handler for the [`routes::TIMESHEET`](crate::api::routes::TIMESHEET).
