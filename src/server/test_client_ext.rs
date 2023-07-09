@@ -12,7 +12,7 @@ use axum_login::axum_sessions::async_session::base64;
 use axum_test_helper::{RequestBuilder, TestClient};
 use pretty_assertions::assert_eq;
 use serde::{de::DeserializeOwned, Serialize};
-use sqlx::Pool;
+use sqlx::{Database, Pool};
 use winvoice_adapter::Retrievable;
 
 use super::response::{LoginResponse, LogoutResponse};
@@ -58,7 +58,7 @@ pub trait TestClientExt
 	/// Make a POST [`RequestBuilder`] on the given `route`.
 	fn post_builder(&self, route: &str) -> RequestBuilder;
 
-	/// assert logged in user with permissions is accepted
+	/// assert logged in user GET with permissions is accepted
 	async fn test_get_success<'ent, M, E, Iter>(
 		&self,
 		route: &str,
@@ -72,11 +72,12 @@ pub trait TestClientExt
 		Iter: Debug + Iterator<Item = &'ent E> + Send,
 		M: Debug + Serialize + Send + Sync;
 
-	/// assert logged in user without permissions is rejected
+	/// assert logged in user GET with permissions is rejected
 	async fn test_get_unauthorized<M>(&self, route: &str, user: &User, password: &str)
 	where
 		M: Debug + Default + Serialize + Send + Sync;
 
+	/// assert logged in user POST with permissions is accepted
 	async fn test_post_success<R, A>(
 		&self,
 		pool: &Pool<R::Db>,
@@ -91,6 +92,12 @@ pub trait TestClientExt
 		R: Retrievable,
 		R::Entity: Clone + Debug + DeserializeOwned + PartialEq + Send,
 		R::Match: Debug + From<R::Entity> + Send;
+
+	/// assert logged in user POST with permissions is rejected
+	async fn test_post_unauthorized<Db, A>(&self, pool: &Pool<Db>, route: &str, user: &User, password: &str, args: A)
+	where
+		A: Debug + Send + Serialize + Sync,
+		Db: Database;
 }
 
 #[async_trait::async_trait]
@@ -195,7 +202,7 @@ impl TestClientExt for TestClient
 		let expected = Response::from(Get::<()>::from(Status::from(Code::Unauthorized)));
 
 		assert_eq!(actual.status(), expected.status());
-		assert_eq!(actual.content().entities(), &[]);
+		assert_eq!(actual.content().entities(), expected.content().entities());
 		assert_eq!(actual.content().status().code(), expected.content().status().code());
 		self.logout().await;
 	}
@@ -236,5 +243,29 @@ impl TestClientExt for TestClient
 		self.logout().await;
 
 		actual.into_content().into_entity().unwrap()
+	}
+
+	#[tracing::instrument(skip(self))]
+	async fn test_post_unauthorized<Db, A>(&self, pool: &Pool<Db>, route: &str, user: &User, password: &str, args: A)
+	where
+		A: Debug + Send + Serialize + Sync,
+		Db: Database,
+	{
+		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
+
+		self.login(user.username(), password).await;
+		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
+		let status = response.status();
+
+		let actual = Response::new(status, response.json::<Post<()>>().await);
+		let expected = Response::from(Post::new(None, Code::Unauthorized.into()));
+
+		assert_eq!(actual.status(), expected.status());
+		assert_eq!(actual.content().entity(), expected.content().entity());
+		assert_eq!(actual.content().status().code(), expected.content().status().code());
+		self.logout().await;
 	}
 }

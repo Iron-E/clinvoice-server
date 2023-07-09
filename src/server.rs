@@ -496,7 +496,7 @@ mod tests
 			},
 			PgSchema,
 		};
-		use winvoice_schema::chrono::Utc;
+		use winvoice_schema::{chrono::Utc, Location};
 
 		#[allow(clippy::wildcard_imports)]
 		use super::*;
@@ -834,6 +834,11 @@ mod tests
 		#[traced_test]
 		async fn post() -> DynResult<()>
 		{
+			fn location_args() -> (Option<Currency>, String, Option<Location>)
+			{
+				(Some(utils::rand_currency()), address::country(), None::<Location>)
+			}
+
 			let TestData {
 				admin: (admin, admin_password),
 				client,
@@ -851,10 +856,14 @@ mod tests
 			let location = client.test_post_success::<PgLocation, _>(
                 &pool, routes::LOCATION,
                 &admin, &admin_password,
-                (Some(utils::rand_currency()), address::country(), None::<Currency>),
+                location_args(),
                 None,
             )
             .await;
+
+			client.test_post_unauthorized(&pool, routes::LOCATION, &grunt, &grunt_password, location_args()).await;
+			client.test_post_unauthorized(&pool, routes::LOCATION, &guest, &guest_password, location_args()).await;
+			client.test_post_unauthorized(&pool, routes::LOCATION, &manager, &manager_password, location_args()).await;
 
 			// TODO: grunt,guest,manager /location
 			// TODO: /organization
