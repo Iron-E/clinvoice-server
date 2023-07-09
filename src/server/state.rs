@@ -40,14 +40,14 @@ where
 		R: AsRef<Code> + From<Status>,
 	{
 		let mut object = Object::Department;
-		let can_get_all = self.has_permission::<R>(&user, object, action).await?;
+		let can_get_all = self.has_permission::<R>(user, object, action).await?;
 
 		if !can_get_all
 		{
 			// if they cannot get their assigned department, then they cannot
 			// retrieve ANY departments.
 			object = Object::AssignedDepartment;
-			self.enforce_permission::<R>(&user, object, action).await?;
+			self.enforce_permission::<R>(user, object, action).await?;
 		}
 
 		Ok(object)
@@ -67,11 +67,11 @@ where
 		R: AsRef<Code> + From<Status>,
 	{
 		let mut object = Object::Employee;
-		let can_get_all = self.has_permission::<R>(&user, object, action).await?;
+		let can_get_all = self.has_permission::<R>(user, object, action).await?;
 
 		let can_get_in_dept = can_get_all || {
 			object = Object::EmployeeInDepartment;
-			self.has_permission::<R>(&user, object, action).await?
+			self.has_permission::<R>(user, object, action).await?
 		};
 
 		Ok(can_get_in_dept.then_or(None, || object.into()))
@@ -103,17 +103,17 @@ where
 		R: AsRef<Code> + From<Status>,
 	{
 		let mut object = Object::Expenses;
-		let can_get_all = self.has_permission::<R>(&user, object, action).await?;
+		let can_get_all = self.has_permission::<R>(user, object, action).await?;
 
 		let can_get_in_dept = can_get_all || {
 			object = Object::ExpensesInDepartment;
-			self.has_permission::<R>(&user, object, action).await?
+			self.has_permission::<R>(user, object, action).await?
 		};
 
 		if !can_get_in_dept
 		{
 			object = Object::CreatedExpenses;
-			self.enforce_permission::<R>(&user, object, action).await?;
+			self.enforce_permission::<R>(user, object, action).await?;
 		}
 
 		Ok(object)
@@ -141,12 +141,12 @@ where
 		R: AsRef<Code> + From<Status>,
 	{
 		let mut object = Object::Job;
-		let can_get_all = self.has_permission::<R>(&user, object, action).await?;
+		let can_get_all = self.has_permission::<R>(user, object, action).await?;
 
 		if !can_get_all
 		{
 			object = Object::JobInDepartment;
-			self.enforce_permission::<R>(&user, object, action).await?;
+			self.enforce_permission::<R>(user, object, action).await?;
 		}
 
 		Ok(object)
@@ -178,17 +178,17 @@ where
 		R: AsRef<Code> + From<Status>,
 	{
 		let mut object = Object::Timesheet;
-		let can_get_all = self.has_permission::<R>(&user, object, action).await?;
+		let can_get_all = self.has_permission::<R>(user, object, action).await?;
 
 		let can_get_in_dept = can_get_all || {
 			object = Object::TimesheetInDepartment;
-			self.has_permission::<R>(&user, object, action).await?
+			self.has_permission::<R>(user, object, action).await?
 		};
 
 		if !can_get_in_dept
 		{
 			object = Object::CreatedTimesheet;
-			self.enforce_permission::<R>(&user, object, action).await?;
+			self.enforce_permission::<R>(user, object, action).await?;
 		}
 
 		Ok(object)
@@ -208,11 +208,11 @@ where
 		R: AsRef<Code> + From<Status>,
 	{
 		let mut object = Object::User;
-		let can_get_all = self.has_permission::<R>(&user, object, action).await?;
+		let can_get_all = self.has_permission::<R>(user, object, action).await?;
 
 		let can_get_in_dept = can_get_all || {
 			object = Object::UserInDepartment;
-			self.has_permission::<R>(&user, object, action).await?
+			self.has_permission::<R>(user, object, action).await?
 		};
 
 		Ok(can_get_in_dept.then_or(None, || object.into()))

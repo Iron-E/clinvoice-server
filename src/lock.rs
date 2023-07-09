@@ -8,6 +8,7 @@ use tokio::sync::RwLock;
 pub type Lock<T> = Arc<RwLock<T>>;
 
 /// Create new [`Sync`]hronous data.
+#[allow(clippy::arc_with_non_send_sync)]
 pub fn new<T>(t: T) -> Lock<T>
 {
 	Arc::new(RwLock::new(t))

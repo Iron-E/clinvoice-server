@@ -60,6 +60,7 @@ where
 
 /// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
 /// have no permissions (rather than outright having no permissions).
+#[allow(clippy::unnecessary_wraps)]
 fn no_effective_get_perms<T>() -> ResponseResult<Get<T>>
 {
 	Ok(Response::from(Get::new(Default::default(), Code::SuccessForPermissions.into())))
@@ -87,6 +88,7 @@ macro_rules! route {
 						.await?;
 
 					let condition = request.into_condition();
+					#[allow(clippy::unnecessary_wraps)]
 					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
 						|e| Err(Response::from(Get::<<A::$Entity as Retrievable>::Entity>::from(Status::from(&e)))),
 						|vec| Ok(Response::from(Get::new(vec, Code::Success.into()))),
@@ -307,9 +309,11 @@ where
 	pub fn location(&self) -> MethodRouter<ServerState<A::Db>>
 	{
 		route!(Location).post(
+			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<request::Post<(Option<Currency>, String, Option<Location>)>>| async move {
+				#[warn(clippy::type_complexity)]
 				state.enforce_permission(&user, Object::Location, Action::Create).await?;
 				let (currency, name, outer) = request.into_args();
 				create(A::Location::create(state.pool(), currency, name, outer).await, Code::Success)
@@ -393,7 +397,7 @@ where
 	}
 
 	/// Create a new [`Handler`].
-	pub fn new() -> Self
+	pub const fn new() -> Self
 	{
 		Self { phantom: PhantomData }
 	}

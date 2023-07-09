@@ -16,17 +16,18 @@ pub struct Delete
 
 impl Delete
 {
-	/// Create a new [`Delete`] response.
-	pub const fn new(status: Status) -> Self
-	{
-		Self { status }
-	}
-
 	/// The [`Status`] of the login request.
 	#[allow(dead_code)]
 	pub fn into_status(self) -> Status
 	{
 		self.status
+	}
+
+	/// Create a new [`Delete`] response.
+	#[allow(dead_code)]
+	pub const fn new(status: Status) -> Self
+	{
+		Self { status }
 	}
 
 	/// The [`Status`] of the login request.

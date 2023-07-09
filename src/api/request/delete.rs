@@ -36,7 +36,7 @@ impl<T> Delete<T>
 	/// # See also
 	///
 	/// * [`Retrieve::condition`]
-	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
+	#[allow(clippy::missing_const_for_fn, dead_code)] // destructor cannot be evaluated at compile-time
 	pub fn into_entities(self) -> Vec<T>
 	{
 		self.entities
