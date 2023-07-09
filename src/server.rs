@@ -205,6 +205,8 @@ where
 #[cfg(test)]
 mod tests
 {
+	use core::time::Duration;
+
 	use axum_test_helper::TestClient;
 	use casbin::{CoreApi, Enforcer};
 	use csv::WriterBuilder;
@@ -839,6 +841,11 @@ mod tests
 				(Some(utils::rand_currency()), address::country(), None::<Location>)
 			}
 
+			fn role_args() -> (String, Option<Duration>)
+			{
+				(words::sentence(5), Duration::from_secs(rand::random::<u16>().into()).into())
+			}
+
 			let TestData {
 				admin: (admin, admin_password),
 				client,
@@ -852,18 +859,19 @@ mod tests
 			// TODO: /department
 			// TODO: /employee
 
-			#[rustfmt::skip]
-			let location = client.test_post_success::<PgLocation, _>(
-                &pool, routes::LOCATION,
-                &admin, &admin_password,
-                location_args(),
-                None,
-            )
-            .await;
-
 			client.test_post_unauthorized(&pool, routes::LOCATION, &grunt, &grunt_password, location_args()).await;
 			client.test_post_unauthorized(&pool, routes::LOCATION, &guest, &guest_password, location_args()).await;
 			client.test_post_unauthorized(&pool, routes::LOCATION, &manager, &manager_password, location_args()).await;
+			let location = client
+				.test_post_success::<PgLocation, _>(
+					&pool,
+					routes::LOCATION,
+					&admin,
+					&admin_password,
+					location_args(),
+					None,
+				)
+				.await;
 
 			// TODO: grunt,guest,manager /location
 			// TODO: /organization
@@ -874,17 +882,23 @@ mod tests
 			// TODO: /timesheet
 			// TODO: /expenses
 
+			client.test_post_unauthorized(&pool, routes::ROLE, &grunt, &grunt_password, role_args()).await;
+			client.test_post_unauthorized(&pool, routes::ROLE, &guest, &guest_password, role_args()).await;
+			client.test_post_unauthorized(&pool, routes::ROLE, &manager, &manager_password, role_args()).await;
+			let role = client
+				.test_post_success::<PgRole, _>(&pool, routes::ROLE, &admin, &admin_password, role_args(), None)
+				.await;
+
+			// TODO: /user
+
 			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
 				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
 
-			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
-
-			// TODO: /role
-			// TODO: /user
+			let roles = users.iter().map(|u| u.role()).chain([&role]).collect::<Vec<_>>();
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(
-				PgRole::delete(&pool, roles.iter()),
+				PgRole::delete(&pool, roles.into_iter()),
 				/* PgJob::delete(&pool, [&job_, &job2].into_iter()) */
 			)?;
 

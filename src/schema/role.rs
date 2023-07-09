@@ -15,7 +15,7 @@ pub struct Role
 	id: Id,
 
 	/// The name of the [`Role`].
-	name: String,
+	pub(crate) name: String,
 
 	/// How frequent password rotation must occur for [`User`](super::User) with this [`Role`].
 	///

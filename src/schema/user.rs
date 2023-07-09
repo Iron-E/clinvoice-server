@@ -32,7 +32,7 @@ static ARGON: OnceLock<Argon2> = OnceLock::new();
 pub struct User
 {
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
-	employee: Option<Employee>,
+	pub(crate) employee: Option<Employee>,
 
 	/// The [`Id`] of the [`User`].
 	id: Id,
@@ -44,16 +44,16 @@ pub struct User
 	/// The password in plaintext, which *will* be [hashed](argon2) and stored in the
 	/// [`Database`](sqlx::Database) by [`winvoice_server`].
 	#[serde(serialize_with = "serialize_password")]
-	password: String,
+	pub(crate) password: String,
 
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
 	password_expires: Option<DateTime<Utc>>,
 
 	/// The [`Role`] assigned to the [`User`].
-	role: Role,
+	pub(crate) role: Role,
 
 	/// Get the [`User`]'s username.
-	username: String,
+	pub(crate) username: String,
 }
 
 /// A custom serializer for the [`User`] password which prevents anyone from ever seeing the
