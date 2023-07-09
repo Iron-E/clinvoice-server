@@ -836,6 +836,11 @@ mod tests
 		#[traced_test]
 		async fn post() -> DynResult<()>
 		{
+			fn contact_args() -> (ContactKind, String)
+			{
+				(ContactKind::Email(contact::email()), words::sentence(4))
+			}
+
 			fn location_args() -> (Option<Currency>, String, Option<Location>)
 			{
 				(Some(utils::rand_currency()), address::country(), None::<Location>)
@@ -855,7 +860,20 @@ mod tests
 				pool,
 			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
-			// TODO: /contact
+			client.test_post_unauthorized(&pool, routes::CONTACT, &grunt, &grunt_password, contact_args()).await;
+			client.test_post_unauthorized(&pool, routes::CONTACT, &guest, &guest_password, contact_args()).await;
+			client.test_post_unauthorized(&pool, routes::CONTACT, &manager, &manager_password, contact_args()).await;
+			let contact_ = client
+				.test_post_success::<PgContact, _>(
+					&pool,
+					routes::CONTACT,
+					&admin,
+					&admin_password,
+					contact_args(),
+					None,
+				)
+				.await;
+
 			// TODO: /department
 			// TODO: /employee
 
@@ -874,7 +892,28 @@ mod tests
 				.await;
 
 			// TODO: grunt,guest,manager /location
-			// TODO: /organization
+
+			let organization_args = || (location.clone(), words::sentence(5));
+
+			client
+				.test_post_unauthorized(&pool, routes::ORGANIZATION, &grunt, &grunt_password, organization_args())
+				.await;
+			client
+				.test_post_unauthorized(&pool, routes::ORGANIZATION, &guest, &guest_password, organization_args())
+				.await;
+			client
+				.test_post_unauthorized(&pool, routes::ORGANIZATION, &manager, &manager_password, organization_args())
+				.await;
+			let organization = client
+				.test_post_success::<PgOrganization, _>(
+					&pool,
+					routes::ORGANIZATION,
+					&admin,
+					&admin_password,
+					organization_args(),
+					None,
+				)
+				.await;
 
 			let rates = ExchangeRates::new().await?;
 
@@ -902,9 +941,9 @@ mod tests
 				/* PgJob::delete(&pool, [&job_, &job2].into_iter()) */
 			)?;
 
-			// PgOrganization::delete(&pool, [organization].iter()).await?;
+			PgOrganization::delete(&pool, [organization].iter()).await?;
 			futures::try_join!(
-				// PgContact::delete(&pool, [&contact_].into_iter()),
+				PgContact::delete(&pool, [&contact_].into_iter()),
 				// PgEmployee::delete(&pool, [&employee].into_iter()),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
