@@ -673,8 +673,8 @@ mod tests
 					employee.clone(),
 					Default::default(),
 					job_.clone(),
-					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
-					Utc.with_ymd_and_hms(2022, 06, 09, 07, 00, 00).latest(),
+					Utc.with_ymd_and_hms(2022, 6, 8, 15, 27, 0).unwrap(),
+					Utc.with_ymd_and_hms(2022, 6, 9, 7, 0, 0).latest(),
 					words::sentence(5),
 				)
 				.await?;
@@ -684,8 +684,8 @@ mod tests
 					grunt.employee().unwrap().clone(),
 					Default::default(),
 					job2.clone(),
-					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
-					Utc.with_ymd_and_hms(2022, 06, 09, 07, 00, 00).latest(),
+					Utc.with_ymd_and_hms(2022, 6, 8, 15, 27, 0).unwrap(),
+					Utc.with_ymd_and_hms(2022, 6, 9, 7, 0, 0).latest(),
 					words::sentence(5),
 				)
 				.await?;
@@ -695,8 +695,8 @@ mod tests
 					manager.employee().unwrap().clone(),
 					Default::default(),
 					job2.clone(),
-					Utc.with_ymd_and_hms(2022, 06, 08, 15, 27, 00).unwrap(),
-					Utc.with_ymd_and_hms(2022, 06, 09, 07, 00, 00).latest(),
+					Utc.with_ymd_and_hms(2022, 6, 8, 15, 27, 0).unwrap(),
+					Utc.with_ymd_and_hms(2022, 6, 9, 7, 0, 0).latest(),
 					words::sentence(5),
 				)
 				.await?;

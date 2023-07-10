@@ -35,7 +35,7 @@
 //!
 //! If you are working with another language, see [the docs](TODO).
 
-#![allow(clippy::drop_non_drop)]
+#![allow(clippy::drop_non_drop, clippy::inconsistent_digit_grouping)]
 #![forbid(unsafe_code)]
 #![warn(
 	missing_docs,
