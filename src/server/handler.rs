@@ -82,30 +82,19 @@ macro_rules! route {
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Get<<A::$Entity as Retrievable>::Match>>| async move {
-					state
-						.enforce_permission::<Get<<A::$Entity as Retrievable>::Entity>>(
-							&user,
-							Object::$Entity,
-							Action::Retrieve,
-						)
-						.await?;
-
+					state.enforce_permission(&user, Object::$Entity, Action::Retrieve).await?;
 					let condition = request.into_condition();
-					#[allow(clippy::unnecessary_wraps)]
-					A::$Entity::retrieve(state.pool(), condition).await.map_or_else(
-						|e| Err(Response::from(Get::<<A::$Entity as Retrievable>::Entity>::from(Status::from(&e)))),
-						|vec| Ok(Response::from(Get::new(vec, Code::Success.into()))),
-					)
+					retrieve::<A::$Entity>(state.pool(), condition, Code::Success).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
 			.post(
-                #[allow(clippy::type_complexity)]
+				#[allow(clippy::type_complexity)]
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Post<$Args>>| async move {
-                    #[warn(clippy::type_complexity)]
-					state.enforce_permission(&user, Object::Contact, Action::Create).await?;
+					#[warn(clippy::type_complexity)]
+					state.enforce_permission(&user, Object::$Entity, Action::Create).await?;
 					let ( $($param),+ ) = request.into_args();
 					create(A::$Entity::create(state.pool(), $($param),+).await, Code::Success)
 				},
