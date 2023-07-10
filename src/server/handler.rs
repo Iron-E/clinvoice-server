@@ -11,31 +11,33 @@ use axum::{
 	Json,
 	TypedHeader,
 };
-use sqlx::{Database, Executor, Pool, Result, Transaction};
+use sqlx::{Database, Executor, Pool, Result};
 use tracing::Instrument;
 use winvoice_adapter::{
 	schema::{ContactAdapter, LocationAdapter, OrganizationAdapter},
 	Deletable,
 	Retrievable,
+	Updatable,
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
 use winvoice_schema::{chrono::Utc, ContactKind, Currency, Employee, Expense, Location, Timesheet};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
-	response::{LoginResponse, LogoutResponse, Response, ResponseResult},
+	response::{DeleteResponse, LoginResponse, LogoutResponse, PatchResponse, Response, ResponseResult},
 	ServerState,
 };
 use crate::{
 	api::{
 		request,
-		response::{Delete, Get, Post},
+		response::{Get, Post},
 		Code,
 		Status,
 	},
 	permissions::{Action, Object},
 	r#match::MatchUser,
 	schema::{Adapter, RoleAdapter, User},
+	twin_result::TwinResult,
 };
 
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
@@ -48,16 +50,15 @@ fn create<T>(result: Result<T>, on_success: Code) -> ResponseResult<Post<T>>
 }
 
 /// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
-async fn delete<D>(pool: &Pool<D::Db>, entities: Vec<D::Entity>, on_success: Code) -> ResponseResult<Delete>
+async fn delete<D>(pool: &Pool<D::Db>, entities: Vec<D::Entity>, on_success: Code) -> TwinResult<DeleteResponse>
 where
 	D: Deletable,
-	<D as Deletable>::Entity: Sync,
-	for<'c> &'c mut <D::Db as Database>::Connection: Executor<'c, Database = D::Db>,
+	D::Entity: Sync,
+	for<'con> &'con mut <D::Db as Database>::Connection: Executor<'con, Database = D::Db>,
 {
-	D::delete(pool, entities.iter()).await.map_or_else(
-		|e| Err(Response::from(Delete::new(Status::from(&e)))),
-		|_| Ok(Response::from(Delete::new(on_success.into()))),
-	)
+	D::delete(pool, entities.iter())
+		.await
+		.map_or_else(|e| Err(DeleteResponse::from(e)), |_| Ok(DeleteResponse::from(on_success)))
 }
 
 /// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
@@ -73,6 +74,17 @@ where
 		|e| Err(Response::from(Get::from(Status::from(&e)))),
 		|vec| Ok(Response::from(Get::new(vec, on_success.into()))),
 	)
+}
+
+/// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
+async fn update<U>(pool: &Pool<U::Db>, entities: Vec<U::Entity>, on_success: Code) -> TwinResult<PatchResponse>
+where
+	U: Updatable,
+	U::Entity: Sync,
+{
+	let mut tx = pool.begin().await.map_err(PatchResponse::from)?;
+	U::update(&mut tx, entities.iter()).await.map_err(PatchResponse::from)?;
+	tx.commit().await.map_or_else(|e| Err(PatchResponse::from(e)), |_| Ok(PatchResponse::from(on_success)))
 }
 
 /// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
@@ -107,7 +119,14 @@ macro_rules! route {
 					retrieve::<A::$Entity>(state.pool(), request.into_condition(), Code::Success).await
 				},
 			)
-			.patch(|| async move { todo("Update method not implemented") })
+			.patch(
+				|Extension(user): Extension<User>,
+				 State(state): State<ServerState<A::Db>>,
+				 Json(request): Json<request::Patch<<A::$Entity as Deletable>::Entity>>| async move {
+					state.enforce_permission(&user, Object::$Entity, Action::Update).await?;
+					update::<A::$Entity>(state.pool(), request.into_entities(), Code::Success).await
+				},
+			)
 			.post(
 				#[allow(clippy::type_complexity)]
 				|Extension(user): Extension<User>,
@@ -133,8 +152,7 @@ impl<A> Handler<A>
 where
 	A: Adapter,
 	DbUserStore<A::Db>: UserStore,
-	for<'connection> &'connection mut <A::Db as Database>::Connection: Executor<'connection, Database = A::Db>,
-	for<'connection> &'connection mut Transaction<'connection, A::Db>: Executor<'connection, Database = A::Db>,
+	for<'con> &'con mut <A::Db as Database>::Connection: Executor<'con, Database = A::Db>,
 {
 	/// The handler for the [`routes::CONTACT`](crate::api::routes::CONTACT).
 	pub fn contact(&self) -> MethodRouter<ServerState<A::Db>>

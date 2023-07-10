@@ -1,6 +1,7 @@
 //! This module contains the template for a response which is sent by the [`winvoice_server`]
 
 mod debug;
+mod delete;
 mod hash;
 mod into_response;
 mod login;
@@ -10,11 +11,14 @@ mod partial_ord;
 mod version;
 
 use axum::{http::StatusCode, Json};
+pub use delete::DeleteResponse;
 pub use login::LoginResponse;
 pub use logout::LogoutResponse;
 pub use version::VersionResponse;
 
-use crate::api::Code;
+use crate::{api::Code, twin_result::TwinResult};
+
+pub type PatchResponse = DeleteResponse;
 
 /// Implements [`IntoResponse`](axum::response::IntoResponse) for any `struct` with this structure:
 ///
@@ -51,6 +55,14 @@ macro_rules! new_response {
 			fn into_response(self) -> ::axum::response::Response
 			{
 				self.0.into_response()
+			}
+		}
+
+		impl ::core::convert::From<$crate::server::response::Response<$Type>> for $Name
+		{
+			fn from(response: $crate::server::response::Response<$Type>) -> Self
+			{
+                Self(response)
 			}
 		}
 	};
@@ -109,4 +121,4 @@ where
 }
 
 /// A result where both sides are a [`Response`].
-pub type ResponseResult<T> = Result<Response<T>, Response<T>>;
+pub type ResponseResult<T> = TwinResult<Response<T>>;

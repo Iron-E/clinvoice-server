@@ -109,6 +109,7 @@ mod r#match;
 mod permissions;
 mod schema;
 mod server;
+mod twin_result;
 mod utils;
 
 use args::Args;
