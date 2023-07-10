@@ -1,6 +1,7 @@
 //! This module contains the response for a login.
 
 mod as_ref;
+mod from;
 
 use serde::{Deserialize, Serialize};
 

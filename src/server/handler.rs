@@ -15,6 +15,7 @@ use sqlx::{Database, Executor, Pool, Result, Transaction};
 use tracing::Instrument;
 use winvoice_adapter::{
 	schema::{ContactAdapter, LocationAdapter, OrganizationAdapter},
+	Deletable,
 	Retrievable,
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
@@ -28,7 +29,7 @@ use super::{
 use crate::{
 	api::{
 		request,
-		response::{Get, Post},
+		response::{Delete, Get, Post},
 		Code,
 		Status,
 	},
@@ -43,6 +44,19 @@ fn create<T>(result: Result<T>, on_success: Code) -> ResponseResult<Post<T>>
 	result.map_or_else(
 		|e| Err(Response::from(Post::from(Status::from(&e)))),
 		|t| Ok(Response::from(Post::new(t.into(), on_success.into()))),
+	)
+}
+
+/// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
+async fn delete<D>(pool: &Pool<D::Db>, entities: Vec<D::Entity>, on_success: Code) -> ResponseResult<Delete>
+where
+	D: Deletable,
+	<D as Deletable>::Entity: Sync,
+	for<'c> &'c mut <D::Db as Database>::Connection: Executor<'c, Database = D::Db>,
+{
+	D::delete(pool, entities.iter()).await.map_or_else(
+		|e| Err(Response::from(Delete::new(Status::from(&e)))),
+		|_| Ok(Response::from(Delete::new(on_success.into()))),
 	)
 }
 
@@ -77,14 +91,20 @@ const fn todo(msg: &'static str) -> (StatusCode, &'static str)
 /// Create routes which are able to be implemented generically.
 macro_rules! route {
 	($Entity:ident, $Args:ty, $($param:ident),+) => {
-		routing::delete(|| async move { todo("Delete method not implemented") })
+		routing::delete(
+				|Extension(user): Extension<User>,
+				 State(state): State<ServerState<A::Db>>,
+				 Json(request): Json<request::Delete<<A::$Entity as Deletable>::Entity>>| async move {
+					state.enforce_permission(&user, Object::$Entity, Action::Delete).await?;
+					delete::<A::$Entity>(state.pool(), request.into_entities(), Code::Success).await
+				},
+			)
 			.get(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Get<<A::$Entity as Retrievable>::Match>>| async move {
 					state.enforce_permission(&user, Object::$Entity, Action::Retrieve).await?;
-					let condition = request.into_condition();
-					retrieve::<A::$Entity>(state.pool(), condition, Code::Success).await
+					retrieve::<A::$Entity>(state.pool(), request.into_condition(), Code::Success).await
 				},
 			)
 			.patch(|| async move { todo("Update method not implemented") })
