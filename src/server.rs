@@ -583,65 +583,19 @@ mod tests
 				PgContact::create(&pool, kind, label).await?
 			};
 
-			client.test_delete_unauthorized(routes::CONTACT, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::CONTACT, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::CONTACT, &manager, &manager_password).await;
-			client
-				.test_delete_success::<PgContact>(
-					&pool,
-					routes::CONTACT,
-					&admin,
-					&admin_password,
-					vec![contact_.clone()],
-					None,
-				)
-				.await;
-
 			let department = PgDepartment::create(&pool, rand_department_name()).await?;
-
-			// TODO: /department
 
 			let employee = {
 				let (name_, title) = employee_args();
 				PgEmployee::create(&pool, department.clone(), name_, title).await?
 			};
 
-			// TODO: /employee
-
 			let location = {
 				let (currency, address_, outer) = location_args();
 				PgLocation::create(&pool, currency, address_, outer).await?
 			};
 
-			client.test_delete_unauthorized(routes::LOCATION, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::LOCATION, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::LOCATION, &manager, &manager_password).await;
-			client
-				.test_delete_success::<PgLocation>(
-					&pool,
-					routes::LOCATION,
-					&admin,
-					&admin_password,
-					vec![location.clone()],
-					None,
-				)
-				.await;
-
 			let organization = PgOrganization::create(&pool, location.clone(), company::company()).await?;
-
-			client.test_delete_unauthorized(routes::ORGANIZATION, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::ORGANIZATION, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::ORGANIZATION, &manager, &manager_password).await;
-			client
-				.test_delete_success::<PgOrganization>(
-					&pool,
-					routes::ORGANIZATION,
-					&admin,
-					&admin_password,
-					vec![organization.clone()],
-					None,
-				)
-				.await;
 
 			let rates = ExchangeRates::new().await?;
 
@@ -683,8 +637,6 @@ mod tests
 					.try_into()
 					.unwrap()
 			};
-
-			// TODO: /job
 
 			let [timesheet, timesheet2, timesheet3]: [_; 3] = {
 				let mut tx = pool.begin().await?;
@@ -733,8 +685,6 @@ mod tests
 					.unwrap()
 			};
 
-			// TODO: /timesheet
-
 			let expenses = {
 				let mut x = Vec::with_capacity(2 * 3);
 				for t in [&timesheet, &timesheet2, &timesheet3]
@@ -747,8 +697,6 @@ mod tests
 				x.exchange(Default::default(), &rates)
 			};
 
-			// TODO: /expense
-
 			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
 				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
 
@@ -759,6 +707,8 @@ mod tests
 
 			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
+			// TODO: /user
+
 			client.test_delete_unauthorized(routes::ROLE, &grunt, &grunt_password).await;
 			client.test_delete_unauthorized(routes::ROLE, &guest, &guest_password).await;
 			client.test_delete_unauthorized(routes::ROLE, &manager, &manager_password).await;
@@ -766,19 +716,66 @@ mod tests
 				.test_delete_success::<PgRole>(&pool, routes::ROLE, &admin, &admin_password, vec![role.clone()], None)
 				.await;
 
-			// TODO: /user
+			// TODO: /expense
+			PgExpenses::delete(&pool, [&timesheet, &timesheet2, &timesheet3].into_iter().flat_map(|t| &t.expenses))
+				.await?;
+
+			// TODO: /timesheet
+			PgTimesheet::delete(&pool, [&timesheet, &timesheet2, &timesheet3].into_iter()).await?;
+
+			// TODO: /job
+			PgJob::delete(&pool, [&job_, &job2].into_iter()).await?;
+
+			client.test_delete_unauthorized(routes::ORGANIZATION, &grunt, &grunt_password).await;
+			client.test_delete_unauthorized(routes::ORGANIZATION, &guest, &guest_password).await;
+			client.test_delete_unauthorized(routes::ORGANIZATION, &manager, &manager_password).await;
+			client
+				.test_delete_success::<PgOrganization>(
+					&pool,
+					routes::ORGANIZATION,
+					&admin,
+					&admin_password,
+					vec![organization.clone()],
+					None,
+				)
+				.await;
+
+			client.test_delete_unauthorized(routes::CONTACT, &grunt, &grunt_password).await;
+			client.test_delete_unauthorized(routes::CONTACT, &guest, &guest_password).await;
+			client.test_delete_unauthorized(routes::CONTACT, &manager, &manager_password).await;
+			client
+				.test_delete_success::<PgContact>(
+					&pool,
+					routes::CONTACT,
+					&admin,
+					&admin_password,
+					vec![contact_.clone()],
+					None,
+				)
+				.await;
+
+			client.test_delete_unauthorized(routes::LOCATION, &grunt, &grunt_password).await;
+			client.test_delete_unauthorized(routes::LOCATION, &guest, &guest_password).await;
+			client.test_delete_unauthorized(routes::LOCATION, &manager, &manager_password).await;
+			client
+				.test_delete_success::<PgLocation>(
+					&pool,
+					routes::LOCATION,
+					&admin,
+					&admin_password,
+					vec![location.clone()],
+					None,
+				)
+				.await;
+
+			// TODO: /department
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(
 				PgRole::delete(&pool, roles.into_iter()),
-				PgJob::delete(&pool, [&job_, &job2].into_iter()),
+				PgEmployee::delete(&pool, users.iter().filter_map(User::employee)),
 			)?;
-
-			PgOrganization::delete(&pool, [organization].iter()).await?;
-			futures::try_join!(
-				PgEmployee::delete(&pool, [&employee].into_iter()),
-				PgLocation::delete(&pool, [&location].into_iter()),
-			)?;
+			PgDepartment::delete(&pool, users.iter().filter_map(|u| u.employee().map(|e| &e.department))).await?;
 
 			Ok(())
 		}
@@ -1109,9 +1106,17 @@ mod tests
 			PgOrganization::delete(&pool, [organization].iter()).await?;
 			futures::try_join!(
 				PgContact::delete(&pool, [&contact_].into_iter()),
-				PgEmployee::delete(&pool, [&employee].into_iter()),
+				PgEmployee::delete(&pool, users.iter().filter_map(User::employee).chain([&employee])),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
+			PgDepartment::delete(
+				&pool,
+				users
+					.iter()
+					.filter_map(|u| u.employee().map(|e| &e.department))
+					.chain([&employee.department, &department]),
+			)
+			.await?;
 
 			Ok(())
 		}

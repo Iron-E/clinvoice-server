@@ -185,7 +185,7 @@ impl TestClientExt for TestClient
 		tracing::trace!("\n");
 
 		self.login(user.username(), password).await;
-		let response = self.post_builder(route).json(&request::Delete::new(entities.clone())).send().await;
+		let response = self.delete_builder(route).json(&request::Delete::new(entities.clone())).send().await;
 		let status = response.status();
 
 		let actual = Response::new(status, response.json::<Delete>().await);
