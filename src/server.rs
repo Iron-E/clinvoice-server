@@ -200,7 +200,7 @@ where
 	}
 }
 
-#[allow(clippy::std_instead_of_core, dead_code, unused_imports)]
+#[allow(clippy::std_instead_of_core, clippy::str_to_string, dead_code, unused_imports)]
 #[cfg(test)]
 mod tests
 {
@@ -313,6 +313,7 @@ mod tests
 	}
 
 	/// The fields for a [`Timesheet`](winvoice_schema::Timesheet)
+	#[allow(clippy::type_complexity)]
 	fn timesheet_args() -> (Vec<(String, Money, String)>, DateTime<Utc>, Option<DateTime<Utc>>, String)
 	{
 		(
@@ -756,7 +757,7 @@ mod tests
 				PgRole::create(&pool, name_, password_ttl).await?
 			};
 
-			let roles = users.iter().map(|u| u.role()).collect::<Vec<_>>();
+			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
 			client.test_delete_unauthorized(routes::ROLE, &grunt, &grunt_password).await;
 			client.test_delete_unauthorized(routes::ROLE, &guest, &guest_password).await;
@@ -875,9 +876,9 @@ mod tests
 				MatchLocation::from(location.id),
 				[&location].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchLocation>(&routes::LOCATION, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchLocation>(&routes::LOCATION, &grunt, &grunt_password))
-			.then(|_| client.test_get_unauthorized::<MatchLocation>(&routes::LOCATION, &manager, &manager_password))
+			.then(|_| client.test_get_unauthorized::<MatchLocation>(routes::LOCATION, &guest, &guest_password))
+			.then(|_| client.test_get_unauthorized::<MatchLocation>(routes::LOCATION, &grunt, &grunt_password))
+			.then(|_| client.test_get_unauthorized::<MatchLocation>(routes::LOCATION, &manager, &manager_password))
 			.await;
 
 			let organization = PgOrganization::create(&pool, location.clone(), company::company()).await?;
@@ -889,10 +890,10 @@ mod tests
 				MatchOrganization::from(organization.id),
 				[&organization].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchOrganization>(&routes::ORGANIZATION, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchOrganization>(&routes::ORGANIZATION, &grunt, &grunt_password))
+			.then(|_| client.test_get_unauthorized::<MatchOrganization>(routes::ORGANIZATION, &guest, &guest_password))
+			.then(|_| client.test_get_unauthorized::<MatchOrganization>(routes::ORGANIZATION, &grunt, &grunt_password))
 			.then(|_|
-				client.test_get_unauthorized::<MatchOrganization>(&routes::ORGANIZATION, &manager, &manager_password))
+				client.test_get_unauthorized::<MatchOrganization>(routes::ORGANIZATION, &manager, &manager_password))
 			.await;
 
 			let rates = ExchangeRates::new().await?;
@@ -943,8 +944,8 @@ mod tests
 				MatchJob::from(job_.id),
 				[&job_].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchJob>(&routes::JOB, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchJob>(&routes::JOB, &grunt, &grunt_password))
+			.then(|_| client.test_get_unauthorized::<MatchJob>(routes::JOB, &guest, &guest_password))
+			.then(|_| client.test_get_unauthorized::<MatchJob>(routes::JOB, &grunt, &grunt_password))
 			.then(|_| client.test_get_success(
 				routes::JOB,
 				&manager, &manager_password,
@@ -1007,7 +1008,7 @@ mod tests
 				MatchTimesheet::from(timesheet.id),
 				[&timesheet].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchTimesheet>(&routes::TIMESHEET, &guest, &guest_password))
+			.then(|_| client.test_get_unauthorized::<MatchTimesheet>(routes::TIMESHEET, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::TIMESHEET,
 				&grunt, &grunt_password,
@@ -1041,7 +1042,7 @@ mod tests
 				MatchExpense::from(Match::Or(expenses.iter().map(|x| x.id.into()).collect())),
 				expenses.iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchExpense>(&routes::EXPENSE, &guest, &guest_password))
+			.then(|_| client.test_get_unauthorized::<MatchExpense>(routes::EXPENSE, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::EXPENSE,
 				&grunt, &grunt_password,
@@ -1070,9 +1071,9 @@ mod tests
 					roles.iter(),
 					None,
 				)
-				.then(|_| client.test_get_unauthorized::<MatchRole>(&routes::ROLE, &guest, &guest_password))
-				.then(|_| client.test_get_unauthorized::<MatchRole>(&routes::ROLE, &grunt, &grunt_password))
-				.then(|_| client.test_get_unauthorized::<MatchRole>(&routes::ROLE, &manager, &manager_password))
+				.then(|_| client.test_get_unauthorized::<MatchRole>(routes::ROLE, &guest, &guest_password))
+				.then(|_| client.test_get_unauthorized::<MatchRole>(routes::ROLE, &grunt, &grunt_password))
+				.then(|_| client.test_get_unauthorized::<MatchRole>(routes::ROLE, &manager, &manager_password))
 				.await;
 
 			#[rustfmt::skip]
@@ -1201,7 +1202,7 @@ mod tests
 			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
 				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
 
-			let roles = users.iter().map(|u| u.role()).chain([&role]).collect::<Vec<_>>();
+			let roles = users.iter().map(User::role).chain([&role]).collect::<Vec<_>>();
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(
@@ -1303,7 +1304,7 @@ mod tests
 			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
 				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
 
-			let roles = users.iter().map(|u| u.role()).chain([&role]).collect::<Vec<_>>();
+			let roles = users.iter().map(User::role).chain([&role]).collect::<Vec<_>>();
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(

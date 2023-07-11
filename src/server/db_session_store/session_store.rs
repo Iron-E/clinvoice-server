@@ -65,6 +65,7 @@ mod postgres
 		}
 	}
 
+	#[allow(clippy::std_instead_of_core, clippy::str_to_string)]
 	#[cfg(all(feature = "test-postgres", test))]
 	mod tests
 	{

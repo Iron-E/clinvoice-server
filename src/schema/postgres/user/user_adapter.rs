@@ -40,6 +40,7 @@ impl UserAdapter for PgUser
 	}
 }
 
+#[allow(clippy::std_instead_of_core, clippy::str_to_string)]
 #[cfg(all(feature = "test-postgres", test))]
 mod tests
 {
@@ -219,7 +220,7 @@ mod tests
 				intern,
 				different_string(guest.username()),
 			)
-			.map(|u| u.pg_sanitize())?
+			.map(DateTimeExt::pg_sanitize)?
 		};
 
 		PgUser::update(&mut tx, [&guest].into_iter()).await?;

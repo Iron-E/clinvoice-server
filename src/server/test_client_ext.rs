@@ -252,8 +252,8 @@ impl TestClientExt for TestClient
 		));
 
 		assert_eq!(
-			actual.content().entities().into_iter().collect::<HashSet<_>>(),
-			expected.content().entities().into_iter().collect::<HashSet<_>>()
+			actual.content().entities().iter().collect::<HashSet<_>>(),
+			expected.content().entities().iter().collect::<HashSet<_>>()
 		);
 		assert_eq!(actual.content().status(), expected.content().status());
 		assert_eq!(actual.status(), expected.status());

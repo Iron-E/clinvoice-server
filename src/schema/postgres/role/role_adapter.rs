@@ -25,6 +25,7 @@ impl RoleAdapter for PgRole
 	}
 }
 
+#[allow(clippy::std_instead_of_core, clippy::str_to_string)]
 #[cfg(all(feature = "test-postgres", test))]
 pub(in crate::schema::postgres) mod tests
 {

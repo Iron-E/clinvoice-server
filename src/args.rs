@@ -291,6 +291,7 @@ pub(crate) async fn init_watchman(
 	Ok(())
 }
 
+#[allow(clippy::std_instead_of_core, clippy::str_to_string)]
 #[cfg(test)]
 mod tests
 {
