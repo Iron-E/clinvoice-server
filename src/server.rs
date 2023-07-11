@@ -29,7 +29,7 @@ use db_session_store::DbSessionStore;
 use handler::Handler;
 pub use response::VersionResponse;
 use semver::VersionReq;
-use sqlx::{Connection, Database, Executor, QueryBuilder, Transaction};
+use sqlx::{Connection, Database, Executor, QueryBuilder};
 pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
 use tower_http::{compression::CompressionLayer, trace::TraceLayer};
@@ -65,7 +65,6 @@ where
 	DbUserStore<A::Db>: UserStore,
 	for<'args> QueryBuilder<'args, A::Db>: From<A::User>,
 	for<'connection> &'connection mut <A::Db as Database>::Connection: Executor<'connection, Database = A::Db>,
-	for<'connection> &'connection mut Transaction<'connection, A::Db>: Executor<'connection, Database = A::Db>,
 {
 	/// Create a new [`Server`]
 	pub const fn new(address: SocketAddr, tls: RustlsConfig) -> Self
