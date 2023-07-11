@@ -13,14 +13,14 @@ use axum_test_helper::{RequestBuilder, TestClient};
 use pretty_assertions::assert_eq;
 use serde::{de::DeserializeOwned, Serialize};
 use sqlx::{Database, Pool};
-use winvoice_adapter::Retrievable;
+use winvoice_adapter::{Deletable, Retrievable};
 
 use super::response::{LoginResponse, LogoutResponse};
 use crate::{
 	api::{
 		self,
 		request,
-		response::{Get, Login, Logout, Post},
+		response::{Delete, Get, Login, Logout, Post},
 		routes,
 		Code,
 		Status,
@@ -57,6 +57,23 @@ pub trait TestClientExt
 
 	/// Make a POST [`RequestBuilder`] on the given `route`.
 	fn post_builder(&self, route: &str) -> RequestBuilder;
+
+	/// assert logged in user DELETE with permissions is accepted
+	async fn test_delete_success<A>(
+		&self,
+		pool: &Pool<<A as Deletable>::Db>,
+		route: &str,
+		user: &User,
+		password: &str,
+		entities: Vec<<A as Deletable>::Entity>,
+		code: Option<Code>,
+	) where
+		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
+		<A as Deletable>::Entity: Clone + Debug + PartialEq + Send + Serialize + Sync,
+		A::Match: Debug + From<<A as Retrievable>::Entity> + Send;
+
+	/// assert logged in user DELETE with permissions is rejected
+	async fn test_delete_unauthorized(&self, route: &str, user: &User, password: &str);
 
 	/// assert logged in user GET with permissions is accepted
 	async fn test_get_success<'ent, M, E, Iter>(
@@ -145,6 +162,64 @@ impl TestClientExt for TestClient
 	fn post_builder(&self, route: &str) -> RequestBuilder
 	{
 		self.post(route).header(api::HEADER, version_req())
+	}
+
+	/// assert logged in user DELETE with permissions is accepted
+	#[tracing::instrument(skip(self))]
+	async fn test_delete_success<A>(
+		&self,
+		pool: &Pool<<A as Deletable>::Db>,
+		route: &str,
+		user: &User,
+		password: &str,
+		entities: Vec<<A as Deletable>::Entity>,
+		code: Option<Code>,
+	) where
+		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
+		<A as Deletable>::Entity: Clone + Debug + PartialEq + Send + Serialize + Sync,
+		A::Match: Debug + From<<A as Retrievable>::Entity> + Send,
+	{
+		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
+
+		self.login(user.username(), password).await;
+		let response = self.post_builder(route).json(&request::Delete::new(entities.clone())).send().await;
+		let status = response.status();
+
+		let actual = Response::new(status, response.json::<Delete>().await);
+		let expected = Response::from(Delete::new(code.unwrap_or(Code::Success).into()));
+
+		assert_eq!(actual, expected);
+		for entity in entities
+		{
+			let retrieved = A::retrieve(pool, A::Match::from(entity)).await.unwrap();
+			assert_eq!(retrieved.len(), 0);
+		}
+
+		self.logout().await;
+	}
+
+	/// assert logged in user DELETE with permissions is rejected
+	#[tracing::instrument(skip(self))]
+	async fn test_delete_unauthorized(&self, route: &str, user: &User, password: &str)
+	{
+		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
+
+		self.login(user.username(), password).await;
+		let response = self.delete_builder(route).json(&request::Delete::<()>::new(Default::default())).send().await;
+		let status = response.status();
+
+		let actual = Response::new(status, response.json::<Delete>().await);
+		let expected = Response::from(Delete::new(Code::Unauthorized.into()));
+
+		assert_eq!(actual.status(), expected.status());
+		assert_eq!(actual.content().status().code(), expected.content().status().code());
+		self.logout().await;
 	}
 
 	#[tracing::instrument(skip(self))]
