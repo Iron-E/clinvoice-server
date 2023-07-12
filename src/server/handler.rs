@@ -128,11 +128,9 @@ macro_rules! route {
 				},
 			)
 			.post(
-				#[allow(clippy::type_complexity)]
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Post<$Args>>| async move {
-					#[warn(clippy::type_complexity)]
 					state.enforce_permission(&user, Object::$Entity, Action::Create).await?;
 					let ( $($param),+ ) = request.into_args();
 					create(A::$Entity::create(state.pool(), $($param),+).await, Code::Success)

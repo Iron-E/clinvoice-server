@@ -213,7 +213,7 @@ mod tests
 	use mockd::{address, company, contact, internet, job, name, password, words};
 	use money2::{Exchange, ExchangeRates};
 	use sqlx::Pool;
-	use test_client_ext::TestClientExt;
+	use test_client_ext::{Method, TestClientExt};
 	use tracing_test::traced_test;
 	use winvoice_adapter::{
 		schema::{
@@ -242,6 +242,7 @@ mod tests
 		MatchTimesheet,
 	};
 	use winvoice_schema::{
+		chrono,
 		chrono::{DateTime, TimeZone, Utc},
 		ContactKind,
 		Currency,
@@ -697,9 +698,7 @@ mod tests
 				x.exchange(Default::default(), &rates)
 			};
 
-			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
-				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
-
+			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
 			let role = {
 				let (name_, password_ttl) = role_args();
 				PgRole::create(&pool, name_, password_ttl).await?
@@ -709,11 +708,19 @@ mod tests
 
 			// TODO: /user
 
-			client.test_delete_unauthorized(routes::ROLE, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::ROLE, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::ROLE, &manager, &manager_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::ROLE, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::ROLE, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::ROLE, &manager, &manager_password).await;
 			client
-				.test_delete_success::<PgRole>(&pool, routes::ROLE, &admin, &admin_password, vec![role.clone()], None)
+				.test_other_success::<PgRole>(
+					Method::Delete,
+					&pool,
+					routes::ROLE,
+					&admin,
+					&admin_password,
+					vec![role.clone()],
+					None,
+				)
 				.await;
 
 			// TODO: /expense
@@ -726,11 +733,12 @@ mod tests
 			// TODO: /job
 			PgJob::delete(&pool, [&job_, &job2].into_iter()).await?;
 
-			client.test_delete_unauthorized(routes::ORGANIZATION, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::ORGANIZATION, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::ORGANIZATION, &manager, &manager_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &manager, &manager_password).await;
 			client
-				.test_delete_success::<PgOrganization>(
+				.test_other_success::<PgOrganization>(
+					Method::Delete,
 					&pool,
 					routes::ORGANIZATION,
 					&admin,
@@ -740,11 +748,12 @@ mod tests
 				)
 				.await;
 
-			client.test_delete_unauthorized(routes::CONTACT, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::CONTACT, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::CONTACT, &manager, &manager_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::CONTACT, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::CONTACT, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::CONTACT, &manager, &manager_password).await;
 			client
-				.test_delete_success::<PgContact>(
+				.test_other_success::<PgContact>(
+					Method::Delete,
 					&pool,
 					routes::CONTACT,
 					&admin,
@@ -754,11 +763,12 @@ mod tests
 				)
 				.await;
 
-			client.test_delete_unauthorized(routes::LOCATION, &grunt, &grunt_password).await;
-			client.test_delete_unauthorized(routes::LOCATION, &guest, &guest_password).await;
-			client.test_delete_unauthorized(routes::LOCATION, &manager, &manager_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::LOCATION, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::LOCATION, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::LOCATION, &manager, &manager_password).await;
 			client
-				.test_delete_success::<PgLocation>(
+				.test_other_success::<PgLocation>(
+					Method::Delete,
 					&pool,
 					routes::LOCATION,
 					&admin,
@@ -1134,91 +1144,262 @@ mod tests
 				pool,
 			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
-			client.test_post_unauthorized(&pool, routes::CONTACT, &grunt, &grunt_password, contact_args()).await;
-			client.test_post_unauthorized(&pool, routes::CONTACT, &guest, &guest_password, contact_args()).await;
-			client.test_post_unauthorized(&pool, routes::CONTACT, &manager, &manager_password, contact_args()).await;
-			let contact_ = client
-				.test_post_success::<PgContact, _>(
+			let contact_ = {
+				let (kind, label) = contact_args();
+				PgContact::create(&pool, kind, label).await.map(|mut c| {
+					c.kind = ContactKind::Other(format!("@{}", internet::username()));
+					c
+				})?
+			};
+
+			let department = PgDepartment::create(&pool, rand_department_name()).await.map(|mut d| {
+				d.name = words::sentence(7);
+				d
+			})?;
+
+			let employee = {
+				let (name_, title) = employee_args();
+				PgEmployee::create(&pool, department.clone(), name_, title).await.map(|mut e| {
+					e.name = name::full();
+					e
+				})?
+			};
+
+			let location = {
+				let (currency, address_, outer) = location_args();
+				PgLocation::create(&pool, currency, address_, outer).await.map(|mut l| {
+					l.name = address::street();
+					l
+				})?
+			};
+
+			let organization =
+				PgOrganization::create(&pool, location.clone(), company::company()).await.map(|mut o| {
+					o.name = words::sentence(4);
+					o
+				})?;
+
+			let rates = ExchangeRates::new().await?;
+
+			let [job_, job2]: [_; 2] = {
+				let mut tx = pool.begin().await?;
+				let (date_close, date_open, increment, invoice, notes, objectives) = job_args();
+				let j = PgJob::create(
+					&mut tx,
+					organization.clone(),
+					date_close,
+					date_open,
+					[department.clone()].into_iter().collect(),
+					increment,
+					invoice,
+					notes,
+					objectives,
+				)
+				.await
+				.map(|mut j| {
+					j.date_close = (j.date_open + chrono::Duration::days(30)).into();
+					j
+				})?;
+
+				let (date_close, date_open, increment, invoice, notes, objectives) = job_args();
+				let j2 = PgJob::create(
+					&mut tx,
+					organization.clone(),
+					date_close,
+					date_open,
+					manager.employee().into_iter().map(|e| e.department.clone()).collect(),
+					increment,
+					invoice,
+					notes,
+					objectives,
+				)
+				.await
+				.map(|mut j| {
+					j.date_close = (j.date_open + chrono::Duration::days(30)).into();
+					j
+				})?;
+
+				tx.commit().await?;
+				[j, j2]
+					.into_iter()
+					.map(|jo| jo.exchange(Default::default(), &rates))
+					.collect::<Vec<_>>()
+					.try_into()
+					.unwrap()
+			};
+
+			let [timesheet, timesheet2, timesheet3]: [_; 3] = {
+				let mut tx = pool.begin().await?;
+				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
+				let t = PgTimesheet::create(
+					&mut tx,
+					employee.clone(),
+					expenses,
+					job_.clone(),
+					time_begin,
+					time_end,
+					work_notes,
+				)
+				.await
+				.map(|mut t| {
+					t.time_end = (t.time_begin + chrono::Duration::hours(3)).into();
+					t
+				})?;
+
+				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
+				let t2 = PgTimesheet::create(
+					&mut tx,
+					grunt.employee().unwrap().clone(),
+					expenses,
+					job2.clone(),
+					time_begin,
+					time_end,
+					work_notes,
+				)
+				.await
+				.map(|mut t| {
+					t.time_end = (t.time_begin + chrono::Duration::hours(3)).into();
+					t
+				})?;
+
+				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
+				let t3 = PgTimesheet::create(
+					&mut tx,
+					manager.employee().unwrap().clone(),
+					expenses,
+					job2.clone(),
+					time_begin,
+					time_end,
+					work_notes,
+				)
+				.await?;
+
+				tx.commit().await?;
+				[t, t2, t3]
+					.into_iter()
+					.map(|ts| ts.exchange(Default::default(), &rates))
+					.collect::<Vec<_>>()
+					.try_into()
+					.unwrap()
+			};
+
+			let expenses = {
+				let mut x = Vec::with_capacity(2 * 3);
+				for t in [&timesheet, &timesheet2, &timesheet3]
+				{
+					PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), t.id).await.map(
+						|v| {
+							x.extend(v.into_iter().map(|mut x| {
+								x.category = words::sentence(3);
+								x
+							}))
+						},
+					)?;
+				}
+
+				x.exchange(Default::default(), &rates)
+			};
+
+			let role = {
+				let (name_, password_ttl) = role_args();
+				PgRole::create(&pool, name_, password_ttl).await?
+			};
+
+			let user = PgUser::create(
+				&pool,
+				None,
+				password::generate(true, true, true, 8),
+				role.clone(),
+				internet::username(),
+			)
+			.await
+			.map(|mut u| {
+				u.employee = employee.clone().into();
+				u
+			})?;
+
+			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
+			let roles = users.iter().map(User::role).collect::<Vec<_>>();
+
+			// TODO: /user
+
+			client.test_other_unauthorized(Method::Patch, routes::ROLE, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::ROLE, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::ROLE, &manager, &manager_password).await;
+			client
+				.test_other_success::<PgRole>(
+					Method::Patch,
+					&pool,
+					routes::ROLE,
+					&admin,
+					&admin_password,
+					vec![role.clone()],
+					None,
+				)
+				.await;
+
+			// TODO: /expense
+			// TODO: /timesheet
+			// TODO: /job
+
+			client.test_other_unauthorized(Method::Patch, routes::ORGANIZATION, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::ORGANIZATION, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::ORGANIZATION, &manager, &manager_password).await;
+			client
+				.test_other_success::<PgOrganization>(
+					Method::Patch,
+					&pool,
+					routes::ORGANIZATION,
+					&admin,
+					&admin_password,
+					vec![organization.clone()],
+					None,
+				)
+				.await;
+
+			client.test_other_unauthorized(Method::Patch, routes::CONTACT, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::CONTACT, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::CONTACT, &manager, &manager_password).await;
+			client
+				.test_other_success::<PgContact>(
+					Method::Patch,
 					&pool,
 					routes::CONTACT,
 					&admin,
 					&admin_password,
-					contact_args(),
+					vec![contact_.clone()],
+					None,
+				)
+				.await;
+
+			client.test_other_unauthorized(Method::Patch, routes::LOCATION, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::LOCATION, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Patch, routes::LOCATION, &manager, &manager_password).await;
+			client
+				.test_other_success::<PgLocation>(
+					Method::Patch,
+					&pool,
+					routes::LOCATION,
+					&admin,
+					&admin_password,
+					vec![location.clone()],
 					None,
 				)
 				.await;
 
 			// TODO: /department
-			// TODO: /employee
 
-			client.test_post_unauthorized(&pool, routes::LOCATION, &grunt, &grunt_password, location_args()).await;
-			client.test_post_unauthorized(&pool, routes::LOCATION, &guest, &guest_password, location_args()).await;
-			client.test_post_unauthorized(&pool, routes::LOCATION, &manager, &manager_password, location_args()).await;
-			let location = client
-				.test_post_success::<PgLocation, _>(
-					&pool,
-					routes::LOCATION,
-					&admin,
-					&admin_password,
-					location_args(),
-					None,
-				)
-				.await;
-
-			// TODO: grunt,guest,manager /location
-
-			let organization_args = || (location.clone(), words::sentence(5));
-
-			client
-				.test_post_unauthorized(&pool, routes::ORGANIZATION, &grunt, &grunt_password, organization_args())
-				.await;
-			client
-				.test_post_unauthorized(&pool, routes::ORGANIZATION, &guest, &guest_password, organization_args())
-				.await;
-			client
-				.test_post_unauthorized(&pool, routes::ORGANIZATION, &manager, &manager_password, organization_args())
-				.await;
-			let organization = client
-				.test_post_success::<PgOrganization, _>(
-					&pool,
-					routes::ORGANIZATION,
-					&admin,
-					&admin_password,
-					organization_args(),
-					None,
-				)
-				.await;
-
-			let rates = ExchangeRates::new().await?;
-
-			// TODO: /job
-			// TODO: /timesheet
-			// TODO: /expenses
-
-			client.test_post_unauthorized(&pool, routes::ROLE, &grunt, &grunt_password, role_args()).await;
-			client.test_post_unauthorized(&pool, routes::ROLE, &guest, &guest_password, role_args()).await;
-			client.test_post_unauthorized(&pool, routes::ROLE, &manager, &manager_password, role_args()).await;
-			let role = client
-				.test_post_success::<PgRole, _>(&pool, routes::ROLE, &admin, &admin_password, role_args(), None)
-				.await;
-
-			// TODO: /user
-
-			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
-				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
-
-			let roles = users.iter().map(User::role).chain([&role]).collect::<Vec<_>>();
-
-			PgUser::delete(&pool, users.iter()).await?;
-			futures::try_join!(
-				PgRole::delete(&pool, roles.into_iter()),
-				/* PgJob::delete(&pool, [&job_, &job2].into_iter()) */
-			)?;
-
-			PgOrganization::delete(&pool, [organization].iter()).await?;
+			PgUser::delete(&pool, users.iter().chain([&user])).await?;
 			futures::try_join!(
 				PgContact::delete(&pool, [&contact_].into_iter()),
-				// PgEmployee::delete(&pool, [&employee].into_iter()),
+				PgJob::delete(&pool, [&job_, &job2].into_iter()),
+				PgRole::delete(&pool, roles.into_iter().chain([&role])),
+			)?;
+
+			PgOrganization::delete(&pool, [&organization].into_iter()).await?;
+			futures::try_join!(
+				PgDepartment::delete(&pool, users.iter().filter_map(|u| u.employee().map(|e| &e.department))),
+				PgEmployee::delete(&pool, users.iter().filter_map(User::employee)),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
 
@@ -1306,9 +1487,7 @@ mod tests
 
 			// TODO: /user
 
-			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
-				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
-
+			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).chain([&role]).collect::<Vec<_>>();
 
 			PgUser::delete(&pool, users.iter()).await?;

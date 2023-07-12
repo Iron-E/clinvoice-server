@@ -36,6 +36,19 @@ fn version_req() -> &'static str
 	VERSION_REQ.get_or_init(|| format!("={}", api::version()))
 }
 
+/// Controls what HTTP method is being tested by [`TestClientExt::test_other_success`] /
+/// [`TestClientExt::test_other_unauthorized`].
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum Method
+{
+	/// The `DELETE` method.
+	Delete,
+
+	/// The `PATCH` method.
+	Patch,
+}
+
 /// Extensions for [`TestClient`].
 #[async_trait::async_trait]
 pub trait TestClientExt
@@ -58,23 +71,6 @@ pub trait TestClientExt
 	/// Make a POST [`RequestBuilder`] on the given `route`.
 	fn post_builder(&self, route: &str) -> RequestBuilder;
 
-	/// assert logged in user DELETE with permissions is accepted
-	async fn test_delete_success<A>(
-		&self,
-		pool: &Pool<<A as Deletable>::Db>,
-		route: &str,
-		user: &User,
-		password: &str,
-		entities: Vec<<A as Deletable>::Entity>,
-		code: Option<Code>,
-	) where
-		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
-		<A as Deletable>::Entity: Clone + Debug + PartialEq + Send + Serialize + Sync,
-		A::Match: Debug + From<<A as Retrievable>::Entity> + Send;
-
-	/// assert logged in user DELETE with permissions is rejected
-	async fn test_delete_unauthorized(&self, route: &str, user: &User, password: &str);
-
 	/// assert logged in user GET with permissions is accepted
 	async fn test_get_success<'ent, M, E, Iter>(
 		&self,
@@ -93,6 +89,25 @@ pub trait TestClientExt
 	async fn test_get_unauthorized<M>(&self, route: &str, user: &User, password: &str)
 	where
 		M: Debug + Default + Serialize + Send + Sync;
+
+	/// assert logged in user DELETE with permissions is accepted
+	#[allow(clippy::too_many_arguments)]
+	async fn test_other_success<A>(
+		&self,
+		method: Method,
+		pool: &Pool<<A as Deletable>::Db>,
+		route: &str,
+		user: &User,
+		password: &str,
+		entities: Vec<<A as Deletable>::Entity>,
+		code: Option<Code>,
+	) where
+		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
+		<A as Deletable>::Entity: Clone + Debug + PartialEq + Send + Serialize + Sync,
+		A::Match: Debug + From<<A as Retrievable>::Entity> + Send;
+
+	/// assert logged in user DELETE with permissions is rejected
+	async fn test_other_unauthorized(&self, method: Method, route: &str, user: &User, password: &str);
 
 	/// assert logged in user POST with permissions is accepted
 	async fn test_post_success<R, A>(
@@ -164,64 +179,6 @@ impl TestClientExt for TestClient
 		self.post(route).header(api::HEADER, version_req())
 	}
 
-	/// assert logged in user DELETE with permissions is accepted
-	#[tracing::instrument(skip(self))]
-	async fn test_delete_success<A>(
-		&self,
-		pool: &Pool<<A as Deletable>::Db>,
-		route: &str,
-		user: &User,
-		password: &str,
-		entities: Vec<<A as Deletable>::Entity>,
-		code: Option<Code>,
-	) where
-		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
-		<A as Deletable>::Entity: Clone + Debug + PartialEq + Send + Serialize + Sync,
-		A::Match: Debug + From<<A as Retrievable>::Entity> + Send,
-	{
-		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
-		// like       this or else this function's span is skipped.
-		tracing::trace!(parent: None, "\n");
-		tracing::trace!("\n");
-
-		self.login(user.username(), password).await;
-		let response = self.delete_builder(route).json(&request::Delete::new(entities.clone())).send().await;
-		let status = response.status();
-
-		let actual = Response::new(status, response.json::<Delete>().await);
-		let expected = Response::from(Delete::new(code.unwrap_or(Code::Success).into()));
-
-		assert_eq!(actual, expected);
-		for entity in entities
-		{
-			let retrieved = A::retrieve(pool, A::Match::from(entity)).await.unwrap();
-			assert_eq!(retrieved.len(), 0);
-		}
-
-		self.logout().await;
-	}
-
-	/// assert logged in user DELETE with permissions is rejected
-	#[tracing::instrument(skip(self))]
-	async fn test_delete_unauthorized(&self, route: &str, user: &User, password: &str)
-	{
-		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
-		// like       this or else this function's span is skipped.
-		tracing::trace!(parent: None, "\n");
-		tracing::trace!("\n");
-
-		self.login(user.username(), password).await;
-		let response = self.delete_builder(route).json(&request::Delete::<()>::new(Default::default())).send().await;
-		let status = response.status();
-
-		let actual = Response::new(status, response.json::<Delete>().await);
-		let expected = Response::from(Delete::new(Code::Unauthorized.into()));
-
-		assert_eq!(actual.status(), expected.status());
-		assert_eq!(actual.content().status().code(), expected.content().status().code());
-		self.logout().await;
-	}
-
 	#[tracing::instrument(skip(self))]
 	async fn test_get_success<'ent, M, E, Iter>(
 		&self,
@@ -243,9 +200,8 @@ impl TestClientExt for TestClient
 
 		self.login(user.username(), password).await;
 		let response = self.get_builder(route).json(&request::Get::new(condition)).send().await;
-		let status = response.status();
 
-		let actual = Response::new(status, response.json::<Get<E>>().await);
+		let actual = Response::new(response.status(), response.json::<Get<E>>().await);
 		let expected = Response::from(Get::<E>::new(
 			entities.into_iter().cloned().collect(),
 			code.unwrap_or(Code::Success).into(),
@@ -282,6 +238,81 @@ impl TestClientExt for TestClient
 		self.logout().await;
 	}
 
+	/// assert logged in user DELETE with permissions is accepted
+	#[tracing::instrument(skip(self))]
+	async fn test_other_success<A>(
+		&self,
+		method: Method,
+		pool: &Pool<<A as Deletable>::Db>,
+		route: &str,
+		user: &User,
+		password: &str,
+		entities: Vec<<A as Deletable>::Entity>,
+		code: Option<Code>,
+	) where
+		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
+		<A as Deletable>::Entity: Clone + Debug + PartialEq + Send + Serialize + Sync,
+		A::Match: Debug + From<<A as Retrievable>::Entity> + Send,
+	{
+		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
+
+		self.login(user.username(), password).await;
+		let response = match method
+		{
+			Method::Delete => TestClientExt::delete_builder,
+			Method::Patch => TestClientExt::patch_builder,
+		}(self, route)
+		.json(&request::Delete::new(entities.clone()))
+		.send()
+		.await;
+
+		let actual = Response::new(response.status(), response.json::<Delete>().await);
+		let expected = Response::from(Delete::new(code.unwrap_or(Code::Success).into()));
+
+		assert_eq!(actual, expected);
+		for entity in entities
+		{
+			let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
+			match method
+			{
+				Method::Delete => assert_eq!(retrieved.len(), 0),
+				Method::Patch => assert_eq!(retrieved.get(0), Some(&entity)),
+			};
+		}
+
+		self.logout().await;
+	}
+
+	/// assert logged in user DELETE with permissions is rejected
+	#[tracing::instrument(skip(self))]
+	async fn test_other_unauthorized(&self, method: Method, route: &str, user: &User, password: &str)
+	{
+		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
+		// like       this or else this function's span is skipped.
+		tracing::trace!(parent: None, "\n");
+		tracing::trace!("\n");
+
+		self.login(user.username(), password).await;
+		let response = match method
+		{
+			Method::Delete => TestClientExt::delete_builder,
+			Method::Patch => TestClientExt::patch_builder,
+		}(self, route)
+		.json(&request::Delete::<()>::new(Default::default()))
+		.send()
+		.await;
+
+		let actual = Response::new(response.status(), response.json::<Delete>().await);
+		let expected = Response::from(Delete::new(Code::Unauthorized.into()));
+
+		assert_eq!(actual.status(), expected.status());
+		assert_eq!(actual.content().status().code(), expected.content().status().code());
+		self.logout().await;
+	}
+
 	#[tracing::instrument(skip(self))]
 	async fn test_post_success<R, A>(
 		&self,
@@ -305,9 +336,8 @@ impl TestClientExt for TestClient
 
 		self.login(user.username(), password).await;
 		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
-		let status = response.status();
 
-		let actual = Response::new(status, response.json::<Post<R::Entity>>().await);
+		let actual = Response::new(response.status(), response.json::<Post<R::Entity>>().await);
 		let expected = {
 			let entity = actual.content().entity().unwrap().clone();
 			let row = R::retrieve(pool, R::Match::from(entity)).await.map(|mut v| v.remove(0)).unwrap();
@@ -333,9 +363,8 @@ impl TestClientExt for TestClient
 
 		self.login(user.username(), password).await;
 		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
-		let status = response.status();
 
-		let actual = Response::new(status, response.json::<Post<()>>().await);
+		let actual = Response::new(response.status(), response.json::<Post<()>>().await);
 		let expected = Response::from(Post::new(None, Code::Unauthorized.into()));
 
 		assert_eq!(actual.status(), expected.status());
