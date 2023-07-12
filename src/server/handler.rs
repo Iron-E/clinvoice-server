@@ -14,13 +14,20 @@ use axum::{
 use sqlx::{Database, Executor, Pool, Result};
 use tracing::Instrument;
 use winvoice_adapter::{
-	schema::{ContactAdapter, DepartmentAdapter, EmployeeAdapter, LocationAdapter, OrganizationAdapter},
+	schema::{
+		ContactAdapter,
+		DepartmentAdapter,
+		EmployeeAdapter,
+		ExpensesAdapter,
+		LocationAdapter,
+		OrganizationAdapter,
+	},
 	Deletable,
 	Retrievable,
 	Updatable,
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, ContactKind, Currency, Department, Employee, Expense, Location};
+use winvoice_schema::{chrono::Utc, ContactKind, Currency, Department, Employee, Expense, Id, Location, Money};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
@@ -90,11 +97,11 @@ where
 /// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
 /// have no permissions (rather than outright having no permissions).
 #[allow(clippy::unnecessary_wraps)]
-fn no_effective_perms<R>() -> ResponseResult<R>
+fn no_effective_perms<R>(message: String) -> ResponseResult<R>
 where
 	R: AsRef<Code> + From<Status>,
 {
-	Ok(Response::from(R::from(Code::SuccessForPermissions.into())))
+	Ok(Response::from(R::from(Status::new(Code::SuccessForPermissions, message))))
 }
 
 const fn todo(msg: &'static str) -> (StatusCode, &'static str)
@@ -183,7 +190,7 @@ where
 					// they have no department, so they *effectively* can't retrieve departments.
 					Object::AssignedDepartment =>
 					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |ok| Ok(ok.into()));
+						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
 					},
 					p => p.unreachable(),
 				};
@@ -235,7 +242,7 @@ where
 					// they have no department, so they *effectively* can't retrieve departments.
 					Object::AssignedDepartment =>
 					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |ok| Ok(ok.into()));
+						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
 					},
 					p => p.unreachable(),
 				};
@@ -293,7 +300,7 @@ where
 
 					Some(Object::EmployeeInDepartment) | None =>
 					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |ok| Ok(ok.into()))
+						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
 					},
 					Some(p) => p.unreachable(),
 				};
@@ -358,7 +365,7 @@ where
 
 					Some(Object::EmployeeInDepartment) | None =>
 					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |ok| Ok(ok.into()))
+						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
 					},
 					Some(p) => p.unreachable(),
 				};
@@ -394,84 +401,229 @@ where
 	/// The handler for the [`routes::EXPENSE`](crate::api::routes::EXPENSE).
 	pub fn expense(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::delete(|| async move { todo("Delete method not implemented") })
-			.get(
-				|Extension(user): Extension<User>,
-				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Get<MatchExpense>>| async move {
-					let permission = state.expense_permissions(&user, Action::Retrieve).await?;
-
-					// The user has no department, and no employee record, so they effectively cannot retrieve
-					// expenses.
-					if permission != Object::Expenses && user.employee().is_none()
+		async fn retain_matching<A>(
+			pool: &Pool<A::Db>,
+			employee: &Employee,
+			entities: &mut Vec<Expense>,
+			permission: Object,
+		) -> sqlx::Result<()>
+		where
+			A: Adapter,
+		{
+			let matching: HashSet<_> = A::Timesheet::retrieve(pool, MatchTimesheet {
+				expenses: MatchExpense {
+					id: Match::Or(entities.iter().map(|x| x.id.into()).collect()),
+					..Default::default()
+				}
+				.into(),
+				..match permission
+				{
+					Object::ExpensesInDepartment =>
 					{
-						return no_effective_perms();
-					}
+						MatchJob::from(MatchDepartment::from(employee.department.id)).into()
+					},
+					Object::CreatedExpenses => MatchEmployee::from(employee.id).into(),
+					_ => permission.unreachable(),
+				}
+			})
+			.await
+			.map(|vec| vec.into_iter().flat_map(|t| t.expenses.into_iter().map(|x| x.id)).collect())?;
 
-					let condition = request.into_condition();
+			entities.retain(|x| matching.contains(&x.id));
+			Ok(())
+		}
 
-					let mut vec = A::Expenses::retrieve(state.pool(), condition)
-						.await
-						.map_err(|e| Response::from(Get::<Expense>::from(Status::from(&e))))?;
+		routing::delete(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Delete<Expense>>| async move {
+				let permission = state.expense_permissions(&user, Action::Delete).await?;
 
-					let code = match permission
+				// The user has no department, and no employee record, so they effectively cannot retrieve
+				// expenses.
+				if permission != Object::Expenses && user.employee().is_none()
+				{
+					return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+				}
+
+				let mut entities = request.into_entities();
+
+				let code = match permission
+				{
+					Object::Expenses => Code::Success,
+
+					// The user can only get expenses iff they are in the same department, or were created
+					// by that user.
+					p =>
 					{
-						Object::Expenses => Code::Success,
-
-						// The user can only get expenses iff they are in the same department, or were created
-						// by that user.
-						p =>
+						match user.employee()
 						{
-							match user.employee()
+							Some(emp) =>
 							{
-								Some(emp) =>
-								{
-									// retrieve IDs of expenses which the user has permission to access.
-									// NOTE: `Timesheet::retrieve` retrieves *ALL* expenses for a timesheet, not just
-									// the       ones which match the `expenses` field. Thus we still have to perform a
-									// second       filter below.
-									let matching = A::Timesheet::retrieve(state.pool(), MatchTimesheet {
-										expenses: MatchExpense {
-											id: Match::Or(vec.iter().map(|x| x.id.into()).collect()),
-											..Default::default()
-										}
-										.into(),
-										..match p
-										{
-											Object::ExpensesInDepartment =>
-											{
-												MatchJob::from(MatchDepartment::from(emp.department.id)).into()
-											},
-											Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
-											_ => p.unreachable(),
-										}
-									})
+								retain_matching::<A>(state.pool(), emp, &mut entities, p)
 									.await
-									.map_or_else(
-										|e| Err(Response::from(Get::from(Status::from(&e)))),
-										|vec| {
-											Ok(vec
-												.into_iter()
-												.flat_map(|t| t.expenses.into_iter().map(|x| x.id))
-												.collect::<HashSet<_>>())
-										},
-									)?;
+									.map_err(DeleteResponse::from)?;
+							},
 
-									vec.retain(|x| matching.contains(&x.id));
-								},
+							None => unreachable!("Should have been returned earlier for {permission:?}"),
+						};
 
-								None => unreachable!("Should have been returned earlier for {permission:?}"),
-							};
+						Code::SuccessForPermissions
+					},
+				};
 
-							Code::SuccessForPermissions
-						},
-					};
+				delete::<A::Expenses>(state.pool(), entities, code).await
+			},
+		)
+		.get(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Get<MatchExpense>>| async move {
+				let permission = state.expense_permissions(&user, Action::Retrieve).await?;
 
-					Ok::<_, Response<_>>(Response::from(Get::new(vec, code.into())))
-				},
-			)
-			.patch(|| async move { todo("Update method not implemented") })
-			.post(|| async move { todo("expense create") })
+				// The user has no department, and no employee record, so they effectively cannot retrieve
+				// expenses.
+				if permission != Object::Expenses && user.employee().is_none()
+				{
+					return no_effective_perms();
+				}
+
+				let condition = request.into_condition();
+
+				let mut vec = A::Expenses::retrieve(state.pool(), condition)
+					.await
+					.map_err(|e| Response::from(Get::<Expense>::from(Status::from(&e))))?;
+
+				let code = match permission
+				{
+					Object::Expenses => Code::Success,
+
+					// The user can only get expenses iff they are in the same department, or were created
+					// by that user.
+					p =>
+					{
+						match user.employee()
+						{
+							Some(emp) =>
+							{
+								retain_matching::<A>(state.pool(), emp, &mut vec, p)
+									.await
+									.map_err(|e| Response::from(Get::from(Status::from(&e))))?;
+							},
+
+							None => unreachable!("Should have been returned earlier for {permission:?}"),
+						};
+
+						Code::SuccessForPermissions
+					},
+				};
+
+				Ok::<_, Response<_>>(Response::from(Get::new(vec, code.into())))
+			},
+		)
+		.patch(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Patch<Expense>>| async move {
+				let permission = state.expense_permissions(&user, Action::Update).await?;
+
+				// The user has no department, and no employee record, so they effectively cannot retrieve
+				// expenses.
+				if permission != Object::Expenses && user.employee().is_none()
+				{
+					return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+				}
+
+				let mut entities = request.into_entities();
+
+				let code = match permission
+				{
+					Object::Expenses => Code::Success,
+
+					// The user can only get expenses iff they are in the same department, or were created
+					// by that user.
+					p =>
+					{
+						match user.employee()
+						{
+							Some(emp) =>
+							{
+								retain_matching::<A>(state.pool(), emp, &mut entities, p)
+									.await
+									.map_err(PatchResponse::from)?;
+							},
+
+							None => unreachable!("Should have been returned earlier for {permission:?}"),
+						};
+
+						Code::SuccessForPermissions
+					},
+				};
+
+				update::<A::Expenses>(state.pool(), entities, code).await
+			},
+		)
+		.post(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<(Vec<(String, Money, String)>, Id)>>| async move {
+				let permission = state.expense_permissions(&user, Action::Update).await?;
+
+				// The user has no department, and no employee record, so they effectively cannot retrieve
+				// expenses.
+				if permission != Object::Expenses && user.employee().is_none()
+				{
+					return no_effective_perms();
+				}
+
+				let (expenses, timesheet_id) = request.into_args();
+
+				let code = match permission
+				{
+					Object::Expenses => Code::Success,
+
+					// The user can only get expenses iff they are in the same department, or were created
+					// by that user.
+					p =>
+					{
+						match user.employee()
+						{
+							Some(emp) =>
+							{
+								let matching: HashSet<_> = A::Timesheet::retrieve(state.pool(), match permission
+								{
+									Object::ExpensesInDepartment =>
+									{
+										MatchJob::from(MatchDepartment::from(emp.department.id)).into()
+									},
+									Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
+									_ => permission.unreachable(),
+								})
+								.await
+								.map_or_else(
+									|e| Err(Response::from(Post::from(Status::from(&e)))),
+									|vec| Ok(vec.into_iter().map(|t| t.id).collect()),
+								)?;
+
+								if !matching.contains(&timesheet_id)
+								{
+									return no_effective_perms(format!(
+										"This user has permissions to update {p}, but no timesheet with ID \
+										 {timesheet_id} matching that description was found."
+									));
+								}
+							},
+
+							None => unreachable!("Should have been returned earlier for {permission:?}"),
+						};
+
+						Code::SuccessForPermissions
+					},
+				};
+
+				create(A::Expenses::create(state.pool(), expenses, timesheet_id).await, code)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::JOB`](crate::api::routes::JOB).
