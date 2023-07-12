@@ -14,13 +14,13 @@ use axum::{
 use sqlx::{Database, Executor, Pool, Result};
 use tracing::Instrument;
 use winvoice_adapter::{
-	schema::{ContactAdapter, DepartmentAdapter, LocationAdapter, OrganizationAdapter},
+	schema::{ContactAdapter, DepartmentAdapter, EmployeeAdapter, LocationAdapter, OrganizationAdapter},
 	Deletable,
 	Retrievable,
 	Updatable,
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, ContactKind, Currency, Department, Employee, Expense, Location, Timesheet};
+use winvoice_schema::{chrono::Utc, ContactKind, Currency, Department, Employee, Expense, Location};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
@@ -175,8 +175,8 @@ where
 					// HACK: no if-let guards…
 					Object::AssignedDepartment if user.employee().is_some() =>
 					{
-						let department = &user.employee().unwrap().department;
-						entities.retain(|d| d == department);
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|d| d.id == id);
 						Code::SuccessForPermissions
 					},
 
@@ -227,8 +227,8 @@ where
 					// HACK: no if-let guards…
 					Object::AssignedDepartment if user.employee().is_some() =>
 					{
-						let department = &user.employee().unwrap().department;
-						entities.retain(|d| d == department);
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|d| d.id == id);
 						Code::SuccessForPermissions
 					},
 
@@ -266,39 +266,129 @@ where
 	/// The handler for the [`routes::EMPLOYEE`](crate::api::routes::EMPLOYEE).
 	pub fn employee(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::delete(|| async move { todo("Delete method not implemented") })
-			.get(
-				|Extension(user): Extension<User>,
-				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Get<MatchEmployee>>| async move {
-					let mut condition = request.into_condition();
-					let code = match state.employee_permissions::<Get<Employee>>(&user, Action::Retrieve).await?
+		routing::delete(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Delete<Employee>>| async move {
+				let mut entities = request.into_entities();
+				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				{
+					Some(Object::Employee) => Code::Success,
+
+					// HACK: no if-let guards…
+					Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
 					{
-						Some(Object::Employee) => Code::Success,
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|e| e.department.id == id);
+						Code::SuccessForPermissions
+					},
 
-						// HACK: no if-let guards…
-						Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
-						{
-							condition.department.id &= user.employee().unwrap().department.id.into();
-							Code::SuccessForPermissions
-						},
+					// HACK: no if-let guards…
+					None if user.employee().is_some() =>
+					{
+						let id = user.employee().unwrap().id;
+						entities.retain(|e| e.id == id);
+						Code::SuccessForPermissions
+					},
 
-						// HACK: no if-let guards…
-						None if user.employee().is_some() =>
-						{
-							condition.id &= user.employee().unwrap().id.into();
-							Code::SuccessForPermissions
-						},
+					Some(Object::EmployeeInDepartment) | None =>
+					{
+						return no_effective_perms().map_or_else(|e| Err(e.into()), |ok| Ok(ok.into()))
+					},
+					Some(p) => p.unreachable(),
+				};
 
-						Some(Object::EmployeeInDepartment) | None => return no_effective_perms(),
-						Some(p) => p.unreachable(),
-					};
+				delete::<A::Employee>(state.pool(), entities, code).await
+			},
+		)
+		.get(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Get<MatchEmployee>>| async move {
+				let mut condition = request.into_condition();
+				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				{
+					Some(Object::Employee) => Code::Success,
 
-					retrieve::<A::Employee>(state.pool(), condition, code).await
-				},
-			)
-			.patch(|| async move { todo("Update method not implemented") })
-			.post(|| async move { todo("employee create") })
+					// HACK: no if-let guards…
+					Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
+					{
+						condition.department.id &= user.employee().unwrap().department.id.into();
+						Code::SuccessForPermissions
+					},
+
+					// HACK: no if-let guards…
+					None if user.employee().is_some() =>
+					{
+						condition.id &= user.employee().unwrap().id.into();
+						Code::SuccessForPermissions
+					},
+
+					Some(Object::EmployeeInDepartment) | None => return no_effective_perms(),
+					Some(p) => p.unreachable(),
+				};
+
+				retrieve::<A::Employee>(state.pool(), condition, code).await
+			},
+		)
+		.patch(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Patch<Employee>>| async move {
+				let mut entities = request.into_entities();
+				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				{
+					Some(Object::Employee) => Code::Success,
+
+					// HACK: no if-let guards…
+					Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
+					{
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|e| e.department.id == id);
+						Code::SuccessForPermissions
+					},
+
+					// HACK: no if-let guards…
+					None if user.employee().is_some() =>
+					{
+						let id = user.employee().unwrap().id;
+						entities.retain(|e| e.id == id);
+						Code::SuccessForPermissions
+					},
+
+					Some(Object::EmployeeInDepartment) | None =>
+					{
+						return no_effective_perms().map_or_else(|e| Err(e.into()), |ok| Ok(ok.into()))
+					},
+					Some(p) => p.unreachable(),
+				};
+
+				update::<A::Employee>(state.pool(), entities, code).await
+			},
+		)
+		.post(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<(Department, String, String)>>| async move {
+				let (department, name, title) = request.into_args();
+				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				{
+					Some(Object::Employee) => Code::Success,
+
+					// HACK: no if-let guards…
+					Some(Object::EmployeeInDepartment)
+						if user.employee().map_or(false, |e| e.department.id == department.id) =>
+					{
+						Code::SuccessForPermissions
+					},
+
+					Some(Object::EmployeeInDepartment) | None => return no_effective_perms(),
+					Some(p) => p.unreachable(),
+				};
+
+				create(A::Employee::create(state.pool(), department, name, title).await, code)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::EXPENSE`](crate::api::routes::EXPENSE).
@@ -309,7 +399,7 @@ where
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Get<MatchExpense>>| async move {
-					let permission = state.expense_permissions::<Get<Expense>>(&user, Action::Retrieve).await?;
+					let permission = state.expense_permissions(&user, Action::Retrieve).await?;
 
 					// The user has no department, and no employee record, so they effectively cannot retrieve
 					// expenses.
@@ -525,7 +615,7 @@ where
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Get<MatchTimesheet>>| async move {
 					let mut condition = request.into_condition();
-					let code = match state.timesheet_permissions::<Get<Timesheet>>(&user, Action::Retrieve).await?
+					let code = match state.timesheet_permissions(&user, Action::Retrieve).await?
 					{
 						Object::Timesheet => Code::Success,
 
@@ -564,7 +654,7 @@ where
 				 State(state): State<ServerState<A::Db>>,
 				 Json(request): Json<request::Get<MatchUser>>| async move {
 					let mut condition = request.into_condition();
-					let code = match state.user_permissions::<Get<User>>(&user, Action::Retrieve).await?
+					let code = match state.user_permissions(&user, Action::Retrieve).await?
 					{
 						Some(Object::User) => Code::Success,
 
