@@ -13,7 +13,7 @@ pub enum Reason
 	NoResourceExists,
 
 	/// Another resource depends on it.
-    ResourceConstraint,
+	ResourceConstraint,
 
 	/// The specified resource already exists.
 	ResourceExists,

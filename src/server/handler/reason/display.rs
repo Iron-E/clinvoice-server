@@ -11,7 +11,7 @@ impl Display for Reason
 			Self::NoDepartment => "they have no employee record to have been assigned a department with",
 			Self::NoEmployee => "they have no employee record",
 			Self::NoResourceExists => "no such resource exists",
-            Self::ResourceConstraint => "another resource depends on it",
+			Self::ResourceConstraint => "another resource depends on it",
 			Self::ResourceExists => "that resource already exists",
 		}
 		.fmt(f)

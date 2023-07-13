@@ -9,6 +9,7 @@ mod post;
 mod version;
 
 /// The response to [updating](winvoice_adapter::Updatable::update) some information.
+#[allow(dead_code)]
 pub type Patch = Delete;
 pub use delete::Delete;
 pub use get::Get;
