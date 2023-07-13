@@ -27,6 +27,7 @@ pub trait BoolExt
 
 impl BoolExt for bool
 {
+	#[inline]
 	fn then_or<T, TrueFn>(self, r#false: T, r#true: TrueFn) -> T
 	where
 		TrueFn: FnOnce() -> T,
@@ -38,6 +39,7 @@ impl BoolExt for bool
 		}
 	}
 
+	#[inline]
 	fn then_or_else<T, FalseFn, TrueFn>(self, r#false: FalseFn, r#true: TrueFn) -> T
 	where
 		FalseFn: FnOnce() -> T,
@@ -50,6 +52,7 @@ impl BoolExt for bool
 		}
 	}
 
+	#[inline]
 	fn then_some_or<T>(self, r#false: T, r#true: T) -> T
 	{
 		match self
@@ -59,6 +62,7 @@ impl BoolExt for bool
 		}
 	}
 
+	#[inline]
 	fn then_some_or_else<T, FalseFn>(self, r#false: FalseFn, r#true: T) -> T
 	where
 		FalseFn: FnOnce() -> T,

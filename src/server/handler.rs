@@ -48,14 +48,15 @@ use crate::{
 	r#match::MatchUser,
 	schema::{Adapter, RoleAdapter, User},
 	twin_result::TwinResult,
+	ResultExt,
 };
 
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
 fn create<T>(result: Result<T>, on_success: Code) -> ResponseResult<Post<T>>
 {
-	result.map_or_else(
-		|e| Err(Response::from(Post::from(Status::from(&e)))),
-		|t| Ok(Response::from(Post::new(t.into(), on_success.into()))),
+	result.map_all(
+		|t| Response::from(Post::new(t.into(), on_success.into())),
+		|e| Response::from(Post::from(Status::from(&e))),
 	)
 }
 
@@ -66,9 +67,7 @@ where
 	D::Entity: Sync,
 	for<'con> &'con mut <D::Db as Database>::Connection: Executor<'con, Database = D::Db>,
 {
-	D::delete(pool, entities.iter())
-		.await
-		.map_or_else(|e| Err(DeleteResponse::from(e)), |_| Ok(DeleteResponse::from(on_success)))
+	D::delete(pool, entities.iter()).await.map_all(|_| DeleteResponse::from(on_success), DeleteResponse::from)
 }
 
 /// [Retrieve](Retrievable::retrieve) using `R`, and map the result into a [`ResponseResult`].
@@ -80,9 +79,9 @@ async fn retrieve<R>(
 where
 	R: Retrievable,
 {
-	R::retrieve(pool, condition).await.map_or_else(
-		|e| Err(Response::from(Get::from(Status::from(&e)))),
-		|vec| Ok(Response::from(Get::new(vec, on_success.into()))),
+	R::retrieve(pool, condition).await.map_all(
+		|vec| Response::from(Get::new(vec, on_success.into())),
+		|e| Response::from(Get::from(Status::from(&e))),
 	)
 }
 
@@ -94,7 +93,7 @@ where
 {
 	let mut tx = pool.begin().await.map_err(PatchResponse::from)?;
 	U::update(&mut tx, entities.iter()).await.map_err(PatchResponse::from)?;
-	tx.commit().await.map_or_else(|e| Err(PatchResponse::from(e)), |_| Ok(PatchResponse::from(on_success)))
+	tx.commit().await.map_all(|_| PatchResponse::from(on_success), PatchResponse::from)
 }
 
 /// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
@@ -189,7 +188,7 @@ where
 					p @ Object::AssignedDepartment =>
 					{
 						return no_effective_perms(Action::Delete, p, Reason::ResourceExists)
-							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+							.map_all(Into::into, Into::into);
 					},
 
 					p => p.unreachable(),
@@ -245,7 +244,7 @@ where
 					p @ Object::AssignedDepartment =>
 					{
 						return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment)
-							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
+							.map_all(Into::into, Into::into)
 					},
 
 					p => p.unreachable(),
@@ -299,7 +298,7 @@ where
 					p @ Object::EmployeeInDepartment =>
 					{
 						return no_effective_perms(Action::Delete, p, Reason::NoDepartment)
-							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+							.map_all(Into::into, Into::into)
 					},
 
 					p => p.unreachable(),
@@ -375,13 +374,13 @@ where
 					p @ Object::EmployeeInDepartment =>
 					{
 						return no_effective_perms(Action::Update, p, Reason::NoDepartment)
-							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
+							.map_all(Into::into, Into::into)
 					},
 
 					p @ Object::EmployeeSelf =>
 					{
 						return no_effective_perms(Action::Update, p, Reason::NoEmployee)
-							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
+							.map_all(Into::into, Into::into)
 					},
 
 					p => p.unreachable(),
@@ -466,7 +465,7 @@ where
 				if permission != Object::Expenses && user.employee().is_none()
 				{
 					return no_effective_perms(Action::Delete, permission, Reason::NoEmployee)
-						.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+						.map_all(Into::into, Into::into);
 				}
 
 				let mut entities = request.into_entities();
@@ -555,7 +554,7 @@ where
 				if permission != Object::Expenses && user.employee().is_none()
 				{
 					return no_effective_perms(Action::Update, permission, Reason::NoEmployee)
-						.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+						.map_all(Into::into, Into::into);
 				}
 
 				let mut entities = request.into_entities();
@@ -626,9 +625,9 @@ where
 									_ => permission.unreachable(),
 								})
 								.await
-								.map_or_else(
-									|e| Err(Response::from(Post::from(Status::from(&e)))),
-									|vec| Ok(vec.into_iter().map(|t| t.id).collect()),
+								.map_all(
+									|vec| vec.into_iter().map(|t| t.id).collect(),
+									|e| Response::from(Post::from(Status::from(&e))),
 								)?;
 
 								if !matching.contains(&timesheet_id)
@@ -741,13 +740,13 @@ where
 						}
 					}
 
-					auth.login(&user).await.map_or_else(
+					auth.login(&user).await.map_all(
+						|_| LoginResponse::from(Code::Success),
 						|e| {
 							const CODE: Code = Code::LoginError;
 							tracing::error!("Failed to to log in user {}: {e}", user.username());
-							Err(LoginResponse::new(CODE.into(), Status::new(CODE, e.to_string())))
+							LoginResponse::new(CODE.into(), Status::new(CODE, e.to_string()))
 						},
-						|_| Ok(LoginResponse::from(Code::Success)),
 					)
 				}
 				.instrument(tracing::info_span!("login_handler"))

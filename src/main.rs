@@ -107,6 +107,7 @@ mod dyn_result;
 mod lock;
 mod r#match;
 mod permissions;
+mod result_ext;
 mod schema;
 mod server;
 mod twin_result;
@@ -115,6 +116,7 @@ mod utils;
 use args::Args;
 use clap::Parser;
 use dyn_result::DynResult;
+use result_ext::ResultExt;
 
 /// Interprets arguments `winvoice` (if any) and executes the implied instruction.
 #[tokio::main]

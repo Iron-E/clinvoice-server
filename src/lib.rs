@@ -7,7 +7,9 @@ mod bool_ext;
 mod dyn_result;
 pub mod r#match;
 pub mod permissions;
+mod result_ext;
 pub mod schema;
 mod utils;
 
 pub use bool_ext::BoolExt;
+pub use result_ext::ResultExt;

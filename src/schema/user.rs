@@ -23,7 +23,7 @@ use winvoice_schema::{
 };
 
 use super::Role;
-use crate::dyn_result::DynResult;
+use crate::{dyn_result::DynResult, ResultExt};
 
 static ARGON: OnceLock<Argon2> = OnceLock::new();
 
@@ -76,9 +76,9 @@ impl User
 
 		let argon = ARGON.get_or_init(Argon2::default);
 		let salt = SaltString::generate(&mut OsRng);
-		argon.hash_password(password.as_bytes(), &salt).map_or_else(
-			|e| Err(format!("{e}").into()),
-			|hash| Ok(Self { employee, id, role, password: hash.to_string(), password_expires, username }),
+		argon.hash_password(password.as_bytes(), &salt).map_all(
+			|hash| Self { employee, id, role, password: hash.to_string(), password_expires, username },
+			|e| format!("{e}").into(),
 		)
 	}
 
