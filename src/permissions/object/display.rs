@@ -12,8 +12,8 @@ impl Display for Object
 		{
 			Self::AssignedDepartment => "the department they were assigned to",
 			Self::Contact => "contacts",
-			Self::CreatedExpenses => "their created expenses",
-			Self::CreatedTimesheet => "their created timesheets",
+			Self::CreatedExpenses => "their previously created expenses",
+			Self::CreatedTimesheet => "their previously created timesheets",
 			Self::Department => "departments",
 			Self::Employee => "employees",
 			Self::EmployeeInDepartment => "employees in their department",

@@ -18,8 +18,9 @@ use argon2::{
 use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
 	chrono::{DateTime, Duration, Utc},
+	Department,
 	Employee,
-	Id, Department,
+	Id,
 };
 
 use super::Role;
@@ -73,7 +74,8 @@ impl User
 	/// * TODO: Use [`Option::map`] when it becomes `const`.
 	pub const fn department(&self) -> Option<&Department>
 	{
-		match self.employee() {
+		match self.employee()
+		{
 			Some(e) => Some(&e.department),
 			None => None,
 		}

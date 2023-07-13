@@ -1,7 +1,7 @@
 mod reason;
 
 use core::{marker::PhantomData, time::Duration};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{
@@ -13,6 +13,7 @@ use axum::{
 	Json,
 	TypedHeader,
 };
+use futures::TryFutureExt;
 use reason::Reason;
 use sqlx::{Database, Executor, Pool, Result};
 use tracing::Instrument;
@@ -22,8 +23,10 @@ use winvoice_adapter::{
 		DepartmentAdapter,
 		EmployeeAdapter,
 		ExpensesAdapter,
+		JobAdapter,
 		LocationAdapter,
 		OrganizationAdapter,
+		TimesheetAdapter,
 	},
 	Deletable,
 	Retrievable,
@@ -31,16 +34,18 @@ use winvoice_adapter::{
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
 use winvoice_schema::{
-	chrono::Utc,
+	chrono::{DateTime, Utc},
 	ContactKind,
 	Currency,
 	Department,
 	Employee,
 	Expense,
 	Id,
+	Invoice,
 	Job,
 	Location,
 	Money,
+	Organization,
 	Timesheet,
 };
 
@@ -56,15 +61,16 @@ use crate::{
 		Code,
 		Status,
 	},
+	bool_ext::BoolExt,
 	permissions::{Action, Object},
 	r#match::MatchUser,
-	schema::{Adapter, RoleAdapter, User},
+	schema::{Adapter, Role, RoleAdapter, User, UserAdapter},
 	twin_result::TwinResult,
 	ResultExt,
 };
 
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
-fn create<T>(result: Result<T>, on_success: Code) -> ResponseResult<Post<T>>
+fn create<T>(on_success: Code, result: Result<T>) -> ResponseResult<Post<T>>
 {
 	result.map_all(
 		|t| Response::from(Post::new(t.into(), on_success.into())),
@@ -121,11 +127,6 @@ where
 	))))
 }
 
-const fn todo(msg: &'static str) -> (StatusCode, &'static str)
-{
-	(StatusCode::NOT_IMPLEMENTED, msg)
-}
-
 /// Create routes which are able to be implemented generically.
 macro_rules! route {
 	($Entity:ident, $Args:ty, $($param:ident),+) => {
@@ -159,7 +160,7 @@ macro_rules! route {
 				 Json(request): Json<request::Post<$Args>>| async move {
 					state.enforce_permission(&user, Object::$Entity, Action::Create).await?;
 					let ( $($param),+ ) = request.into_args();
-					create(A::$Entity::create(state.pool(), $($param),+).await, Code::Success)
+					create(Code::Success, A::$Entity::create(state.pool(), $($param),+).await)
 				},
 			)
 	};
@@ -279,7 +280,7 @@ where
 					p => p.unreachable(),
 				};
 
-				create(A::Department::create(state.pool(), name).await, code)
+				create(code, A::Department::create(state.pool(), name).await)
 			},
 		)
 	}
@@ -406,8 +407,7 @@ where
 					Object::Employee => Code::Success,
 
 					// HACK: no if-let guards…
-					Object::EmployeeInDepartment
-						if user.employee().map_or(false, |e| e.department.id == department.id) =>
+					Object::EmployeeInDepartment if user.department().map_or(false, |d| d.id == department.id) =>
 					{
 						Code::SuccessForPermissions
 					},
@@ -417,7 +417,7 @@ where
 					p => p.unreachable(),
 				};
 
-				create(A::Employee::create(state.pool(), department, name, title).await, code)
+				create(code, A::Employee::create(state.pool(), department, name, title).await)
 			},
 		)
 	}
@@ -463,8 +463,12 @@ where
 			($user:ident, $action:ident, $permission:ident) => {
 				if $permission != Object::Expenses && $user.employee().is_none()
 				{
-					return no_effective_perms($action, $permission, Reason::NoEmployee)
-						.map_all(Into::into, Into::into);
+					return no_effective_perms($action, $permission, match $permission == Object::CreatedExpenses
+					{
+						true => Reason::NoEmployee,
+						false => Reason::NoDepartment,
+					})
+					.map_all(Into::into, Into::into);
 				}
 			};
 		}
@@ -592,7 +596,24 @@ where
 				#[warn(clippy::type_complexity)]
 				const ACTION: Action = Action::Create;
 				let permission = state.expense_permissions(&user, ACTION).await?;
-				enforce_effective_permissions!(user, ACTION, permission);
+
+				// A user has no effective permissions in two scenarios:
+				//
+				// 1. They have the `CreatedExpenses` permission
+				// 2. They have the ExpensesInDepartment` permission but have no department
+				if permission != Object::Expenses
+				{
+					let created = permission == Object::CreatedExpenses;
+					if created || user.employee().is_none()
+					{
+						return no_effective_perms(
+							ACTION,
+							permission,
+							created.then_some_or(Reason::ResourceExists, Reason::NoDepartment),
+						)
+						.map_all(Into::into, Into::into);
+					}
+				};
 
 				let (expenses, timesheet_id) = request.into_args();
 
@@ -614,7 +635,6 @@ where
 									{
 										MatchJob::from(MatchDepartment::from(emp.department.id)).into()
 									},
-									Object::CreatedExpenses => MatchEmployee::from(emp.id).into(),
 									_ => permission.unreachable(),
 								})
 								.await
@@ -636,7 +656,7 @@ where
 					},
 				};
 
-				create(A::Expenses::create(state.pool(), expenses, timesheet_id).await, code)
+				create(code, A::Expenses::create(state.pool(), expenses, timesheet_id).await)
 			},
 		)
 	}
@@ -731,7 +751,71 @@ where
 				update::<A::Job>(state.pool(), entities, code).await
 			},
 		)
-		.post(|| async move { todo("job create") })
+		.post(
+			#[allow(clippy::type_complexity)]
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<
+				request::Post<(
+					Organization,
+					Option<DateTime<Utc>>,
+					DateTime<Utc>,
+					BTreeSet<Department>,
+					Duration,
+					Invoice,
+					String,
+					String,
+				)>,
+			>| async move {
+				#[warn(clippy::type_complexity)]
+				const ACTION: Action = Action::Create;
+				let (client, date_close, date_open, departments, increment, invoice, notes, objectives) =
+					request.into_args();
+				let code = match state.department_permissions(&user, ACTION).await?
+				{
+					Object::Job => Code::Success,
+
+					// HACK: no if-let guards…
+					Object::JobInDepartment
+						if user.department().map_or(false, |d| departments.iter().any(|d2| d2.id == d.id)) =>
+					{
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::JobInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				create(
+					code,
+					state
+						.pool()
+						.begin()
+						.and_then(|mut tx| async move {
+							let j = A::Job::create(
+								&mut tx,
+								client,
+								date_close,
+								date_open,
+								departments,
+								increment,
+								invoice,
+								notes,
+								objectives,
+							)
+							.await?;
+
+							tx.commit().await?;
+							Ok(j)
+						})
+						.await,
+				)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::LOCATION`](crate::api::routes::LOCATION).
@@ -891,8 +975,7 @@ where
 					// HACK: no if-let guards
 					Object::TimesheetInDepartment if user.employee().is_some() =>
 					{
-						condition.job.departments &=
-							MatchDepartment::from(user.department().unwrap().id).into();
+						condition.job.departments &= MatchDepartment::from(user.department().unwrap().id).into();
 						Code::SuccessForPermissions
 					},
 
@@ -961,7 +1044,65 @@ where
 				update::<A::Timesheet>(state.pool(), entities, code).await
 			},
 		)
-		.post(|| async move { todo("timesheet create") })
+		.post(
+			#[allow(clippy::type_complexity)]
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<
+				request::Post<(
+					Employee,
+					Vec<(String, Money, String)>,
+					Job,
+					DateTime<Utc>,
+					Option<DateTime<Utc>>,
+					String,
+				)>,
+			>| async move {
+				#[warn(clippy::type_complexity)]
+				const ACTION: Action = Action::Create;
+				let (employee, expenses, job, time_begin, time_end, work_notes) = request.into_args();
+				let code = match state.timesheet_permissions(&user, ACTION).await?
+				{
+					Object::Timesheet => Code::Success,
+
+					// HACK: no if-let guards
+					Object::TimesheetInDepartment
+						if user.department().map_or(false, |d| job.departments.iter().any(|d2| d2.id == d.id)) =>
+					{
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::TimesheetInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p @ Object::CreatedTimesheet =>
+					{
+						return no_effective_perms(ACTION, p, Reason::ResourceExists).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				create(
+					code,
+					state
+						.pool()
+						.begin()
+						.and_then(|mut tx| async move {
+							let t = A::Timesheet::create(
+								&mut tx, employee, expenses, job, time_begin, time_end, work_notes,
+							)
+							.await?;
+
+							tx.commit().await?;
+							Ok(t)
+						})
+						.await,
+				)
+			},
+		)
 	}
 
 	/// The handler for the [`routes::USER`](crate::api::routes::USER).
@@ -1082,6 +1223,36 @@ where
 				update::<A::User>(state.pool(), entities, code).await
 			},
 		)
-		.post(|| async move { todo("user create") })
+		.post(
+			#[allow(clippy::type_complexity)]
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Post<(Option<Employee>, String, Role, String)>>| async move {
+				#[warn(clippy::type_complexity)]
+				const ACTION: Action = Action::Create;
+				let (employee, password, role, username) = request.into_args();
+				let code = match state.user_permissions(&user, ACTION).await?
+				{
+					Object::User => Code::Success,
+
+					// HACK: no if-let guards
+					Object::UserInDepartment
+						if user.department().zip(employee.as_ref()).map_or(false, |(d, e)| d.id == e.department.id) =>
+					{
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::UserSelf => return no_effective_perms(ACTION, p, Reason::ResourceExists),
+					p @ Object::UserInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				create(code, A::User::create(state.pool(), employee, password, role, username).await)
+			},
+		)
 	}
 }
