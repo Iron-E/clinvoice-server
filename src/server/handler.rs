@@ -222,7 +222,7 @@ where
 					// HACK: no if-let guards…
 					Object::AssignedDepartment if user.employee().is_some() =>
 					{
-						condition.id &= user.employee().unwrap().department.id.into();
+						condition.id &= user.department().unwrap().id.into();
 						Code::SuccessForPermissions
 					},
 
@@ -246,7 +246,7 @@ where
 					// HACK: no if-let guards…
 					Object::AssignedDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						entities.retain(|d| d.id == id);
 						Code::SuccessForPermissions
 					},
@@ -300,7 +300,7 @@ where
 					// HACK: no if-let guards…
 					Object::EmployeeInDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						entities.retain(|e| e.department.id == id);
 						Code::SuccessForPermissions
 					},
@@ -330,7 +330,7 @@ where
 					// HACK: no if-let guards…
 					Object::EmployeeInDepartment if user.employee().is_some() =>
 					{
-						condition.department.id &= user.employee().unwrap().department.id.into();
+						condition.department.id &= user.department().unwrap().id.into();
 						Code::SuccessForPermissions
 					},
 
@@ -366,7 +366,7 @@ where
 					// HACK: no if-let guards…
 					Object::EmployeeInDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						entities.retain(|e| e.department.id == id);
 						Code::SuccessForPermissions
 					},
@@ -657,7 +657,7 @@ where
 					// HACK: no if-let guards…
 					Object::JobInDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						entities.retain(|j| j.departments.iter().any(|d| d.id == id));
 						Code::SuccessForPermissions
 					},
@@ -687,7 +687,7 @@ where
 					// HACK: no if-let guards…
 					Object::JobInDepartment if user.employee().is_some() =>
 					{
-						condition.departments &= MatchDepartment::from(user.employee().unwrap().department.id).into();
+						condition.departments &= MatchDepartment::from(user.department().unwrap().id).into();
 						Code::SuccessForPermissions
 					},
 
@@ -702,7 +702,35 @@ where
 				retrieve::<A::Job>(state.pool(), condition, code).await
 			},
 		)
-		.patch(|| async move { todo("Update method not implemented") })
+		.patch(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Patch<Job>>| async move {
+				const ACTION: Action = Action::Update;
+				let mut entities = request.into_entities();
+				let code = match state.job_permissions(&user, ACTION).await?
+				{
+					Object::Job => Code::Success,
+
+					// HACK: no if-let guards…
+					Object::JobInDepartment if user.employee().is_some() =>
+					{
+						let id = user.department().unwrap().id;
+						entities.retain(|j| j.departments.iter().any(|d| d.id == id));
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::JobInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				update::<A::Job>(state.pool(), entities, code).await
+			},
+		)
 		.post(|| async move { todo("job create") })
 	}
 
@@ -821,7 +849,7 @@ where
 					// HACK: no if-let guards
 					Object::TimesheetInDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						entities.retain(|t| t.job.departments.iter().any(|d| d.id == id));
 						Code::SuccessForPermissions
 					},
@@ -864,7 +892,7 @@ where
 					Object::TimesheetInDepartment if user.employee().is_some() =>
 					{
 						condition.job.departments &=
-							MatchDepartment::from(user.employee().unwrap().department.id).into();
+							MatchDepartment::from(user.department().unwrap().id).into();
 						Code::SuccessForPermissions
 					},
 
@@ -891,7 +919,48 @@ where
 				retrieve::<A::Timesheet>(state.pool(), condition, code).await
 			},
 		)
-		.patch(|| async move { todo("Update method not implemented") })
+		.patch(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Patch<Timesheet>>| async move {
+				const ACTION: Action = Action::Update;
+				let mut entities = request.into_entities();
+				let code = match state.timesheet_permissions(&user, ACTION).await?
+				{
+					Object::Timesheet => Code::Success,
+
+					// HACK: no if-let guards
+					Object::TimesheetInDepartment if user.employee().is_some() =>
+					{
+						let id = user.department().unwrap().id;
+						entities.retain(|t| t.job.departments.iter().any(|d| d.id == id));
+						Code::SuccessForPermissions
+					},
+
+					// HACK: no if-let guards
+					Object::CreatedTimesheet if user.employee().is_some() =>
+					{
+						let id = user.employee().unwrap().id;
+						entities.retain(|t| t.employee.id == id);
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::TimesheetInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p @ Object::CreatedTimesheet =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoEmployee).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				update::<A::Timesheet>(state.pool(), entities, code).await
+			},
+		)
 		.post(|| async move { todo("timesheet create") })
 	}
 
@@ -911,7 +980,7 @@ where
 					// HACK: no if-let guards
 					Object::UserInDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						entities.retain(|u| u.employee().map_or(false, |e| e.department.id == id));
 						Code::SuccessForPermissions
 					},
@@ -947,7 +1016,7 @@ where
 					// HACK: no if-let guards
 					Object::UserInDepartment if user.employee().is_some() =>
 					{
-						let id = user.employee().unwrap().department.id;
+						let id = user.department().unwrap().id;
 						condition.employee = match condition.employee
 						{
 							MatchOption::Any => Some(MatchDepartment::from(id).into()).into(),
@@ -977,7 +1046,42 @@ where
 				retrieve::<A::User>(state.pool(), condition, code).await
 			},
 		)
-		.patch(|| async move { todo("Update method not implemented") })
+		.patch(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Patch<User>>| async move {
+				const ACTION: Action = Action::Update;
+				let mut entities = request.into_entities();
+				let code = match state.user_permissions(&user, ACTION).await?
+				{
+					Object::User => Code::Success,
+
+					// HACK: no if-let guards
+					Object::UserInDepartment if user.employee().is_some() =>
+					{
+						let id = user.department().unwrap().id;
+						entities.retain(|u| u.employee().map_or(false, |e| e.department.id == id));
+						Code::SuccessForPermissions
+					},
+
+					Object::UserSelf =>
+					{
+						let id = user.id();
+						entities.retain(|u| u.id() == id);
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::UserInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				update::<A::User>(state.pool(), entities, code).await
+			},
+		)
 		.post(|| async move { todo("user create") })
 	}
 }

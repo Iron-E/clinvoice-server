@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
 	chrono::{DateTime, Duration, Utc},
 	Employee,
-	Id,
+	Id, Department,
 };
 
 use super::Role;
@@ -68,18 +68,15 @@ where
 
 impl User
 {
-	/// Create a new [`User`].
-	pub fn new(employee: Option<Employee>, id: Id, password: String, role: Role, username: String) -> DynResult<Self>
+	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
+	///
+	/// * TODO: Use [`Option::map`] when it becomes `const`.
+	pub const fn department(&self) -> Option<&Department>
 	{
-		let password_expires =
-			role.password_ttl().map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d)).transpose()?;
-
-		let argon = ARGON.get_or_init(Argon2::default);
-		let salt = SaltString::generate(&mut OsRng);
-		argon.hash_password(password.as_bytes(), &salt).map_all(
-			|hash| Self { employee, id, role, password: hash.to_string(), password_expires, username },
-			|e| format!("{e}").into(),
-		)
+		match self.employee() {
+			Some(e) => Some(&e.department),
+			None => None,
+		}
 	}
 
 	/// The [`User`]'s [`Employee`](winvoice_schema::Employee) [`Id`], if they are employed.
@@ -92,6 +89,20 @@ impl User
 	pub const fn id(&self) -> Id
 	{
 		self.id
+	}
+
+	/// Create a new [`User`].
+	pub fn new(employee: Option<Employee>, id: Id, password: String, role: Role, username: String) -> DynResult<Self>
+	{
+		let password_expires =
+			role.password_ttl().map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d)).transpose()?;
+
+		let argon = ARGON.get_or_init(Argon2::default);
+		let salt = SaltString::generate(&mut OsRng);
+		argon.hash_password(password.as_bytes(), &salt).map_all(
+			|hash| Self { employee, id, role, password: hash.to_string(), password_expires, username },
+			|e| format!("{e}").into(),
+		)
 	}
 
 	/// Get the [`User`]'s [`argon2`]-hashed password.
