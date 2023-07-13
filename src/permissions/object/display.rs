@@ -17,6 +17,7 @@ impl Display for Object
 			Self::Department => "departments",
 			Self::Employee => "employees",
 			Self::EmployeeInDepartment => "employees in their department",
+			Self::EmployeeSelf => "their employee record",
 			Self::Expenses => "expenses",
 			Self::ExpensesInDepartment => "expenses in their department",
 			Self::Job => "jobs",
@@ -28,6 +29,7 @@ impl Display for Object
 			Self::TimesheetInDepartment => "timesheets in their department",
 			Self::User => "users",
 			Self::UserInDepartment => "users in their department",
+			Self::UserSelf => "themselves",
 		}
 		.fmt(f)
 	}

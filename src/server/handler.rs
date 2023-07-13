@@ -1,3 +1,5 @@
+mod reason;
+
 use core::{marker::PhantomData, time::Duration};
 use std::collections::HashSet;
 
@@ -11,6 +13,7 @@ use axum::{
 	Json,
 	TypedHeader,
 };
+use reason::Reason;
 use sqlx::{Database, Executor, Pool, Result};
 use tracing::Instrument;
 use winvoice_adapter::{
@@ -97,11 +100,14 @@ where
 /// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
 /// have no permissions (rather than outright having no permissions).
 #[allow(clippy::unnecessary_wraps)]
-fn no_effective_perms<R>(message: String) -> ResponseResult<R>
+fn no_effective_perms<R>(action: Action, object: Object, reason: Reason) -> ResponseResult<R>
 where
 	R: AsRef<Code> + From<Status>,
 {
-	Ok(Response::from(R::from(Status::new(Code::SuccessForPermissions, message))))
+	Ok(Response::from(R::from(Status::new(
+		Code::SuccessForPermissions,
+		format!("This user has permission to {action} {object}, but {reason}"),
+	))))
 }
 
 const fn todo(msg: &'static str) -> (StatusCode, &'static str)
@@ -174,24 +180,18 @@ where
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<request::Delete<Department>>| async move {
-				let mut entities = request.into_entities();
+				let entities = request.into_entities();
 				let code = match state.department_permissions(&user, Action::Delete).await?
 				{
 					Object::Department => Code::Success,
 
-					// HACK: no if-let guards…
-					Object::AssignedDepartment if user.employee().is_some() =>
+					// they have no department, so they *effectively* can't retrieve departments.
+					p @ Object::AssignedDepartment =>
 					{
-						let id = user.employee().unwrap().department.id;
-						entities.retain(|d| d.id == id);
-						Code::SuccessForPermissions
+						return no_effective_perms(Action::Delete, p, Reason::ResourceExists)
+							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
 					},
 
-					// they have no department, so they *effectively* can't retrieve departments.
-					Object::AssignedDepartment =>
-					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
-					},
 					p => p.unreachable(),
 				};
 
@@ -214,8 +214,10 @@ where
 						Code::SuccessForPermissions
 					},
 
-					// they have no department, so they *effectively* can't retrieve departments.
-					Object::AssignedDepartment => return no_effective_perms(),
+					p @ Object::AssignedDepartment =>
+					{
+						return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment)
+					},
 					p => p.unreachable(),
 				};
 
@@ -240,10 +242,12 @@ where
 					},
 
 					// they have no department, so they *effectively* can't retrieve departments.
-					Object::AssignedDepartment =>
+					p @ Object::AssignedDepartment =>
 					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+						return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment)
+							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
 					},
+
 					p => p.unreachable(),
 				};
 
@@ -259,9 +263,10 @@ where
 				{
 					Object::Department => Code::Success,
 
-					// Even if they have an assigned department, it is impossible for them to
-					// CREATE what already exists…
-					Object::AssignedDepartment => return no_effective_perms(),
+					p @ Object::AssignedDepartment =>
+					{
+						return no_effective_perms(Action::Retrieve, p, Reason::ResourceConstraint);
+					},
 					p => p.unreachable(),
 				};
 
@@ -278,31 +283,26 @@ where
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<request::Delete<Employee>>| async move {
 				let mut entities = request.into_entities();
-				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				let code = match state.employee_permissions(&user, Action::Delete).await?
 				{
-					Some(Object::Employee) => Code::Success,
+					Object::Employee => Code::Success,
 
 					// HACK: no if-let guards…
-					Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
+					Object::EmployeeInDepartment if user.employee().is_some() =>
 					{
 						let id = user.employee().unwrap().department.id;
 						entities.retain(|e| e.department.id == id);
 						Code::SuccessForPermissions
 					},
 
-					// HACK: no if-let guards…
-					None if user.employee().is_some() =>
+					Object::EmployeeSelf => return Err(DeleteResponse::from(Code::Unauthorized)),
+					p @ Object::EmployeeInDepartment =>
 					{
-						let id = user.employee().unwrap().id;
-						entities.retain(|e| e.id == id);
-						Code::SuccessForPermissions
+						return no_effective_perms(Action::Delete, p, Reason::NoDepartment)
+							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
 					},
 
-					Some(Object::EmployeeInDepartment) | None =>
-					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
-					},
-					Some(p) => p.unreachable(),
+					p => p.unreachable(),
 				};
 
 				delete::<A::Employee>(state.pool(), entities, code).await
@@ -315,24 +315,33 @@ where
 				let mut condition = request.into_condition();
 				let code = match state.employee_permissions(&user, Action::Retrieve).await?
 				{
-					Some(Object::Employee) => Code::Success,
+					Object::Employee => Code::Success,
 
 					// HACK: no if-let guards…
-					Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
+					Object::EmployeeInDepartment if user.employee().is_some() =>
 					{
 						condition.department.id &= user.employee().unwrap().department.id.into();
 						Code::SuccessForPermissions
 					},
 
 					// HACK: no if-let guards…
-					None if user.employee().is_some() =>
+					Object::EmployeeSelf if user.employee().is_some() =>
 					{
 						condition.id &= user.employee().unwrap().id.into();
 						Code::SuccessForPermissions
 					},
 
-					Some(Object::EmployeeInDepartment) | None => return no_effective_perms(),
-					Some(p) => p.unreachable(),
+					p @ Object::EmployeeInDepartment =>
+					{
+						return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment)
+					},
+
+					p @ Object::EmployeeSelf =>
+					{
+						return no_effective_perms(Action::Update, p, Reason::NoEmployee);
+					},
+
+					p => p.unreachable(),
 				};
 
 				retrieve::<A::Employee>(state.pool(), condition, code).await
@@ -343,12 +352,12 @@ where
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<request::Patch<Employee>>| async move {
 				let mut entities = request.into_entities();
-				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				let code = match state.employee_permissions(&user, Action::Update).await?
 				{
-					Some(Object::Employee) => Code::Success,
+					Object::Employee => Code::Success,
 
 					// HACK: no if-let guards…
-					Some(Object::EmployeeInDepartment) if user.employee().is_some() =>
+					Object::EmployeeInDepartment if user.employee().is_some() =>
 					{
 						let id = user.employee().unwrap().department.id;
 						entities.retain(|e| e.department.id == id);
@@ -356,18 +365,26 @@ where
 					},
 
 					// HACK: no if-let guards…
-					None if user.employee().is_some() =>
+					Object::EmployeeSelf if user.employee().is_some() =>
 					{
 						let id = user.employee().unwrap().id;
 						entities.retain(|e| e.id == id);
 						Code::SuccessForPermissions
 					},
 
-					Some(Object::EmployeeInDepartment) | None =>
+					p @ Object::EmployeeInDepartment =>
 					{
-						return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
+						return no_effective_perms(Action::Update, p, Reason::NoDepartment)
+							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
 					},
-					Some(p) => p.unreachable(),
+
+					p @ Object::EmployeeSelf =>
+					{
+						return no_effective_perms(Action::Update, p, Reason::NoEmployee)
+							.map_or_else(|e| Err(e.into()), |o| Ok(o.into()))
+					},
+
+					p => p.unreachable(),
 				};
 
 				update::<A::Employee>(state.pool(), entities, code).await
@@ -378,19 +395,24 @@ where
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<request::Post<(Department, String, String)>>| async move {
 				let (department, name, title) = request.into_args();
-				let code = match state.employee_permissions(&user, Action::Retrieve).await?
+				let code = match state.employee_permissions(&user, Action::Create).await?
 				{
-					Some(Object::Employee) => Code::Success,
+					Object::Employee => Code::Success,
 
 					// HACK: no if-let guards…
-					Some(Object::EmployeeInDepartment)
+					Object::EmployeeInDepartment
 						if user.employee().map_or(false, |e| e.department.id == department.id) =>
 					{
 						Code::SuccessForPermissions
 					},
 
-					Some(Object::EmployeeInDepartment) | None => return no_effective_perms(),
-					Some(p) => p.unreachable(),
+					p @ Object::EmployeeInDepartment =>
+					{
+						return no_effective_perms(Action::Create, p, Reason::NoDepartment)
+					},
+
+					p @ Object::EmployeeSelf => return no_effective_perms(Action::Create, p, Reason::ResourceExists),
+					p => p.unreachable(),
 				};
 
 				create(A::Employee::create(state.pool(), department, name, title).await, code)
@@ -443,7 +465,8 @@ where
 				// expenses.
 				if permission != Object::Expenses && user.employee().is_none()
 				{
-					return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+					return no_effective_perms(Action::Delete, permission, Reason::NoEmployee)
+						.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
 				}
 
 				let mut entities = request.into_entities();
@@ -485,7 +508,7 @@ where
 				// expenses.
 				if permission != Object::Expenses && user.employee().is_none()
 				{
-					return no_effective_perms();
+					return no_effective_perms(Action::Retrieve, permission, Reason::NoEmployee);
 				}
 
 				let condition = request.into_condition();
@@ -531,7 +554,8 @@ where
 				// expenses.
 				if permission != Object::Expenses && user.employee().is_none()
 				{
-					return no_effective_perms().map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
+					return no_effective_perms(Action::Update, permission, Reason::NoEmployee)
+						.map_or_else(|e| Err(e.into()), |o| Ok(o.into()));
 				}
 
 				let mut entities = request.into_entities();
@@ -564,16 +588,18 @@ where
 			},
 		)
 		.post(
+			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<request::Post<(Vec<(String, Money, String)>, Id)>>| async move {
-				let permission = state.expense_permissions(&user, Action::Update).await?;
+				#[warn(clippy::type_complexity)]
+				let permission = state.expense_permissions(&user, Action::Create).await?;
 
 				// The user has no department, and no employee record, so they effectively cannot retrieve
 				// expenses.
 				if permission != Object::Expenses && user.employee().is_none()
 				{
-					return no_effective_perms();
+					return no_effective_perms(Action::Create, permission, Reason::NoEmployee);
 				}
 
 				let (expenses, timesheet_id) = request.into_args();
@@ -607,10 +633,7 @@ where
 
 								if !matching.contains(&timesheet_id)
 								{
-									return no_effective_perms(format!(
-										"This user has permissions to update {p}, but no timesheet with ID \
-										 {timesheet_id} matching that description was found."
-									));
+									return no_effective_perms(Action::Create, p, Reason::NoResourceExists);
 								}
 							},
 
@@ -648,7 +671,11 @@ where
 							Code::SuccessForPermissions
 						},
 
-						Object::JobInDepartment => return no_effective_perms(),
+						p @ Object::JobInDepartment =>
+						{
+							return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment);
+						},
+
 						p => p.unreachable(),
 					};
 
@@ -786,7 +813,16 @@ where
 							Code::SuccessForPermissions
 						},
 
-						Object::TimesheetInDepartment | Object::CreatedTimesheet => return no_effective_perms(),
+						p @ Object::TimesheetInDepartment =>
+						{
+							return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment);
+						},
+
+						p @ Object::CreatedTimesheet =>
+						{
+							return no_effective_perms(Action::Retrieve, p, Reason::NoEmployee);
+						},
+
 						p => p.unreachable(),
 					};
 
@@ -808,10 +844,10 @@ where
 					let mut condition = request.into_condition();
 					let code = match state.user_permissions(&user, Action::Retrieve).await?
 					{
-						Some(Object::User) => Code::Success,
+						Object::User => Code::Success,
 
 						// HACK: no if-let guards
-						Some(Object::UserInDepartment) if user.employee().is_some() =>
+						Object::UserInDepartment if user.employee().is_some() =>
 						{
 							let dpt_id = user.employee().unwrap().department.id;
 							condition.employee = match condition.employee
@@ -826,24 +862,18 @@ where
 							Code::SuccessForPermissions
 						},
 
-						// HACK: no if-let guards
-						None if user.employee().is_some() =>
+						Object::UserSelf =>
 						{
-							let emp_id = user.employee().unwrap().id;
-							condition.employee = match condition.employee
-							{
-								MatchOption::Any => Some(emp_id.into()).into(),
-								e => e.map(|mut m| {
-									m.id &= emp_id.into();
-									m
-								}),
-							};
-
+							condition.id &= user.id().into();
 							Code::SuccessForPermissions
 						},
 
-						Some(Object::UserInDepartment) | None => return no_effective_perms(),
-						Some(p) => p.unreachable(),
+						p @ Object::UserInDepartment =>
+						{
+							return no_effective_perms(Action::Retrieve, p, Reason::NoDepartment);
+						},
+
+						p => p.unreachable(),
 					};
 
 					retrieve::<A::User>(state.pool(), condition, code).await

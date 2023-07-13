@@ -62,7 +62,7 @@ where
 	///
 	/// If no relevant permissions were found, [`None`] is returned. This indicates that the `user`
 	/// can only operate on their own employee record.
-	pub async fn employee_permissions<R>(&self, user: &User, action: Action) -> Result<Option<Object>, Response<R>>
+	pub async fn employee_permissions<R>(&self, user: &User, action: Action) -> Result<Object, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -74,7 +74,7 @@ where
 			self.has_permission::<R>(user, object, action).await?
 		};
 
-		Ok(can_get_in_dept.then_or(None, || object.into()))
+		Ok(can_get_in_dept.then_some_or(Object::EmployeeSelf, object))
 	}
 
 	/// Check [`has_permission`](Self::has_permission), but also return [`Err`] if the [`Result`]
@@ -203,7 +203,7 @@ where
 	///
 	/// If no relevant permissions were found, [`None`] is returned. This indicates that the `user`
 	/// can only operate on their own employee record.
-	pub async fn user_permissions<R>(&self, user: &User, action: Action) -> Result<Option<Object>, Response<R>>
+	pub async fn user_permissions<R>(&self, user: &User, action: Action) -> Result<Object, Response<R>>
 	where
 		R: AsRef<Code> + From<Status>,
 	{
@@ -215,6 +215,6 @@ where
 			self.has_permission::<R>(user, object, action).await?
 		};
 
-		Ok(can_get_in_dept.then_or(None, || object.into()))
+		Ok(can_get_in_dept.then_some_or(Object::UserSelf, object))
 	}
 }
