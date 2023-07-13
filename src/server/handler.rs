@@ -30,7 +30,19 @@ use winvoice_adapter::{
 	Updatable,
 };
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
-use winvoice_schema::{chrono::Utc, ContactKind, Currency, Department, Employee, Expense, Id, Location, Money};
+use winvoice_schema::{
+	chrono::Utc,
+	ContactKind,
+	Currency,
+	Department,
+	Employee,
+	Expense,
+	Id,
+	Job,
+	Location,
+	Money,
+	Timesheet,
+};
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
@@ -445,8 +457,8 @@ where
 			Ok(())
 		}
 
-		/// If a `$user` has no department and no employee record, they effectively cannot
-		/// retrieve expenses.
+		/// If a `$user` does not have the [`Object::Expenses`] permission for `$action`, and they have no employee
+		/// record, then they effectively cannot retrieve expenses.
 		macro_rules! enforce_effective_permissions {
 			($user:ident, $action:ident, $permission:ident) => {
 				if $permission != Object::Expenses && $user.employee().is_none()
@@ -632,39 +644,66 @@ where
 	/// The handler for the [`routes::JOB`](crate::api::routes::JOB).
 	pub fn job(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::delete(|| async move { todo("Delete method not implemented") })
-			.get(
-				|Extension(user): Extension<User>,
-				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Get<MatchJob>>| async move {
-					const ACTION: Action = Action::Retrieve;
-					let mut condition = request.into_condition();
+		routing::delete(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Delete<Job>>| async move {
+				const ACTION: Action = Action::Delete;
+				let mut entities = request.into_entities();
+				let code = match state.job_permissions(&user, ACTION).await?
+				{
+					Object::Job => Code::Success,
 
-					let code = match state.job_permissions(&user, ACTION).await?
+					// HACK: no if-let guards…
+					Object::JobInDepartment if user.employee().is_some() =>
 					{
-						Object::Job => Code::Success,
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|j| j.departments.iter().any(|d| d.id == id));
+						Code::SuccessForPermissions
+					},
 
-						// HACK: no if-let guards…
-						Object::JobInDepartment if user.employee().is_some() =>
-						{
-							condition.departments &=
-								MatchDepartment::from(user.employee().unwrap().department.id).into();
-							Code::SuccessForPermissions
-						},
+					p @ Object::JobInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
 
-						p @ Object::JobInDepartment =>
-						{
-							return no_effective_perms(ACTION, p, Reason::NoDepartment);
-						},
+					p => p.unreachable(),
+				};
 
-						p => p.unreachable(),
-					};
+				delete::<A::Job>(state.pool(), entities, code).await
+			},
+		)
+		.get(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Get<MatchJob>>| async move {
+				const ACTION: Action = Action::Retrieve;
+				let mut condition = request.into_condition();
 
-					retrieve::<A::Job>(state.pool(), condition, code).await
-				},
-			)
-			.patch(|| async move { todo("Update method not implemented") })
-			.post(|| async move { todo("job create") })
+				let code = match state.job_permissions(&user, ACTION).await?
+				{
+					Object::Job => Code::Success,
+
+					// HACK: no if-let guards…
+					Object::JobInDepartment if user.employee().is_some() =>
+					{
+						condition.departments &= MatchDepartment::from(user.employee().unwrap().department.id).into();
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::JobInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment);
+					},
+
+					p => p.unreachable(),
+				};
+
+				retrieve::<A::Job>(state.pool(), condition, code).await
+			},
+		)
+		.patch(|| async move { todo("Update method not implemented") })
+		.post(|| async move { todo("job create") })
 	}
 
 	/// The handler for the [`routes::LOCATION`](crate::api::routes::LOCATION).
@@ -769,100 +808,176 @@ where
 	/// The handler for the [`routes::TIMESHEET`](crate::api::routes::TIMESHEET).
 	pub fn timesheet(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::delete(|| async move { todo("Delete method not implemented") })
-			.get(
-				|Extension(user): Extension<User>,
-				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Get<MatchTimesheet>>| async move {
-					const ACTION: Action = Action::Retrieve;
-					let mut condition = request.into_condition();
-					let code = match state.timesheet_permissions(&user, ACTION).await?
+		routing::delete(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Delete<Timesheet>>| async move {
+				const ACTION: Action = Action::Delete;
+				let mut entities = request.into_entities();
+				let code = match state.timesheet_permissions(&user, ACTION).await?
+				{
+					Object::Timesheet => Code::Success,
+
+					// HACK: no if-let guards
+					Object::TimesheetInDepartment if user.employee().is_some() =>
 					{
-						Object::Timesheet => Code::Success,
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|t| t.job.departments.iter().any(|d| d.id == id));
+						Code::SuccessForPermissions
+					},
 
-						// HACK: no if-let guards
-						Object::TimesheetInDepartment if user.employee().is_some() =>
-						{
-							condition.job.departments &=
-								MatchDepartment::from(user.employee().unwrap().department.id).into();
-							Code::SuccessForPermissions
-						},
+					// HACK: no if-let guards
+					Object::CreatedTimesheet if user.employee().is_some() =>
+					{
+						let id = user.employee().unwrap().id;
+						entities.retain(|t| t.employee.id == id);
+						Code::SuccessForPermissions
+					},
 
-						// HACK: no if-let guards
-						Object::CreatedTimesheet if user.employee().is_some() =>
-						{
-							condition.employee.id &= user.employee().unwrap().id.into();
-							Code::SuccessForPermissions
-						},
+					p @ Object::TimesheetInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
 
-						p @ Object::TimesheetInDepartment =>
-						{
-							return no_effective_perms(ACTION, p, Reason::NoDepartment);
-						},
+					p @ Object::CreatedTimesheet =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoEmployee).map_all(Into::into, Into::into);
+					},
 
-						p @ Object::CreatedTimesheet =>
-						{
-							return no_effective_perms(ACTION, p, Reason::NoEmployee);
-						},
+					p => p.unreachable(),
+				};
 
-						p => p.unreachable(),
-					};
+				delete::<A::Timesheet>(state.pool(), entities, code).await
+			},
+		)
+		.get(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Get<MatchTimesheet>>| async move {
+				const ACTION: Action = Action::Retrieve;
+				let mut condition = request.into_condition();
+				let code = match state.timesheet_permissions(&user, ACTION).await?
+				{
+					Object::Timesheet => Code::Success,
 
-					retrieve::<A::Timesheet>(state.pool(), condition, code).await
-				},
-			)
-			.patch(|| async move { todo("Update method not implemented") })
-			.post(|| async move { todo("timesheet create") })
+					// HACK: no if-let guards
+					Object::TimesheetInDepartment if user.employee().is_some() =>
+					{
+						condition.job.departments &=
+							MatchDepartment::from(user.employee().unwrap().department.id).into();
+						Code::SuccessForPermissions
+					},
+
+					// HACK: no if-let guards
+					Object::CreatedTimesheet if user.employee().is_some() =>
+					{
+						condition.employee.id &= user.employee().unwrap().id.into();
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::TimesheetInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment);
+					},
+
+					p @ Object::CreatedTimesheet =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoEmployee);
+					},
+
+					p => p.unreachable(),
+				};
+
+				retrieve::<A::Timesheet>(state.pool(), condition, code).await
+			},
+		)
+		.patch(|| async move { todo("Update method not implemented") })
+		.post(|| async move { todo("timesheet create") })
 	}
 
 	/// The handler for the [`routes::USER`](crate::api::routes::USER).
 	pub fn user(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::delete(|| async move { todo("Delete method not implemented") })
-			.get(
-				|Extension(user): Extension<User>,
-				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Get<MatchUser>>| async move {
-					const ACTION: Action = Action::Retrieve;
-					let mut condition = request.into_condition();
-					let code = match state.user_permissions(&user, ACTION).await?
+		routing::delete(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Delete<User>>| async move {
+				const ACTION: Action = Action::Delete;
+				let mut entities = request.into_entities();
+				let code = match state.user_permissions(&user, ACTION).await?
+				{
+					Object::User => Code::Success,
+
+					// HACK: no if-let guards
+					Object::UserInDepartment if user.employee().is_some() =>
 					{
-						Object::User => Code::Success,
+						let id = user.employee().unwrap().department.id;
+						entities.retain(|u| u.employee().map_or(false, |e| e.department.id == id));
+						Code::SuccessForPermissions
+					},
 
-						// HACK: no if-let guards
-						Object::UserInDepartment if user.employee().is_some() =>
+					Object::UserSelf =>
+					{
+						let id = user.id();
+						entities.retain(|u| u.id() == id);
+						Code::SuccessForPermissions
+					},
+
+					p @ Object::UserInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into);
+					},
+
+					p => p.unreachable(),
+				};
+
+				delete::<A::User>(state.pool(), entities, code).await
+			},
+		)
+		.get(
+			|Extension(user): Extension<User>,
+			 State(state): State<ServerState<A::Db>>,
+			 Json(request): Json<request::Get<MatchUser>>| async move {
+				const ACTION: Action = Action::Retrieve;
+				let mut condition = request.into_condition();
+				let code = match state.user_permissions(&user, ACTION).await?
+				{
+					Object::User => Code::Success,
+
+					// HACK: no if-let guards
+					Object::UserInDepartment if user.employee().is_some() =>
+					{
+						let id = user.employee().unwrap().department.id;
+						condition.employee = match condition.employee
 						{
-							let dpt_id = user.employee().unwrap().department.id;
-							condition.employee = match condition.employee
-							{
-								MatchOption::Any => Some(MatchDepartment::from(dpt_id).into()).into(),
-								e => e.map(|mut m| {
-									m.department.id &= dpt_id.into();
-									m
-								}),
-							};
+							MatchOption::Any => Some(MatchDepartment::from(id).into()).into(),
+							e => e.map(|mut m| {
+								m.department.id &= id.into();
+								m
+							}),
+						};
 
-							Code::SuccessForPermissions
-						},
+						Code::SuccessForPermissions
+					},
 
-						Object::UserSelf =>
-						{
-							condition.id &= user.id().into();
-							Code::SuccessForPermissions
-						},
+					Object::UserSelf =>
+					{
+						condition.id &= user.id().into();
+						Code::SuccessForPermissions
+					},
 
-						p @ Object::UserInDepartment =>
-						{
-							return no_effective_perms(ACTION, p, Reason::NoDepartment);
-						},
+					p @ Object::UserInDepartment =>
+					{
+						return no_effective_perms(ACTION, p, Reason::NoDepartment);
+					},
 
-						p => p.unreachable(),
-					};
+					p => p.unreachable(),
+				};
 
-					retrieve::<A::User>(state.pool(), condition, code).await
-				},
-			)
-			.patch(|| async move { todo("Update method not implemented") })
-			.post(|| async move { todo("user create") })
+				retrieve::<A::User>(state.pool(), condition, code).await
+			},
+		)
+		.patch(|| async move { todo("Update method not implemented") })
+		.post(|| async move { todo("user create") })
 	}
 }
