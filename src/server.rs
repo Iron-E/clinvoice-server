@@ -580,7 +580,7 @@ mod tests
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 			macro_rules! check {
-                ($Adapter:ty, $route:ident; $($pass:ident => $data:ident: $code:expr),+; $($fail:ident),+) => {
+                ($Adapter:ty, $route:ident; $($pass:ident: $data:expr => $code:expr),+; $($fail:ident),+) => {
                     stream::iter([$((&$pass, &$data, $code)),+]).for_each(|data| client.test_other_success::<$Adapter>(
                         Method::Delete,
                         &pool,
@@ -707,10 +707,10 @@ mod tests
 			};
 
 			let expenses = {
-				let mut x = Vec::with_capacity(2 * 3);
+				let mut x = Vec::with_capacity(3);
 				for t in [&timesheet, &timesheet2, &timesheet3]
 				{
-					PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), t.id)
+					PgExpenses::create(&pool, iter::repeat_with(expense_args).take(1).collect(), t.id)
 						.await
 						.map(|mut v| x.append(&mut v))?;
 				}
@@ -744,12 +744,21 @@ mod tests
 			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
-			check!(PgUser, USER; admin => user: None, manager => manager_user: Code::SuccessForPermissions.into(); grunt, guest);
-			check!(PgRole, ROLE; admin => role: None; grunt, guest, manager);
-
-			// TODO: /expense
-			PgExpenses::delete(&pool, [&timesheet, &timesheet2, &timesheet3].into_iter().flat_map(|t| &t.expenses))
-				.await?;
+			check!(
+				PgUser, USER;
+				admin: user => None,
+				manager: manager_user => Code::SuccessForPermissions.into();
+				grunt,
+				guest
+			);
+			check!(PgRole, ROLE; admin: role => None; grunt, guest, manager);
+			check!(
+				PgExpenses, EXPENSE;
+				admin: expenses[2] => None,
+				grunt: expenses[1] => Code::SuccessForPermissions.into(),
+				manager: expenses[0] => Code::SuccessForPermissions.into();
+				guest
+			);
 
 			// TODO: /timesheet
 			PgTimesheet::delete(&pool, [&timesheet, &timesheet2, &timesheet3].into_iter()).await?;
@@ -760,9 +769,9 @@ mod tests
 			// TODO: /employee
 			PgEmployee::delete(&pool, [&employee].into_iter()).await?;
 
-			check!(PgOrganization, ORGANIZATION; admin => organization: None; grunt, guest, manager);
-			check!(PgContact, CONTACT; admin => contact_: None; grunt, guest, manager);
-			check!(PgLocation, LOCATION; admin => location: None; grunt, guest, manager);
+			check!(PgOrganization, ORGANIZATION; admin: organization => None; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin: contact_ => None; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin: location => None; grunt, guest, manager);
 
 			// TODO: /department
 
@@ -1074,7 +1083,8 @@ mod tests
 				routes::USER,
 				&manager.0, &manager.1,
 				MatchUser::default(),
-				users.iter().filter(|u| u.id() == grunt.0.id() || u.id() == manager.0.id()), Code::SuccessForPermissions.into(),
+				users.iter().filter(|u| u.id() == grunt.0.id() || u.id() == manager.0.id()),
+                Code::SuccessForPermissions.into(),
 			))
 			.await;
 			assert_unauthorized!(MatchUser, USER; guest);
@@ -1108,7 +1118,7 @@ mod tests
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 			macro_rules! check {
-                ($Adapter:ty, $route:ident; $($pass:ident => $data:ident: $code:expr),+; $($fail:ident),+) => {
+                ($Adapter:ty, $route:ident; $($pass:ident: $data:expr => $code:expr),+; $($fail:ident),+) => {
                     stream::iter([$((&$pass, &$data, $code)),+]).for_each(|data| client.test_other_success::<$Adapter>(
                         Method::Patch,
                         &pool,
@@ -1306,15 +1316,15 @@ mod tests
 
 			// TODO: /user
 
-			check!(PgRole, ROLE; admin => role: None; grunt, guest, manager);
+			check!(PgRole, ROLE; admin: role => None; grunt, guest, manager);
 
 			// TODO: /expense
 			// TODO: /timesheet
 			// TODO: /job
 
-			check!(PgOrganization, ORGANIZATION; admin => organization: None; grunt, guest, manager);
-			check!(PgContact, CONTACT; admin => contact_: None; grunt, guest, manager);
-			check!(PgLocation, LOCATION; admin => location: None; grunt, guest, manager);
+			check!(PgOrganization, ORGANIZATION; admin: organization => None; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin: contact_ => None; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin: location => None; grunt, guest, manager);
 
 			// TODO: /department
 

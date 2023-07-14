@@ -239,7 +239,7 @@ impl TestClientExt for TestClient
 	}
 
 	/// assert logged in user DELETE with permissions is accepted
-	#[tracing::instrument(skip(self))]
+	#[tracing::instrument(skip(self, pool))]
 	async fn test_other_success<A>(
 		&self,
 		method: Method,
@@ -350,7 +350,7 @@ impl TestClientExt for TestClient
 		actual.into_content().into_entity().unwrap()
 	}
 
-	#[tracing::instrument(skip(self))]
+	#[tracing::instrument(skip(self, pool))]
 	async fn test_post_unauthorized<Db, A>(&self, pool: &Pool<Db>, route: &str, user: &User, password: &str, args: A)
 	where
 		A: Debug + Send + Serialize + Sync,
