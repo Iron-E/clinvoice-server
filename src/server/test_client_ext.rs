@@ -12,7 +12,7 @@ use axum_login::axum_sessions::async_session::base64;
 use axum_test_helper::{RequestBuilder, TestClient};
 use pretty_assertions::assert_eq;
 use serde::{de::DeserializeOwned, Serialize};
-use sqlx::{Database, Pool};
+use sqlx::Pool;
 use winvoice_adapter::{Deletable, Retrievable};
 
 use super::response::{LoginResponse, LogoutResponse};
@@ -126,10 +126,9 @@ pub trait TestClientExt
 		R::Match: Debug + From<R::Entity> + Send;
 
 	/// assert logged in user POST with permissions is rejected
-	async fn test_post_unauthorized<Db, A>(&self, pool: &Pool<Db>, route: &str, user: &User, password: &str, args: A)
+	async fn test_post_unauthorized<A>(&self, route: &str, user: &User, password: &str, args: A)
 	where
-		A: Debug + Send + Serialize + Sync,
-		Db: Database;
+		A: Debug + Send + Serialize + Sync;
 }
 
 #[async_trait::async_trait]
@@ -273,14 +272,17 @@ impl TestClientExt for TestClient
 		let expected = Response::from(Delete::new(code.unwrap_or(Code::Success).into()));
 
 		assert_eq!(actual, expected);
-		for entity in entities
+		if code != Some(Code::Unauthorized)
 		{
-			let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
-			match method
+			for entity in entities
 			{
-				Method::Delete => assert_eq!(retrieved.len(), 0),
-				Method::Patch => assert_eq!(retrieved.get(0), Some(&entity)),
-			};
+				let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
+				match method
+				{
+					Method::Delete => assert_eq!(retrieved.len(), 0),
+					Method::Patch => assert_eq!(retrieved.get(0), Some(&entity)),
+				};
+			}
 		}
 
 		self.logout().await;
@@ -350,11 +352,10 @@ impl TestClientExt for TestClient
 		actual.into_content().into_entity().unwrap()
 	}
 
-	#[tracing::instrument(skip(self, pool))]
-	async fn test_post_unauthorized<Db, A>(&self, pool: &Pool<Db>, route: &str, user: &User, password: &str, args: A)
+	#[tracing::instrument(skip(self))]
+	async fn test_post_unauthorized<A>(&self, route: &str, user: &User, password: &str, args: A)
 	where
 		A: Debug + Send + Serialize + Sync,
-		Db: Database,
 	{
 		// HACK: `tracing` doesn't work correctly with async so I have to annotate this function
 		// like       this or else this function's span is skipped.
