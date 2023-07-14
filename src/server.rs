@@ -317,12 +317,8 @@ mod tests
 	#[allow(clippy::type_complexity)]
 	fn timesheet_args() -> (Vec<(String, Money, String)>, DateTime<Utc>, Option<DateTime<Utc>>, String)
 	{
-		(
-			Default::default(),
-			Utc.with_ymd_and_hms(2022, 6, 8, 15, 27, 0).unwrap(),
-			Utc.with_ymd_and_hms(2022, 6, 9, 7, 0, 0).latest(),
-			words::sentence(5),
-		)
+		let now = Utc::now();
+		(Default::default(), now, (now + chrono::Duration::hours(3)).into(), words::sentence(5))
 	}
 
 	#[allow(unused_macros)]
@@ -688,7 +684,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t3 = PgTimesheet::create(
 					&mut tx,
-					manager.0.employee().unwrap().clone(),
+					grunt.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -754,14 +750,18 @@ mod tests
 			check!(PgRole, ROLE; admin: role => None; grunt, guest, manager);
 			check!(
 				PgExpenses, EXPENSE;
-				admin: expenses[2] => None,
+				admin: expenses[0] => None,
 				grunt: expenses[1] => Code::SuccessForPermissions.into(),
-				manager: expenses[0] => Code::SuccessForPermissions.into();
+				manager: expenses[2] => Code::SuccessForPermissions.into();
 				guest
 			);
-
-			// TODO: /timesheet
-			PgTimesheet::delete(&pool, [&timesheet, &timesheet2, &timesheet3].into_iter()).await?;
+			check!(
+				PgTimesheet, TIMESHEET;
+				admin: timesheet => None,
+				grunt: timesheet2 => Code::SuccessForPermissions.into(),
+				manager: timesheet3 => Code::SuccessForPermissions.into();
+				guest
+			);
 
 			// TODO: /job
 			PgJob::delete(&pool, [&job_, &job2].into_iter()).await?;

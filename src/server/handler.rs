@@ -449,10 +449,7 @@ where
 				.into(),
 				..match permission
 				{
-					Object::ExpensesInDepartment =>
-					{
-						MatchJob::from(MatchDepartment::from(e.department.id)).into()
-					},
+					Object::ExpensesInDepartment => MatchJob::from(MatchDepartment::from(e.department.id)).into(),
 					Object::CreatedExpenses => MatchEmployee::from(e.id).into(),
 					_ => permission.unreachable(),
 				}
