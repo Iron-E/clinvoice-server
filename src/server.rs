@@ -482,11 +482,10 @@ mod tests
 			#[traced_test]
 			async fn rejections() -> DynResult<()>
 			{
-				let TestData { client, admin: (admin, admin_password), .. } =
-					setup("rejections", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+				let TestData { client, admin, .. } = setup("rejections", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 				#[rustfmt::skip]
-                stream::iter([
+			                stream::iter([
 					routes::CONTACT, routes::EMPLOYEE, routes::EXPENSE, routes::JOB, routes::LOCATION,
 					routes::LOGOUT, routes::ORGANIZATION, routes::ROLE, routes::TIMESHEET, routes::USER,
 				])
@@ -507,7 +506,7 @@ mod tests
 						}
 
 						{// assert GETs w/ wrong body are rejected
-							client.login(admin.username(), &admin_password).await;
+							client.login(admin.0.username(), &admin.1).await;
 
 							let response = client.get_builder(route).body("").send().await;
 							assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
@@ -577,14 +576,28 @@ mod tests
 		#[traced_test]
 		async fn delete() -> DynResult<()>
 		{
-			let TestData {
-				admin: (admin, admin_password),
-				client,
-				grunt: (grunt, grunt_password),
-				guest: (guest, guest_password),
-				manager: (manager, manager_password),
-				pool,
-			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+			let TestData { admin, client, grunt, guest, manager, pool } =
+				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+
+			macro_rules! check {
+                ($Adapter:ty, $route:ident; $($pass:ident => $data:ident: $code:expr),+; $($fail:ident),+) => {
+                    stream::iter([$((&$pass, &$data, $code)),+]).for_each(|data| client.test_other_success::<$Adapter>(
+                        Method::Delete,
+                        &pool,
+                        routes::$route,
+                        &data.0.0,
+                        &data.0.1,
+                        vec![data.1.clone()],
+                        data.2,
+                    ))
+                    .await;
+
+                    stream::iter([$(&$fail),+]).for_each(|data|
+                        client.test_other_unauthorized(Method::Delete, routes::$route, &data.0, &data.1)
+                    )
+                    .await;
+                }
+            }
 
 			let contact_ = {
 				let (kind, label) = contact_args();
@@ -595,7 +608,7 @@ mod tests
 
 			let employee = {
 				let (name_, title) = employee_args();
-				PgEmployee::create(&pool, manager.department().unwrap().clone(), name_, title).await?
+				PgEmployee::create(&pool, manager.0.department().unwrap().clone(), name_, title).await?
 			};
 
 			let location = {
@@ -629,7 +642,7 @@ mod tests
 					organization.clone(),
 					date_close,
 					date_open,
-					manager.employee().into_iter().map(|e| e.department.clone()).collect(),
+					manager.0.employee().into_iter().map(|e| e.department.clone()).collect(),
 					increment,
 					invoice,
 					notes,
@@ -663,7 +676,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t2 = PgTimesheet::create(
 					&mut tx,
-					grunt.employee().unwrap().clone(),
+					grunt.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -675,7 +688,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t3 = PgTimesheet::create(
 					&mut tx,
-					manager.employee().unwrap().clone(),
+					manager.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -728,49 +741,11 @@ mod tests
 			)
 			.await?;
 
-			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
+			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
-			client.test_other_unauthorized(Method::Delete, routes::USER, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::USER, &guest, &guest_password).await;
-			client
-				.test_other_success::<PgUser>(
-					Method::Delete,
-					&pool,
-					routes::USER,
-					&manager,
-					&manager_password,
-					vec![manager_user.clone()],
-					None,
-				)
-				.await;
-
-			client
-				.test_other_success::<PgUser>(
-					Method::Delete,
-					&pool,
-					routes::USER,
-					&admin,
-					&admin_password,
-					vec![user.clone()],
-					None,
-				)
-				.await;
-
-			client.test_other_unauthorized(Method::Delete, routes::ROLE, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::ROLE, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::ROLE, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgRole>(
-					Method::Delete,
-					&pool,
-					routes::ROLE,
-					&admin,
-					&admin_password,
-					vec![role.clone()],
-					None,
-				)
-				.await;
+			check!(PgUser, USER; admin => user: None, manager => manager_user: Code::SuccessForPermissions.into(); grunt, guest);
+			check!(PgRole, ROLE; admin => role: None; grunt, guest, manager);
 
 			// TODO: /expense
 			PgExpenses::delete(&pool, [&timesheet, &timesheet2, &timesheet3].into_iter().flat_map(|t| &t.expenses))
@@ -785,50 +760,9 @@ mod tests
 			// TODO: /employee
 			PgEmployee::delete(&pool, [&employee].into_iter()).await?;
 
-			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgOrganization>(
-					Method::Delete,
-					&pool,
-					routes::ORGANIZATION,
-					&admin,
-					&admin_password,
-					vec![organization.clone()],
-					None,
-				)
-				.await;
-
-			client.test_other_unauthorized(Method::Delete, routes::CONTACT, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::CONTACT, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::CONTACT, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgContact>(
-					Method::Delete,
-					&pool,
-					routes::CONTACT,
-					&admin,
-					&admin_password,
-					vec![contact_.clone()],
-					None,
-				)
-				.await;
-
-			client.test_other_unauthorized(Method::Delete, routes::LOCATION, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::LOCATION, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::LOCATION, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgLocation>(
-					Method::Delete,
-					&pool,
-					routes::LOCATION,
-					&admin,
-					&admin_password,
-					vec![location.clone()],
-					None,
-				)
-				.await;
+			check!(PgOrganization, ORGANIZATION; admin => organization: None; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin => contact_: None; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin => location: None; grunt, guest, manager);
 
 			// TODO: /department
 
@@ -846,14 +780,17 @@ mod tests
 		#[traced_test]
 		async fn get() -> DynResult<()>
 		{
-			let TestData {
-				admin: (admin, admin_password),
-				client,
-				grunt: (grunt, grunt_password),
-				guest: (guest, guest_password),
-				manager: (manager, manager_password),
-				pool,
-			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+			let TestData { admin, client, grunt, guest, manager, pool } =
+				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+
+			macro_rules! assert_unauthorized {
+                ($Match:ty, $route:ident; $($fail:ident),+) => {
+                    stream::iter([$(&$fail),+]).for_each(|data|
+                        client.test_get_unauthorized::<$Match>(routes::$route, &data.0, &data.1)
+                    )
+                    .await;
+                }
+            }
 
 			let contact_ = {
 				let (kind, label) = contact_args();
@@ -863,33 +800,30 @@ mod tests
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::CONTACT,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchContact::from(contact_.label.clone()),
 				[&contact_].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchContact>(routes::CONTACT, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchContact>(routes::CONTACT, &grunt, &grunt_password))
-			.then(|_| client.test_get_unauthorized::<MatchContact>(routes::CONTACT, &manager, &manager_password))
 			.await;
+			assert_unauthorized!(MatchContact, CONTACT; guest, grunt, manager);
 
 			let department = PgDepartment::create(&pool, rand_department_name()).await?;
 
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::DEPARTMENT,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchDepartment::from(department.id),
 				[&department].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchDepartment>(routes::DEPARTMENT, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchDepartment>(routes::DEPARTMENT, &grunt, &grunt_password))
 			.then(|_| client.test_get_success(
 				routes::DEPARTMENT,
-				&manager, &manager_password,
+				&manager.0, &manager.1,
 				MatchDepartment::default(),
-				manager.employee().into_iter().map(|e| &e.department), Code::SuccessForPermissions.into(),
+				manager.0.employee().into_iter().map(|e| &e.department), Code::SuccessForPermissions.into(),
 			))
 			.await;
+			assert_unauthorized!(MatchDepartment, DEPARTMENT; guest, grunt);
 
 			let employee = {
 				let (name_, title) = employee_args();
@@ -899,24 +833,24 @@ mod tests
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::EMPLOYEE,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchEmployee::from(employee.id),
 				[&employee].into_iter(), None,
 			)
 			.then(|_| client.test_get_success(
 				routes::EMPLOYEE,
-				&grunt, &grunt_password,
+				&grunt.0, &grunt.1,
 				MatchEmployee::default(),
-				grunt.employee().into_iter(), Code::SuccessForPermissions.into(),
+				grunt.0.employee().into_iter(), Code::SuccessForPermissions.into(),
 			))
-			.then(|_| client.test_get_unauthorized::<MatchEmployee>(routes::EMPLOYEE, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::EMPLOYEE,
-				&manager, &manager_password,
+				&manager.0, &manager.1,
 				MatchEmployee::default(),
-				[&grunt, &manager].into_iter().map(|e| e.employee().unwrap()), Code::SuccessForPermissions.into(),
+				[&grunt, &manager].into_iter().map(|e| e.0.employee().unwrap()), Code::SuccessForPermissions.into(),
 			))
 			.await;
+			assert_unauthorized!(MatchEmployee, EMPLOYEE; guest);
 
 			let location = {
 				let (currency, address_, outer) = location_args();
@@ -926,29 +860,24 @@ mod tests
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::LOCATION,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchLocation::from(location.id),
 				[&location].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchLocation>(routes::LOCATION, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchLocation>(routes::LOCATION, &grunt, &grunt_password))
-			.then(|_| client.test_get_unauthorized::<MatchLocation>(routes::LOCATION, &manager, &manager_password))
 			.await;
+			assert_unauthorized!(MatchLocation, LOCATION; guest, grunt, manager);
 
 			let organization = PgOrganization::create(&pool, location.clone(), company::company()).await?;
 
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::ORGANIZATION,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchOrganization::from(organization.id),
 				[&organization].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchOrganization>(routes::ORGANIZATION, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchOrganization>(routes::ORGANIZATION, &grunt, &grunt_password))
-			.then(|_|
-				client.test_get_unauthorized::<MatchOrganization>(routes::ORGANIZATION, &manager, &manager_password))
 			.await;
+			assert_unauthorized!(MatchOrganization, ORGANIZATION; guest, grunt, manager);
 
 			let rates = ExchangeRates::new().await?;
 
@@ -974,7 +903,7 @@ mod tests
 					organization.clone(),
 					date_close,
 					date_open,
-					manager.employee().into_iter().map(|e| e.department.clone()).collect(),
+					manager.0.employee().into_iter().map(|e| e.department.clone()).collect(),
 					increment,
 					invoice,
 					notes,
@@ -994,19 +923,18 @@ mod tests
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::JOB,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchJob::from(job_.id),
 				[&job_].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchJob>(routes::JOB, &guest, &guest_password))
-			.then(|_| client.test_get_unauthorized::<MatchJob>(routes::JOB, &grunt, &grunt_password))
 			.then(|_| client.test_get_success(
 				routes::JOB,
-				&manager, &manager_password,
+				&manager.0, &manager.1,
 				MatchJob::default(),
 				[&job2].into_iter(), Code::SuccessForPermissions.into(),
 			))
 			.await;
+			assert_unauthorized!(MatchJob, JOB; guest, grunt);
 
 			let [timesheet, timesheet2, timesheet3]: [_; 3] = {
 				let mut tx = pool.begin().await?;
@@ -1025,7 +953,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t2 = PgTimesheet::create(
 					&mut tx,
-					grunt.employee().unwrap().clone(),
+					grunt.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -1037,7 +965,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t3 = PgTimesheet::create(
 					&mut tx,
-					manager.employee().unwrap().clone(),
+					manager.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -1058,24 +986,24 @@ mod tests
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::TIMESHEET,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchTimesheet::from(timesheet.id),
 				[&timesheet].into_iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchTimesheet>(routes::TIMESHEET, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::TIMESHEET,
-				&grunt, &grunt_password,
+				&grunt.0, &grunt.1,
 				MatchTimesheet::default(),
 				[&timesheet2].into_iter(), Code::SuccessForPermissions.into(),
 			))
 			.then(|_| client.test_get_success(
 				routes::TIMESHEET,
-				&manager, &manager_password,
+				&manager.0, &manager.1,
 				MatchTimesheet::default(),
 				[&timesheet2, &timesheet3].into_iter(), Code::SuccessForPermissions.into(),
 			))
 			.await;
+			assert_unauthorized!(MatchTimesheet, TIMESHEET; guest);
 
 			let expenses = {
 				let mut x = Vec::with_capacity(2 * 3);
@@ -1092,65 +1020,64 @@ mod tests
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::EXPENSE,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchExpense::from(Match::Or(expenses.iter().map(|x| x.id.into()).collect())),
 				expenses.iter(), None,
 			)
-			.then(|_| client.test_get_unauthorized::<MatchExpense>(routes::EXPENSE, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::EXPENSE,
-				&grunt, &grunt_password,
+				&grunt.0, &grunt.1,
 				MatchExpense::default(),
 				expenses.iter().filter(|x| x.timesheet_id == timesheet2.id), Code::SuccessForPermissions.into(),
 			))
 			.then(|_| client.test_get_success(
 				routes::EXPENSE,
-				&manager, &manager_password,
+				&manager.0, &manager.1,
 				MatchExpense::default(),
 				expenses.iter().filter(|x| x.timesheet_id == timesheet2.id || x.timesheet_id == timesheet3.id),
 				Code::SuccessForPermissions.into(),
 			))
 			.await;
+			assert_unauthorized!(MatchExpense, EXPENSE; guest);
 
-			let users = serde_json::to_string(&[&admin, &guest, &grunt, &manager])
+			let users = serde_json::to_string(&[&admin.0, &guest.0, &grunt.0, &manager.0])
 				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
 
 			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
+
+			assert_unauthorized!(MatchRole, ROLE; guest, grunt, manager);
 			client
 				.test_get_success(
 					routes::ROLE,
-					&admin,
-					&admin_password,
+					&admin.0,
+					&admin.1,
 					MatchRole::from(Match::Or(roles.iter().map(|r| r.id().into()).collect())),
 					roles.iter(),
 					None,
 				)
-				.then(|_| client.test_get_unauthorized::<MatchRole>(routes::ROLE, &guest, &guest_password))
-				.then(|_| client.test_get_unauthorized::<MatchRole>(routes::ROLE, &grunt, &grunt_password))
-				.then(|_| client.test_get_unauthorized::<MatchRole>(routes::ROLE, &manager, &manager_password))
 				.await;
 
 			#[rustfmt::skip]
 			client.test_get_success(
 				routes::USER,
-				&admin, &admin_password,
+				&admin.0, &admin.1,
 				MatchUser::from(Match::Or(users.iter().map(|u| u.id().into()).collect())),
 				users.iter(), None,
 			)
 			.then(|_| client.test_get_success(
 				routes::USER,
-				&grunt, &grunt_password,
+				&grunt.0, &grunt.1,
 				MatchUser::default(),
-				users.iter().filter(|u| u.id() == grunt.id()), Code::SuccessForPermissions.into(),
+				users.iter().filter(|u| u.id() == grunt.0.id()), Code::SuccessForPermissions.into(),
 			))
-			.then(|_| client.test_get_unauthorized::<MatchUser>(routes::USER, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::USER,
-				&manager, &manager_password,
+				&manager.0, &manager.1,
 				MatchUser::default(),
-				users.iter().filter(|u| u.id() == grunt.id() || u.id() == manager.id()), Code::SuccessForPermissions.into(),
+				users.iter().filter(|u| u.id() == grunt.0.id() || u.id() == manager.0.id()), Code::SuccessForPermissions.into(),
 			))
 			.await;
+			assert_unauthorized!(MatchUser, USER; guest);
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(PgRole::delete(&pool, roles.iter()), PgJob::delete(&pool, [&job_, &job2].into_iter()))?;
@@ -1177,14 +1104,28 @@ mod tests
 		#[traced_test]
 		async fn patch() -> DynResult<()>
 		{
-			let TestData {
-				admin: (admin, admin_password),
-				client,
-				grunt: (grunt, grunt_password),
-				guest: (guest, guest_password),
-				manager: (manager, manager_password),
-				pool,
-			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+			let TestData { admin, client, grunt, guest, manager, pool } =
+				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+
+			macro_rules! check {
+                ($Adapter:ty, $route:ident; $($pass:ident => $data:ident: $code:expr),+; $($fail:ident),+) => {
+                    stream::iter([$((&$pass, &$data, $code)),+]).for_each(|data| client.test_other_success::<$Adapter>(
+                        Method::Patch,
+                        &pool,
+                        routes::$route,
+                        &data.0.0,
+                        &data.0.1,
+                        vec![data.1.clone()],
+                        data.2,
+                    ))
+                    .await;
+
+                    stream::iter([$(&$fail),+]).for_each(|data|
+                        client.test_other_unauthorized(Method::Delete, routes::$route, &data.0, &data.1)
+                    )
+                    .await;
+                }
+            }
 
 			let contact_ = {
 				let (kind, label) = contact_args();
@@ -1249,7 +1190,7 @@ mod tests
 					organization.clone(),
 					date_close,
 					date_open,
-					manager.employee().into_iter().map(|e| e.department.clone()).collect(),
+					manager.0.employee().into_iter().map(|e| e.department.clone()).collect(),
 					increment,
 					invoice,
 					notes,
@@ -1291,7 +1232,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t2 = PgTimesheet::create(
 					&mut tx,
-					grunt.employee().unwrap().clone(),
+					grunt.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -1307,7 +1248,7 @@ mod tests
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
 				let t3 = PgTimesheet::create(
 					&mut tx,
-					manager.employee().unwrap().clone(),
+					manager.0.employee().unwrap().clone(),
 					expenses,
 					job2.clone(),
 					time_begin,
@@ -1360,74 +1301,20 @@ mod tests
 				u
 			})?;
 
-			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
+			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
 			// TODO: /user
 
-			client.test_other_unauthorized(Method::Patch, routes::ROLE, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::ROLE, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::ROLE, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgRole>(
-					Method::Patch,
-					&pool,
-					routes::ROLE,
-					&admin,
-					&admin_password,
-					vec![role.clone()],
-					None,
-				)
-				.await;
+			check!(PgRole, ROLE; admin => role: None; grunt, guest, manager);
 
 			// TODO: /expense
 			// TODO: /timesheet
 			// TODO: /job
 
-			client.test_other_unauthorized(Method::Patch, routes::ORGANIZATION, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::ORGANIZATION, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::ORGANIZATION, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgOrganization>(
-					Method::Patch,
-					&pool,
-					routes::ORGANIZATION,
-					&admin,
-					&admin_password,
-					vec![organization.clone()],
-					None,
-				)
-				.await;
-
-			client.test_other_unauthorized(Method::Patch, routes::CONTACT, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::CONTACT, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::CONTACT, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgContact>(
-					Method::Patch,
-					&pool,
-					routes::CONTACT,
-					&admin,
-					&admin_password,
-					vec![contact_.clone()],
-					None,
-				)
-				.await;
-
-			client.test_other_unauthorized(Method::Patch, routes::LOCATION, &grunt, &grunt_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::LOCATION, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Patch, routes::LOCATION, &manager, &manager_password).await;
-			client
-				.test_other_success::<PgLocation>(
-					Method::Patch,
-					&pool,
-					routes::LOCATION,
-					&admin,
-					&admin_password,
-					vec![location.clone()],
-					None,
-				)
-				.await;
+			check!(PgOrganization, ORGANIZATION; admin => organization: None; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin => contact_: None; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin => location: None; grunt, guest, manager);
 
 			// TODO: /department
 
@@ -1452,63 +1339,39 @@ mod tests
 		#[traced_test]
 		async fn post() -> DynResult<()>
 		{
-			let TestData {
-				admin: (admin, admin_password),
-				client,
-				grunt: (grunt, grunt_password),
-				guest: (guest, guest_password),
-				manager: (manager, manager_password),
-				pool,
-			} = setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+			let TestData { admin, client, grunt, guest, manager, pool } =
+				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
-			client.test_post_unauthorized(&pool, routes::CONTACT, &grunt, &grunt_password, contact_args()).await;
-			client.test_post_unauthorized(&pool, routes::CONTACT, &guest, &guest_password, contact_args()).await;
-			client.test_post_unauthorized(&pool, routes::CONTACT, &manager, &manager_password, contact_args()).await;
+			client.test_post_unauthorized(&pool, routes::CONTACT, &grunt.0, &grunt.1, contact_args()).await;
+			client.test_post_unauthorized(&pool, routes::CONTACT, &guest.0, &guest.1, contact_args()).await;
+			client.test_post_unauthorized(&pool, routes::CONTACT, &manager.0, &manager.1, contact_args()).await;
 			let contact_ = client
-				.test_post_success::<PgContact, _>(
-					&pool,
-					routes::CONTACT,
-					&admin,
-					&admin_password,
-					contact_args(),
-					None,
-				)
+				.test_post_success::<PgContact, _>(&pool, routes::CONTACT, &admin.0, &admin.1, contact_args(), None)
 				.await;
 
 			// TODO: /department
 			// TODO: /employee
 
-			client.test_post_unauthorized(&pool, routes::LOCATION, &grunt, &grunt_password, location_args()).await;
-			client.test_post_unauthorized(&pool, routes::LOCATION, &guest, &guest_password, location_args()).await;
-			client.test_post_unauthorized(&pool, routes::LOCATION, &manager, &manager_password, location_args()).await;
+			client.test_post_unauthorized(&pool, routes::LOCATION, &grunt.0, &grunt.1, location_args()).await;
+			client.test_post_unauthorized(&pool, routes::LOCATION, &guest.0, &guest.1, location_args()).await;
+			client.test_post_unauthorized(&pool, routes::LOCATION, &manager.0, &manager.1, location_args()).await;
 			let location = client
-				.test_post_success::<PgLocation, _>(
-					&pool,
-					routes::LOCATION,
-					&admin,
-					&admin_password,
-					location_args(),
-					None,
-				)
+				.test_post_success::<PgLocation, _>(&pool, routes::LOCATION, &admin.0, &admin.1, location_args(), None)
 				.await;
 
 			let organization_args = || (location.clone(), words::sentence(5));
 
+			client.test_post_unauthorized(&pool, routes::ORGANIZATION, &grunt.0, &grunt.1, organization_args()).await;
+			client.test_post_unauthorized(&pool, routes::ORGANIZATION, &guest.0, &guest.1, organization_args()).await;
 			client
-				.test_post_unauthorized(&pool, routes::ORGANIZATION, &grunt, &grunt_password, organization_args())
-				.await;
-			client
-				.test_post_unauthorized(&pool, routes::ORGANIZATION, &guest, &guest_password, organization_args())
-				.await;
-			client
-				.test_post_unauthorized(&pool, routes::ORGANIZATION, &manager, &manager_password, organization_args())
+				.test_post_unauthorized(&pool, routes::ORGANIZATION, &manager.0, &manager.1, organization_args())
 				.await;
 			let organization = client
 				.test_post_success::<PgOrganization, _>(
 					&pool,
 					routes::ORGANIZATION,
-					&admin,
-					&admin_password,
+					&admin.0,
+					&admin.1,
 					organization_args(),
 					None,
 				)
@@ -1520,16 +1383,15 @@ mod tests
 			// TODO: /timesheet
 			// TODO: /expenses
 
-			client.test_post_unauthorized(&pool, routes::ROLE, &grunt, &grunt_password, role_args()).await;
-			client.test_post_unauthorized(&pool, routes::ROLE, &guest, &guest_password, role_args()).await;
-			client.test_post_unauthorized(&pool, routes::ROLE, &manager, &manager_password, role_args()).await;
-			let role = client
-				.test_post_success::<PgRole, _>(&pool, routes::ROLE, &admin, &admin_password, role_args(), None)
-				.await;
+			client.test_post_unauthorized(&pool, routes::ROLE, &grunt.0, &grunt.1, role_args()).await;
+			client.test_post_unauthorized(&pool, routes::ROLE, &guest.0, &guest.1, role_args()).await;
+			client.test_post_unauthorized(&pool, routes::ROLE, &manager.0, &manager.1, role_args()).await;
+			let role =
+				client.test_post_success::<PgRole, _>(&pool, routes::ROLE, &admin.0, &admin.1, role_args(), None).await;
 
 			// TODO: /user
 
-			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
+			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).chain([&role]).collect::<Vec<_>>();
 
 			PgUser::delete(&pool, users.iter()).await?;
