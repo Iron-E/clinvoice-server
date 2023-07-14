@@ -595,7 +595,7 @@ mod tests
 
 			let employee = {
 				let (name_, title) = employee_args();
-				PgEmployee::create(&pool, department.clone(), name_, title).await?
+				PgEmployee::create(&pool, manager.department().unwrap().clone(), name_, title).await?
 			};
 
 			let location = {
@@ -712,7 +712,16 @@ mod tests
 
 			let user = PgUser::create(
 				&pool,
-				employee.into(),
+				None,
+				password::generate(true, true, true, 8),
+				role.clone(),
+				internet::username(),
+			)
+			.await?;
+
+			let manager_user = PgUser::create(
+				&pool,
+				employee.clone().into(),
 				password::generate(true, true, true, 8),
 				role.clone(),
 				internet::username(),
@@ -724,7 +733,18 @@ mod tests
 
 			client.test_other_unauthorized(Method::Delete, routes::USER, &grunt, &grunt_password).await;
 			client.test_other_unauthorized(Method::Delete, routes::USER, &guest, &guest_password).await;
-			client.test_other_unauthorized(Method::Delete, routes::USER, &manager, &manager_password).await;
+			client
+				.test_other_success::<PgUser>(
+					Method::Delete,
+					&pool,
+					routes::USER,
+					&manager,
+					&manager_password,
+					vec![manager_user.clone()],
+					None,
+				)
+				.await;
+
 			client
 				.test_other_success::<PgUser>(
 					Method::Delete,
@@ -761,6 +781,9 @@ mod tests
 
 			// TODO: /job
 			PgJob::delete(&pool, [&job_, &job2].into_iter()).await?;
+
+			// TODO: /employee
+			PgEmployee::delete(&pool, [&employee].into_iter()).await?;
 
 			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &grunt, &grunt_password).await;
 			client.test_other_unauthorized(Method::Delete, routes::ORGANIZATION, &guest, &guest_password).await;
