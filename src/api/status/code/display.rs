@@ -39,8 +39,8 @@ impl Display for Code
 			Self::Success => "The requested operation has completed without error.",
 			Self::SuccessForPermissions =>
 			{
-				"The requested operation has completed without error, but some actions had to be skipped because of \
-				 missing permissions"
+				"The requested operation has completed without error, but some actions may have been skipped because \
+				 of missing permissions"
 			},
 			Self::Unauthorized =>
 			{

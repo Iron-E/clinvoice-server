@@ -410,12 +410,10 @@ where
 				let (department, name, title) = request.into_args();
 				let code = match state.employee_permissions(&user, ACTION).await?
 				{
-					Object::Employee => Code::Success,
-
-					// HACK: no if-let guards…
-					Object::EmployeeInDepartment if user.department().map_or(false, |d| d.id == department.id) =>
+					Object::Employee | Object::EmployeeInDepartment
+						if user.department().map_or(false, |d| d.id == department.id) =>
 					{
-						Code::SuccessForPermissions
+						Code::Success
 					},
 
 					p @ Object::EmployeeInDepartment => return no_effective_perms(ACTION, p, Reason::NoDepartment),
@@ -624,7 +622,7 @@ where
 							return no_effective_perms(ACTION, p, Reason::NoResourceExists);
 						}
 
-						Code::SuccessForPermissions
+						Code::Success
 					},
 				};
 
@@ -745,13 +743,10 @@ where
 					request.into_args();
 				let code = match state.department_permissions(&user, ACTION).await?
 				{
-					Object::Job => Code::Success,
-
-					// HACK: no if-let guards…
-					Object::JobInDepartment
+					Object::Job | Object::JobInDepartment
 						if user.department().map_or(false, |d| departments.iter().any(|d2| d2.id == d.id)) =>
 					{
-						Code::SuccessForPermissions
+						Code::Success
 					},
 
 					p @ Object::JobInDepartment =>
@@ -1035,13 +1030,10 @@ where
 				let (employee, expenses, job, time_begin, time_end, work_notes) = request.into_args();
 				let code = match state.timesheet_permissions(&user, ACTION).await?
 				{
-					Object::Timesheet => Code::Success,
-
-					// HACK: no if-let guards
-					Object::TimesheetInDepartment
+					Object::Timesheet | Object::TimesheetInDepartment
 						if user.department().map_or(false, |d| job.departments.iter().any(|d2| d2.id == d.id)) =>
 					{
-						Code::SuccessForPermissions
+						Code::Success
 					},
 
 					p @ Object::TimesheetInDepartment =>
@@ -1205,13 +1197,10 @@ where
 				let (employee, password, role, username) = request.into_args();
 				let code = match state.user_permissions(&user, ACTION).await?
 				{
-					Object::User => Code::Success,
-
-					// HACK: no if-let guards
-					Object::UserInDepartment
+					Object::User | Object::UserInDepartment
 						if user.department().zip(employee.as_ref()).map_or(false, |(d, e)| d.id == e.department.id) =>
 					{
-						Code::SuccessForPermissions
+						Code::Success
 					},
 
 					p @ Object::UserSelf => return no_effective_perms(ACTION, p, Reason::ResourceExists),
