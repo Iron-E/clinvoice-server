@@ -39,11 +39,10 @@ pub enum Object
 	Employee,
 
 	/// Permission to act on one's own employee record.
-	#[serde(skip)]
 	EmployeeSelf,
 
 	/// Permission to operate on [`winvoice_schema::Employee`]s which are in a given [`User`]'s
-	/// assigned [`Department`](winvoice_schema::Department).
+	/// assigned [`Department`](winvoice_schema::Department). Implies [`EmployeeSelf`](Self::EmployeeSelf).
 	EmployeeInDepartment,
 
 	/// Permission to operate on [`winvoice_schema::Expense`]s. Assumes
@@ -84,11 +83,11 @@ pub enum Object
 	/// Permission to operate on [`User`](crate::schema::User)s
 	User,
 
-	/// Permission to operate on [`User`](crate::schema::User)s
+	/// Permission to operate on [`User`](crate::schema::User)s in a given users
+	/// [`Department`](winvoice_schema::Department). Implies [`UserSelf`](Self::UserSelf).
 	UserInDepartment,
 
 	/// Permission to act on one's own user.
-	#[serde(skip)]
 	UserSelf,
 }
 

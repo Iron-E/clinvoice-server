@@ -74,7 +74,13 @@ where
 			self.has_permission::<R>(user, object, action).await?
 		};
 
-		Ok(can_get_in_dept.then_some_or(Object::EmployeeSelf, object))
+		if !can_get_in_dept
+		{
+			object = Object::EmployeeSelf;
+			self.enforce_permission(user, object, action).await?;
+		}
+
+		Ok(object)
 	}
 
 	/// Check [`has_permission`](Self::has_permission), but also return [`Err`] if the [`Result`]
@@ -215,6 +221,12 @@ where
 			self.has_permission::<R>(user, object, action).await?
 		};
 
-		Ok(can_get_in_dept.then_some_or(Object::UserSelf, object))
+		if !can_get_in_dept
+		{
+			object = Object::UserSelf;
+			self.enforce_permission(user, object, action).await?;
+		}
+
+		Ok(object)
 	}
 }

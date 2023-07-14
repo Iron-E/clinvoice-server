@@ -121,8 +121,8 @@ fn no_effective_perms<R>(action: Action, object: Object, reason: Reason) -> Resp
 where
 	R: AsRef<Code> + From<Status>,
 {
-	Ok(Response::from(R::from(Status::new(
-		Code::SuccessForPermissions,
+	Err(Response::from(R::from(Status::new(
+		Code::Unauthorized,
 		format!("This user has permission to {action} {object}, but {reason}"),
 	))))
 }
@@ -306,7 +306,13 @@ where
 						Code::SuccessForPermissions
 					},
 
-					Object::EmployeeSelf => return Err(DeleteResponse::from(Code::Unauthorized)),
+					Object::EmployeeSelf =>
+					{
+						let id = user.employee().unwrap().id;
+						entities.retain(|e| e.id == id);
+						Code::SuccessForPermissions
+					},
+
 					p @ Object::EmployeeInDepartment =>
 					{
 						return no_effective_perms(ACTION, p, Reason::NoDepartment).map_all(Into::into, Into::into)

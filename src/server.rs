@@ -341,43 +341,50 @@ mod tests
 
 				let policy = {
 					let mut policy_csv = WriterBuilder::new().has_headers(false).from_writer(Vec::new());
-					let mut write = |role: &str, obj: Object| -> csv::Result<()> {
-						policy_csv.serialize(("p", role, obj, Action::Create))?;
-						policy_csv.serialize(("p", role, obj, Action::Delete))?;
-						policy_csv.serialize(("p", role, obj, Action::Retrieve))?;
-						policy_csv.serialize(("p", role, obj, Action::Update))?;
-						Ok(())
-					};
-
 					{
-						let mut admin = |obj: Object| -> csv::Result<()> { write(&admin_role_name, obj) };
-						admin(Object::Contact)?;
-						admin(Object::Department)?;
-						admin(Object::Employee)?;
-						admin(Object::Expenses)?;
-						admin(Object::Job)?;
-						admin(Object::Location)?;
-						admin(Object::Organization)?;
-						admin(Object::Role)?;
-						admin(Object::Timesheet)?;
-						admin(Object::User)?;
+						let mut write = |role: &str, obj: Object| -> csv::Result<()> {
+							policy_csv.serialize(("p", role, obj, Action::Create))?;
+							policy_csv.serialize(("p", role, obj, Action::Delete))?;
+							policy_csv.serialize(("p", role, obj, Action::Retrieve))?;
+							policy_csv.serialize(("p", role, obj, Action::Update))?;
+							Ok(())
+						};
+
+						{
+							let mut admin = |obj: Object| -> csv::Result<()> { write(&admin_role_name, obj) };
+							admin(Object::Contact)?;
+							admin(Object::Department)?;
+							admin(Object::Employee)?;
+							admin(Object::Expenses)?;
+							admin(Object::Job)?;
+							admin(Object::Location)?;
+							admin(Object::Organization)?;
+							admin(Object::Role)?;
+							admin(Object::Timesheet)?;
+							admin(Object::User)?;
+						}
+
+						{
+							let mut grunt = |obj: Object| -> csv::Result<()> { write(&grunt_role_name, obj) };
+							grunt(Object::CreatedExpenses)?;
+							grunt(Object::CreatedTimesheet)?;
+						}
+
+						{
+							let mut manager = |obj: Object| -> csv::Result<()> { write(&manager_role_name, obj) };
+							manager(Object::AssignedDepartment)?;
+							manager(Object::EmployeeInDepartment)?;
+							manager(Object::ExpensesInDepartment)?;
+							manager(Object::JobInDepartment)?;
+							manager(Object::TimesheetInDepartment)?;
+							manager(Object::UserInDepartment)?;
+						}
 					}
 
-					{
-						let mut grunt = |obj: Object| -> csv::Result<()> { write(&grunt_role_name, obj) };
-						grunt(Object::CreatedExpenses)?;
-						grunt(Object::CreatedTimesheet)?;
-					}
-
-					{
-						let mut manager = |obj: Object| -> csv::Result<()> { write(&manager_role_name, obj) };
-						manager(Object::AssignedDepartment)?;
-						manager(Object::EmployeeInDepartment)?;
-						manager(Object::ExpensesInDepartment)?;
-						manager(Object::JobInDepartment)?;
-						manager(Object::TimesheetInDepartment)?;
-						manager(Object::UserInDepartment)?;
-					}
+					policy_csv.serialize(("p", &grunt_role_name, Object::EmployeeSelf, Action::Retrieve))?;
+					policy_csv.serialize(("p", &grunt_role_name, Object::EmployeeSelf, Action::Update))?;
+					policy_csv.serialize(("p", &grunt_role_name, Object::UserSelf, Action::Retrieve))?;
+					policy_csv.serialize(("p", &grunt_role_name, Object::UserSelf, Action::Update))?;
 
 					let inner = policy_csv.into_inner()?;
 					String::from_utf8(inner)?
@@ -698,15 +705,37 @@ mod tests
 				x.exchange(Default::default(), &rates)
 			};
 
-			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
 			let role = {
 				let (name_, password_ttl) = role_args();
 				PgRole::create(&pool, name_, password_ttl).await?
 			};
 
+			let user = PgUser::create(
+				&pool,
+				employee.into(),
+				password::generate(true, true, true, 8),
+				role.clone(),
+				internet::username(),
+			)
+			.await?;
+
+			let users = [&admin, &guest, &grunt, &manager].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
-			// TODO: /user
+			client.test_other_unauthorized(Method::Delete, routes::USER, &grunt, &grunt_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::USER, &guest, &guest_password).await;
+			client.test_other_unauthorized(Method::Delete, routes::USER, &manager, &manager_password).await;
+			client
+				.test_other_success::<PgUser>(
+					Method::Delete,
+					&pool,
+					routes::USER,
+					&admin,
+					&admin_password,
+					vec![user.clone()],
+					None,
+				)
+				.await;
 
 			client.test_other_unauthorized(Method::Delete, routes::ROLE, &grunt, &grunt_password).await;
 			client.test_other_unauthorized(Method::Delete, routes::ROLE, &guest, &guest_password).await;
@@ -857,12 +886,7 @@ mod tests
 				MatchEmployee::default(),
 				grunt.employee().into_iter(), Code::SuccessForPermissions.into(),
 			))
-			.then(|_| client.test_get_success(
-				routes::EMPLOYEE,
-				&guest, &guest_password,
-				MatchEmployee::default(),
-				guest.employee().into_iter(), Code::SuccessForPermissions.into(),
-			))
+			.then(|_| client.test_get_unauthorized::<MatchEmployee>(routes::EMPLOYEE, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::EMPLOYEE,
 				&manager, &manager_password,
@@ -1096,12 +1120,7 @@ mod tests
 				MatchUser::default(),
 				users.iter().filter(|u| u.id() == grunt.id()), Code::SuccessForPermissions.into(),
 			))
-			.then(|_| client.test_get_success(
-				routes::USER,
-				&guest, &guest_password,
-				MatchUser::default(),
-				users.iter().filter(|u| u.id() == guest.id()), Code::SuccessForPermissions.into(),
-			))
+			.then(|_| client.test_get_unauthorized::<MatchUser>(routes::USER, &guest, &guest_password))
 			.then(|_| client.test_get_success(
 				routes::USER,
 				&manager, &manager_password,
