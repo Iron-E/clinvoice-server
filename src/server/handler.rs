@@ -433,13 +433,14 @@ where
 	{
 		async fn retain_matching<A>(
 			pool: &Pool<A::Db>,
-			employee: &Employee,
+			user: &User,
 			entities: &mut Vec<Expense>,
 			permission: Object,
 		) -> sqlx::Result<()>
 		where
 			A: Adapter,
 		{
+			let e = user.employee().unwrap();
 			let matching: HashSet<_> = A::Timesheet::retrieve(pool, MatchTimesheet {
 				expenses: MatchExpense {
 					id: Match::Or(entities.iter().map(|x| x.id.into()).collect()),
@@ -450,9 +451,9 @@ where
 				{
 					Object::ExpensesInDepartment =>
 					{
-						MatchJob::from(MatchDepartment::from(employee.department.id)).into()
+						MatchJob::from(MatchDepartment::from(e.department.id)).into()
 					},
-					Object::CreatedExpenses => MatchEmployee::from(employee.id).into(),
+					Object::CreatedExpenses => MatchEmployee::from(e.id).into(),
 					_ => permission.unreachable(),
 				}
 			})
@@ -497,17 +498,9 @@ where
 					// by that user.
 					p =>
 					{
-						match user.employee()
-						{
-							Some(emp) =>
-							{
-								retain_matching::<A>(state.pool(), emp, &mut entities, p)
-									.await
-									.map_err(DeleteResponse::from)?;
-							},
-
-							None => unreachable!("Should have been returned earlier for {permission:?}"),
-						};
+						retain_matching::<A>(state.pool(), &user, &mut entities, p)
+							.await
+							.map_err(DeleteResponse::from)?;
 
 						Code::SuccessForPermissions
 					},
@@ -538,17 +531,9 @@ where
 					// by that user.
 					p =>
 					{
-						match user.employee()
-						{
-							Some(emp) =>
-							{
-								retain_matching::<A>(state.pool(), emp, &mut vec, p)
-									.await
-									.map_err(|e| Response::from(Get::from(Status::from(&e))))?;
-							},
-
-							None => unreachable!("Should have been returned earlier for {permission:?}"),
-						};
+						retain_matching::<A>(state.pool(), &user, &mut vec, p)
+							.await
+							.map_err(|e| Response::from(Get::from(Status::from(&e))))?;
 
 						Code::SuccessForPermissions
 					},
@@ -575,17 +560,9 @@ where
 					// by that user.
 					p =>
 					{
-						match user.employee()
-						{
-							Some(emp) =>
-							{
-								retain_matching::<A>(state.pool(), emp, &mut entities, p)
-									.await
-									.map_err(PatchResponse::from)?;
-							},
-
-							None => unreachable!("Should have been returned earlier for {permission:?}"),
-						};
+						retain_matching::<A>(state.pool(), &user, &mut entities, p)
+							.await
+							.map_err(PatchResponse::from)?;
 
 						Code::SuccessForPermissions
 					},
@@ -631,32 +608,24 @@ where
 					// by that user.
 					p =>
 					{
-						match user.employee()
+						let matching: HashSet<_> = A::Timesheet::retrieve(state.pool(), match permission
 						{
-							Some(emp) =>
+							Object::ExpensesInDepartment =>
 							{
-								let matching: HashSet<_> = A::Timesheet::retrieve(state.pool(), match permission
-								{
-									Object::ExpensesInDepartment =>
-									{
-										MatchJob::from(MatchDepartment::from(emp.department.id)).into()
-									},
-									_ => permission.unreachable(),
-								})
-								.await
-								.map_all(
-									|vec| vec.into_iter().map(|t| t.id).collect(),
-									|e| Response::from(Post::from(Status::from(&e))),
-								)?;
-
-								if !matching.contains(&timesheet_id)
-								{
-									return no_effective_perms(ACTION, p, Reason::NoResourceExists);
-								}
+								MatchJob::from(MatchDepartment::from(user.department().unwrap().id)).into()
 							},
+							_ => permission.unreachable(),
+						})
+						.await
+						.map_all(
+							|vec| vec.into_iter().map(|t| t.id).collect(),
+							|e| Response::from(Post::from(Status::from(&e))),
+						)?;
 
-							None => unreachable!("Should have been returned earlier for {permission:?}"),
-						};
+						if !matching.contains(&timesheet_id)
+						{
+							return no_effective_perms(ACTION, p, Reason::NoResourceExists);
+						}
 
 						Code::SuccessForPermissions
 					},
