@@ -274,10 +274,9 @@ impl TestClientExt for TestClient
 		self.login(user.username(), password).await;
 		let response = match method
 		{
-			Method::Delete(_) => TestClientExt::delete_builder,
-			Method::Patch(_) => TestClientExt::patch_builder,
-		}(self, route)
-		.json(&request::Delete::new(entities.clone()))
+			Method::Delete(_) => self.delete_builder(route).json(&request::Delete::new(entities.clone())),
+			Method::Patch(_) => self.patch_builder(route).json(&request::Patch::new(entities.clone())),
+		}
 		.send()
 		.await;
 
@@ -319,10 +318,9 @@ impl TestClientExt for TestClient
 		self.login(user.username(), password).await;
 		let response = match method
 		{
-			Method::Delete(_) => TestClientExt::delete_builder,
-			Method::Patch(_) => TestClientExt::patch_builder,
-		}(self, route)
-		.json(&request::Delete::<()>::new(Default::default()))
+			Method::Delete(_) => self.delete_builder(route).json(&request::Delete::<()>::new(Default::default())),
+			Method::Patch(_) => self.patch_builder(route).json(&request::Patch::<()>::new(Default::default())),
+		}
 		.send()
 		.await;
 

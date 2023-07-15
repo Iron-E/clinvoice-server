@@ -794,9 +794,8 @@ mod tests
 			check!(PgLocation, LOCATION; admin: location => 1 None::<Code>; grunt, guest, manager);
 			check!(
 				PgDepartment, DEPARTMENT;
-				manager: department, manager.0.department().unwrap() => 0 Code::Unauthorized,
 				admin: department => 1 None::<Code>;
-				guest, grunt,
+				guest, grunt, manager,
 			);
 
 			PgUser::delete(&pool, users.iter()).await?;
@@ -1360,8 +1359,7 @@ mod tests
 			check!(PgOrganization, ORGANIZATION; admin: organization => 1 None::<Code>; grunt, guest, manager);
 			check!(PgContact, CONTACT; admin: contact_ => 1 None::<Code>; grunt, guest, manager);
 			check!(PgLocation, LOCATION; admin: location => 1 None::<Code>; grunt, guest, manager);
-
-			// TODO: /department
+			check!(PgDepartment, DEPARTMENT; admin: department => 1 None::<Code>; grunt, guest, manager);
 
 			PgUser::delete(&pool, users.iter().chain([&user])).await?;
 			futures::try_join!(
