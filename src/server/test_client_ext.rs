@@ -42,8 +42,8 @@ fn version_req() -> &'static str
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Method
 {
-	/// The `DELETE` method.
-	Delete,
+	/// The `DELETE` method. The parameter is the number of deleted items.
+	Delete(usize),
 
 	/// The `PATCH` method.
 	Patch,
@@ -261,7 +261,7 @@ impl TestClientExt for TestClient
 		self.login(user.username(), password).await;
 		let response = match method
 		{
-			Method::Delete => TestClientExt::delete_builder,
+			Method::Delete(_) => TestClientExt::delete_builder,
 			Method::Patch => TestClientExt::patch_builder,
 		}(self, route)
 		.json(&request::Delete::new(entities.clone()))
@@ -274,15 +274,28 @@ impl TestClientExt for TestClient
 		assert_eq!(actual, expected);
 		if code != Some(Code::Unauthorized)
 		{
-			for entity in entities
+			#[rustfmt::skip]
+			match method
 			{
-				let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
-				match method
+				Method::Delete(num) =>
 				{
-					Method::Delete => assert_eq!(retrieved.len(), 0),
-					Method::Patch => assert_eq!(retrieved.get(0), Some(&entity)),
-				};
-			}
+					let mut count = 0;
+					for entity in entities
+					{
+						if A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap().is_empty()
+						{
+							count += 1;
+						}
+					}
+
+					assert_eq!(count, num, "Expected {num} items to be deleted, but only {count} were");
+				},
+				Method::Patch => for entity in entities
+				{
+					let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
+					assert_eq!(retrieved.get(0), Some(&entity));
+				},
+			};
 		}
 
 		self.logout().await;
@@ -300,7 +313,7 @@ impl TestClientExt for TestClient
 		self.login(user.username(), password).await;
 		let response = match method
 		{
-			Method::Delete => TestClientExt::delete_builder,
+			Method::Delete(_) => TestClientExt::delete_builder,
 			Method::Patch => TestClientExt::patch_builder,
 		}(self, route)
 		.json(&request::Delete::<()>::new(Default::default()))
