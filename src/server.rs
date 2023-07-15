@@ -803,7 +803,7 @@ mod tests
 				PgRole::delete(&pool, roles.into_iter()),
 				PgEmployee::delete(&pool, users.iter().filter_map(User::employee)),
 			)?;
-			PgDepartment::delete(&pool, users.iter().filter_map(|u| u.employee().map(|e| &e.department))).await?;
+			PgDepartment::delete(&pool, users.iter().filter_map(User::department)).await?;
 
 			Ok(())
 		}
@@ -1123,10 +1123,7 @@ mod tests
 			)?;
 			PgDepartment::delete(
 				&pool,
-				users
-					.iter()
-					.filter_map(|u| u.employee().map(|e| &e.department))
-					.chain([&employee.department, &department]),
+				users.iter().filter_map(User::department).chain([&employee.department, &department]),
 			)
 			.await?;
 
@@ -1190,6 +1187,16 @@ mod tests
 					e.name = name::full();
 					e
 				})?
+			};
+
+			let manager_employee = {
+				let (name_, title) = employee_args();
+				PgEmployee::create(&pool, manager.0.department().unwrap().clone(), name_, title).await.map(
+					|mut e| {
+						e.active = !e.active;
+						e
+					},
+				)?
 			};
 
 			let location = {
@@ -1329,7 +1336,10 @@ mod tests
 
 			let role = {
 				let (name_, password_ttl) = role_args();
-				PgRole::create(&pool, name_, password_ttl).await?
+				PgRole::create(&pool, name_, password_ttl).await.map(|mut r| {
+					r.name = words::sentence(7);
+					r
+				})?
 			};
 
 			let user = PgUser::create(
@@ -1345,21 +1355,64 @@ mod tests
 				u
 			})?;
 
-			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
+			let manager_user = PgUser::create(
+				&pool,
+				manager_employee.clone().into(),
+				password::generate(true, true, true, 8),
+				role.clone(),
+				internet::username(),
+			)
+			.await
+			.map(|mut u| {
+				u.username = internet::username();
+				u
+			})?;
+
+			let users =
+				[&admin.0, &guest.0, &grunt.0, &manager.0, &manager_user].into_iter().cloned().collect::<Vec<_>>();
 			let roles = users.iter().map(User::role).collect::<Vec<_>>();
 
-			// TODO: /user
-
+			check!(
+				PgUser, USER;
+				manager: user, manager_user => 1 Code::SuccessForPermissions,
+				admin: user => 1 None::<Code>;
+				grunt, guest,
+			);
 			check!(PgRole, ROLE; admin: role => 1 None::<Code>; grunt, guest, manager);
-
-			// TODO: /expense
-			// TODO: /timesheet
-			// TODO: /job
-
+			check!(
+				PgExpenses, EXPENSE;
+				manager: expenses[0], expenses[2] => 1 Code::SuccessForPermissions,
+				admin: expenses[0] => 1 None::<Code>,
+				grunt: expenses[1] => 1 Code::SuccessForPermissions;
+				guest,
+			);
+			check!(
+				PgTimesheet, TIMESHEET;
+				manager: timesheet, timesheet3 => 1 Code::SuccessForPermissions,
+				admin: timesheet => 1 None::<Code>,
+				grunt: timesheet2 => 1 Code::SuccessForPermissions;
+				guest,
+			);
+			check!(
+				PgJob, JOB;
+				manager: job_, job2 => 1 Code::SuccessForPermissions,
+				admin: job_ => 1 None::<Code>;
+				guest, grunt,
+			);
+			check!(
+				PgEmployee, EMPLOYEE;
+				manager: employee, manager_employee => 1 Code::SuccessForPermissions,
+				admin: employee => 1 None::<Code>;
+				guest, grunt,
+			);
 			check!(PgOrganization, ORGANIZATION; admin: organization => 1 None::<Code>; grunt, guest, manager);
 			check!(PgContact, CONTACT; admin: contact_ => 1 None::<Code>; grunt, guest, manager);
 			check!(PgLocation, LOCATION; admin: location => 1 None::<Code>; grunt, guest, manager);
-			check!(PgDepartment, DEPARTMENT; admin: department => 1 None::<Code>; grunt, guest, manager);
+			check!(
+				PgDepartment, DEPARTMENT;
+				admin: department => 1 None::<Code>;
+				guest, grunt, manager,
+			);
 
 			PgUser::delete(&pool, users.iter().chain([&user])).await?;
 			futures::try_join!(
@@ -1370,7 +1423,7 @@ mod tests
 
 			PgOrganization::delete(&pool, [&organization].into_iter()).await?;
 			futures::try_join!(
-				PgDepartment::delete(&pool, users.iter().filter_map(|u| u.employee().map(|e| &e.department))),
+				PgDepartment::delete(&pool, users.iter().filter_map(User::department)),
 				PgEmployee::delete(&pool, users.iter().filter_map(User::employee)),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
