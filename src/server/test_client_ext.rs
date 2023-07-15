@@ -45,8 +45,21 @@ pub enum Method
 	/// The `DELETE` method. The parameter is the number of deleted items.
 	Delete(usize),
 
-	/// The `PATCH` method.
-	Patch,
+	/// The `PATCH` method. Controls how many items should have been patched.
+	Patch(usize),
+}
+
+impl Method
+{
+	/// The expected number of changes in the database.
+	fn expected(&self) -> usize
+	{
+		*match self
+		{
+			Self::Delete(x) => x,
+			Self::Patch(x) => x,
+		}
+	}
 }
 
 /// Extensions for [`TestClient`].
@@ -262,7 +275,7 @@ impl TestClientExt for TestClient
 		let response = match method
 		{
 			Method::Delete(_) => TestClientExt::delete_builder,
-			Method::Patch => TestClientExt::patch_builder,
+			Method::Patch(_) => TestClientExt::patch_builder,
 		}(self, route)
 		.json(&request::Delete::new(entities.clone()))
 		.send()
@@ -274,28 +287,21 @@ impl TestClientExt for TestClient
 		assert_eq!(actual, expected);
 		if code != Some(Code::Unauthorized)
 		{
-			#[rustfmt::skip]
-			match method
+			let mut count = 0;
+			for entity in entities
 			{
-				Method::Delete(num) =>
+				let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
+				if match method
 				{
-					let mut count = 0;
-					for entity in entities
-					{
-						if A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap().is_empty()
-						{
-							count += 1;
-						}
-					}
+					Method::Delete(_) => retrieved.is_empty(),
+					Method::Patch(_) => retrieved.get(0) == Some(&entity),
+				}
+				{
+					count += 1;
+				}
+			}
 
-					assert_eq!(count, num, "Expected {num} items to be deleted, but only {count} were");
-				},
-				Method::Patch => for entity in entities
-				{
-					let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
-					assert_eq!(retrieved.get(0), Some(&entity));
-				},
-			};
+			assert_eq!(count, method.expected());
 		}
 
 		self.logout().await;
@@ -314,7 +320,7 @@ impl TestClientExt for TestClient
 		let response = match method
 		{
 			Method::Delete(_) => TestClientExt::delete_builder,
-			Method::Patch => TestClientExt::patch_builder,
+			Method::Patch(_) => TestClientExt::patch_builder,
 		}(self, route)
 		.json(&request::Delete::<()>::new(Default::default()))
 		.send()

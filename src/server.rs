@@ -585,12 +585,12 @@ mod tests
 
 					$({
 						tracing::trace!(
-							"\n\n» Asserting {} can delete {} {}(s) {} with Code::{:?}",
-							stringify!($pass),
-							$count,
-							stringify!($route),
-							stringify!($($data),+),
-							$code,
+						    "\n\n» Asserting {} can delete {} {}(s) {} with Code::{:?}",
+						    stringify!($pass),
+						    $count,
+						    stringify!($route),
+						    stringify!($($data),+),
+						    $code,
 						);
 
 						client.test_other_success::<$Adapter>(
@@ -1142,26 +1142,35 @@ mod tests
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 			macro_rules! check {
-                ($Adapter:ty, $route:ident; $($pass:ident: $data:expr => $code:expr),+$(,)?; $($fail:ident),+$(,)?) => {
-                    $(
-                        tracing::trace!("Asserting {:?} cannot patch {}", stringify!($fail), stringify!($route));
-                        client.test_other_unauthorized(Method::Patch, routes::$route, &$fail.0, &$fail.1).await;
-                    )+
+				($Adapter:ty, $route:ident; $($pass:ident: $($data:expr),+ => $count:literal $code:expr),+$(,)?; $($fail:ident),+$(,)?) =>
+				{
+					$(
+						tracing::trace!("Asserting {:?} cannot patch {}", stringify!($fail), stringify!($route));
+						client.test_other_unauthorized(Method::Patch(0), routes::$route, &$fail.0, &$fail.1).await;
+					)+
 
-                    $(
-                        tracing::trace!("\n\nAsserting {:?} can patch {} with code {:?}\n\n", stringify!($pass), stringify!($route), $code);
-                        client.test_other_success::<$Adapter>(
-                            Method::Patch,
-                            &pool,
-                            routes::$route,
-                            &$pass.0,
-                            &$pass.1,
-                            vec![$data.clone()],
-                            $code.into(),
-                        ).await;
-                    )+
-                }
-            }
+					$({
+						tracing::trace!(
+						    "\n\n» Asserting {} can patch {} {}(s) {} with Code::{:?}",
+						    stringify!($pass),
+						    $count,
+						    stringify!($route),
+						    stringify!($($data),+),
+						    $code,
+						);
+
+						client.test_other_success::<$Adapter>(
+							 Method::Patch($count),
+							 &pool,
+							 routes::$route,
+							 &$pass.0,
+							 &$pass.1,
+							 vec![$($data.clone()),+],
+							 $code.into(),
+						).await;
+					})+
+				}
+			}
 
 			let contact_ = {
 				let (kind, label) = contact_args();
@@ -1342,15 +1351,15 @@ mod tests
 
 			// TODO: /user
 
-			check!(PgRole, ROLE; admin: role => None::<Code>; grunt, guest, manager);
+			check!(PgRole, ROLE; admin: role => 1 None::<Code>; grunt, guest, manager);
 
 			// TODO: /expense
 			// TODO: /timesheet
 			// TODO: /job
 
-			check!(PgOrganization, ORGANIZATION; admin: organization => None::<Code>; grunt, guest, manager);
-			check!(PgContact, CONTACT; admin: contact_ => None::<Code>; grunt, guest, manager);
-			check!(PgLocation, LOCATION; admin: location => None::<Code>; grunt, guest, manager);
+			check!(PgOrganization, ORGANIZATION; admin: organization => 1 None::<Code>; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin: contact_ => 1 None::<Code>; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin: location => 1 None::<Code>; grunt, guest, manager);
 
 			// TODO: /department
 
