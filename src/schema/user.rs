@@ -48,7 +48,7 @@ pub struct User
 	pub(crate) password: String,
 
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
-	password_expires: Option<DateTime<Utc>>,
+	pub(crate) password_expires: Option<DateTime<Utc>>,
 
 	/// The [`Role`] assigned to the [`User`].
 	pub(crate) role: Role,
@@ -60,11 +60,18 @@ pub struct User
 /// A custom serializer for the [`User`] password which prevents anyone from ever seeing the
 /// password [hash](argon2), and instead prompts them with the intended use of the field when it is
 /// visible.
-fn serialize_password<S>(_: &str, serializer: S) -> Result<S::Ok, S::Error>
+#[cfg_attr(not(test), allow(unused_variables))]
+fn serialize_password<S>(orig: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
 	S: Serializer,
 {
-	serializer.serialize_str("[replace this text to set new password]")
+	#[cfg(test)]
+	let ok = serializer.serialize_str(orig)?;
+
+	#[cfg(not(test))]
+	let ok = serializer.serialize_str("[replace this text to set new password]")?;
+
+	Ok(ok)
 }
 
 impl User

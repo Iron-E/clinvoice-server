@@ -2,10 +2,10 @@
 
 use sqlx::{Postgres, Result, Transaction};
 use winvoice_adapter::Updatable;
-use winvoice_adapter_postgres::PgSchema;
+use winvoice_adapter_postgres::{schema::PgEmployee, PgSchema};
 
 use super::PgUser;
-use crate::schema::{columns::UserColumns, User};
+use crate::schema::{columns::UserColumns, postgres::PgRole, User};
 
 #[async_trait::async_trait]
 impl Updatable for PgUser
@@ -27,7 +27,7 @@ impl Updatable for PgUser
 			return Ok(());
 		}
 
-		PgSchema::update(connection, UserColumns::default(), |query| {
+		PgSchema::update(&mut *connection, UserColumns::default(), |query| {
 			query.push_values(peekable_entities, |mut q, e| {
 				q.push_bind(e.employee().map(|emp| emp.id))
 					.push_bind(e.id())
@@ -37,6 +37,11 @@ impl Updatable for PgUser
 					.push_bind(e.username());
 			});
 		})
-		.await
+		.await?;
+
+		let employees = entities.clone().flat_map(User::employee);
+		PgEmployee::update(&mut *connection, employees).await?;
+		PgRole::update(connection, entities.map(User::role)).await?;
+		Ok(())
 	}
 }

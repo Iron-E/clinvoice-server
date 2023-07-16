@@ -20,7 +20,7 @@ use crate::{
 	api::{
 		self,
 		request,
-		response::{Delete, Get, Login, Logout, Post},
+		response::{Delete, Get, Login, Logout, Patch, Post},
 		routes,
 		Code,
 		Status,
@@ -269,7 +269,11 @@ impl TestClientExt for TestClient
 		.await;
 
 		let actual = Response::new(response.status(), response.json::<Delete>().await);
-		let expected = Response::from(Delete::new(code.unwrap_or(Code::Success).into()));
+		let expected = Response::from(match method
+		{
+			Method::Delete => Delete::new,
+			Method::Patch => Patch::new,
+		}(code.unwrap_or(Code::Success).into()));
 
 		assert_eq!(actual, expected);
 		if code != Some(Code::Unauthorized)
@@ -280,8 +284,16 @@ impl TestClientExt for TestClient
 				match method
 				{
 					Method::Delete => assert!(retrieved.is_empty() == expected),
-					Method::Patch if expected => assert_eq!(retrieved.get(0), Some(&entity)),
-					Method::Patch => assert_ne!(retrieved.get(0), Some(&entity)),
+					Method::Patch if expected =>
+					{
+						tracing::debug!(parent: None, "checking if {retrieved:#?} is {entity:#?}");
+						assert_eq!(retrieved.get(0), Some(&entity))
+					},
+					Method::Patch =>
+					{
+						tracing::debug!(parent: None, "checking if {retrieved:#?} is NOT {entity:#?}");
+						assert_ne!(retrieved.get(0), Some(&entity))
+					},
 				}
 			}
 		}
@@ -308,7 +320,11 @@ impl TestClientExt for TestClient
 		.await;
 
 		let actual = Response::new(response.status(), response.json::<Delete>().await);
-		let expected = Response::from(Delete::new(Code::Unauthorized.into()));
+		let expected = Response::from(match method
+		{
+			Method::Delete => Delete::new,
+			Method::Patch => Patch::new,
+		}(Code::Unauthorized.into()));
 
 		assert_eq!(actual.status(), expected.status());
 		assert_eq!(actual.content().status().code(), expected.content().status().code());

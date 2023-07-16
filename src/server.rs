@@ -331,9 +331,15 @@ mod tests
 			/// * `(client, pool, admin, admin_password, guest, guest_password)`
 			async fn setup(test: &str, session_ttl: Duration, time_out: Option<Duration>) -> DynResult<TestData<$Db>>
 			{
-				let admin_role_name = words::sentence(5);
-				let grunt_role_name = words::sentence(5);
-				let manager_role_name = words::sentence(5);
+				let mut role_names = ::std::collections::BTreeSet::new();
+				while role_names.len() < 4
+				{
+					role_names.insert(words::sentence(5));
+				}
+
+				let admin_role_name = role_names.pop_last().unwrap();
+				let grunt_role_name = role_names.pop_last().unwrap();
+				let manager_role_name = role_names.pop_last().unwrap();
 
 				let policy = {
 					let mut policy_csv = WriterBuilder::new().has_headers(false).from_writer(Vec::new());
@@ -449,7 +455,7 @@ mod tests
 						<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
 							department, name::full(), job::title(),
 						).and_then(|employee| <$Adapter as Adapter>::Role::create(&pool,
-							words::sentence(5), Duration::from_secs(60).into(),
+							role_names.pop_last().unwrap(), Duration::from_secs(60).into(),
 						).and_then(|role| <$Adapter as Adapter>::User::create(&pool,
 							employee.into(), guest_password.to_owned(), role, internet::username(),
 						)))
@@ -579,20 +585,20 @@ mod tests
 				(
 					$Adapter:ty, $route:ident;
 					$($pass:ident: [ $($data:expr$(, $expected:literal)?);+ $(;)? ] => $code:expr),+ $(,)?;
-					$($fail:ident),+ $(,)?
+					$($fail:ident),* $(,)?
 				) =>
 				{
 					$(
 						tracing::trace!("Asserting {:?} cannot delete {}", stringify!($fail), stringify!($route));
 						client.test_other_unauthorized(Method::Delete, routes::$route, &$fail.0, &$fail.1).await;
-					)+
+					)*
 
 					$({
 						tracing::trace!(
-						    "\n\n» Asserting {} can delete {}(s) {} with Code::{:?}",
+						    "\n\n» Asserting {} can delete {}(s) [{}] with Code::{:?}",
 						    stringify!($pass),
 						    stringify!($route),
-						    stringify!($($data$( ($expected))?),+),
+						    stringify!($($data$(, ($expected))?);+),
 						    $code,
 						);
 
@@ -725,9 +731,7 @@ mod tests
 				let mut x = Vec::with_capacity(3);
 				for t in [&timesheet, &timesheet2, &timesheet3]
 				{
-					PgExpenses::create(&pool, iter::repeat_with(expense_args).take(1).collect(), t.id)
-						.await
-						.map(|mut v| x.append(&mut v))?;
+					PgExpenses::create(&pool, vec![expense_args()], t.id).await.map(|mut v| x.append(&mut v))?;
 				}
 
 				x.exchange(Default::default(), &rates)
@@ -756,8 +760,8 @@ mod tests
 			)
 			.await?;
 
-			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
-			let roles = users.iter().map(User::role).collect::<Vec<_>>();
+			let users: Vec<_> = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect();
+			let roles: Vec<_> = users.iter().map(User::role).collect();
 
 			check!(
 				PgUser, USER;
@@ -1075,10 +1079,8 @@ mod tests
 			.await;
 			assert_unauthorized!(MatchExpense, EXPENSE; guest);
 
-			let users = serde_json::to_string(&[&admin.0, &guest.0, &grunt.0, &manager.0])
-				.and_then(|json| serde_json::from_str::<[User; 4]>(&json))?;
-
-			let roles = users.iter().map(|u| u.role().clone()).collect::<Vec<_>>();
+			let users: Vec<_> = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect();
+			let roles: Vec<_> = users.iter().map(|u| u.role().clone()).collect();
 
 			assert_unauthorized!(MatchRole, ROLE; guest, grunt, manager);
 			client
@@ -1138,26 +1140,30 @@ mod tests
 		async fn patch() -> DynResult<()>
 		{
 			let TestData { admin, client, grunt, guest, manager, pool } =
-				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await.map(|mut data| {
+					data.grunt.0.employee.as_mut().map(|e| e.active = false);
+					data.grunt.0.password_expires = None;
+					data
+				})?;
 
 			macro_rules! check {
 				(
 					$Adapter:ty, $route:ident;
 					$($pass:ident: [ $($data:expr$(, $expected:literal)?);+ $(;)? ] => $code:expr),+ $(,)?;
-					$($fail:ident),+ $(,)?
+					$($fail:ident),* $(,)?
 				) =>
 				{
 					$(
 						tracing::trace!("Asserting {:?} cannot patch {}", stringify!($fail), stringify!($route));
 						client.test_other_unauthorized(Method::Patch, routes::$route, &$fail.0, &$fail.1).await;
-					)+
+					)*
 
 					$({
 						tracing::trace!(
-						    "\n\n» Asserting {} can patch {}(s) {} with Code::{:?}",
+						    "\n\n» Asserting {} can patch {}(s) [{}] with Code::{:?}",
 						    stringify!($pass),
 						    stringify!($route),
-						    stringify!($($data$( ($expected))?),+),
+						    stringify!($($data$(, $expected)?);+),
 						    $code,
 						);
 
@@ -1182,10 +1188,20 @@ mod tests
 				})?
 			};
 
+			check!(PgContact, CONTACT; admin: [contact_] => None::<Code>; grunt, guest, manager);
+
 			let department = PgDepartment::create(&pool, rand_department_name()).await.map(|mut d| {
 				d.name = words::sentence(7);
 				d
 			})?;
+
+			check!(
+				PgDepartment, DEPARTMENT;
+				admin: [department] => None::<Code>,
+				manager: [manager.0.department().unwrap()] => Code::SuccessForPermissions;
+				guest,
+				grunt,
+			);
 
 			let employee = {
 				let (name_, title) = employee_args();
@@ -1205,6 +1221,14 @@ mod tests
 				)?
 			};
 
+			check!(
+				PgEmployee, EMPLOYEE;
+				manager: [employee, false; manager_employee] => Code::SuccessForPermissions,
+				admin: [employee] => None::<Code>,
+				grunt: [grunt.0.employee().unwrap()] => Code::SuccessForPermissions;
+				guest,
+			);
+
 			let location = {
 				let (currency, address_, outer) = location_args();
 				PgLocation::create(&pool, currency, address_, outer).await.map(|mut l| {
@@ -1213,11 +1237,15 @@ mod tests
 				})?
 			};
 
+			check!(PgLocation, LOCATION; admin: [location] => None::<Code>; grunt, guest, manager);
+
 			let organization =
 				PgOrganization::create(&pool, location.clone(), company::company()).await.map(|mut o| {
 					o.name = words::sentence(4);
 					o
 				})?;
+
+			check!(PgOrganization, ORGANIZATION; admin: [organization] => None::<Code>; grunt, guest, manager);
 
 			let rates = ExchangeRates::new().await?;
 
@@ -1268,6 +1296,13 @@ mod tests
 					.unwrap()
 			};
 
+			check!(
+				PgJob, JOB;
+				manager: [job_, false; job2] => Code::SuccessForPermissions,
+				admin: [job_] => None::<Code>;
+				guest, grunt,
+			);
+
 			let [timesheet, timesheet2, timesheet3]: [_; 3] = {
 				let mut tx = pool.begin().await?;
 				let (expenses, time_begin, time_end, work_notes) = timesheet_args();
@@ -1282,7 +1317,7 @@ mod tests
 				)
 				.await
 				.map(|mut t| {
-					t.time_end = (t.time_begin + chrono::Duration::hours(3)).into();
+					t.time_end = (t.time_begin + chrono::Duration::hours(6)).into();
 					t
 				})?;
 
@@ -1298,7 +1333,7 @@ mod tests
 				)
 				.await
 				.map(|mut t| {
-					t.time_end = (t.time_begin + chrono::Duration::hours(3)).into();
+					t.time_end = (t.time_begin + chrono::Duration::hours(6)).into();
 					t
 				})?;
 
@@ -1312,7 +1347,11 @@ mod tests
 					time_end,
 					work_notes,
 				)
-				.await?;
+				.await
+				.map(|mut t| {
+					t.time_end = (t.time_begin + chrono::Duration::hours(6)).into();
+					t
+				})?;
 
 				tx.commit().await?;
 				[t, t2, t3]
@@ -1323,22 +1362,36 @@ mod tests
 					.unwrap()
 			};
 
+			check!(
+				PgTimesheet, TIMESHEET;
+				manager: [timesheet, false; timesheet3] => Code::SuccessForPermissions,
+				admin: [timesheet] => None::<Code>,
+				grunt: [timesheet2] => Code::SuccessForPermissions;
+				guest,
+			);
+
 			let expenses = {
-				let mut x = Vec::with_capacity(2 * 3);
+				let mut x = Vec::with_capacity(3);
 				for t in [&timesheet, &timesheet2, &timesheet3]
 				{
-					PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), t.id).await.map(
-						|v| {
-							x.extend(v.into_iter().map(|mut x| {
-								x.category = words::sentence(3);
-								x
-							}))
-						},
-					)?;
+					PgExpenses::create(&pool, vec![expense_args()], t.id).await.map(|v| {
+						x.extend(v.into_iter().map(|mut x| {
+							x.category = words::sentence(3);
+							x
+						}))
+					})?;
 				}
 
 				x.exchange(Default::default(), &rates)
 			};
+
+			check!(
+				PgExpenses, EXPENSE;
+				manager: [expenses[0], false; expenses[2]] => Code::SuccessForPermissions,
+				admin: [expenses[0]] => None::<Code>,
+				grunt: [expenses[1]] => Code::SuccessForPermissions;
+				guest,
+			);
 
 			let role = {
 				let (name_, password_ttl) = role_args();
@@ -1347,6 +1400,8 @@ mod tests
 					r
 				})?
 			};
+
+			check!(PgRole, ROLE; admin: [role] => None::<Code>; grunt, guest, manager);
 
 			let user = PgUser::create(
 				&pool,
@@ -1374,63 +1429,31 @@ mod tests
 				u
 			})?;
 
-			let users =
-				[&admin.0, &guest.0, &grunt.0, &manager.0, &manager_user].into_iter().cloned().collect::<Vec<_>>();
-			let roles = users.iter().map(User::role).collect::<Vec<_>>();
-
 			check!(
 				PgUser, USER;
 				manager: [user, false; manager_user] => Code::SuccessForPermissions,
-				admin: [user] => None::<Code>;
-				grunt, guest,
-			);
-			check!(PgRole, ROLE; admin: [role] => None::<Code>; grunt, guest, manager);
-			check!(
-				PgExpenses, EXPENSE;
-				manager: [expenses[0], false; expenses[2]] => Code::SuccessForPermissions,
-				admin: [expenses[0]] => None::<Code>,
-				grunt: [expenses[1]] => Code::SuccessForPermissions;
+				admin: [user] => None::<Code>,
+				grunt: [grunt.0] => Code::SuccessForPermissions;
 				guest,
-			);
-			check!(
-				PgTimesheet, TIMESHEET;
-				manager: [timesheet, false; timesheet3] => Code::SuccessForPermissions,
-				admin: [timesheet] => None::<Code>,
-				grunt: [timesheet2] => Code::SuccessForPermissions;
-				guest,
-			);
-			check!(
-				PgJob, JOB;
-				manager: [job_, false; job2] => Code::SuccessForPermissions,
-				admin: [job_] => None::<Code>;
-				guest, grunt,
-			);
-			check!(
-				PgEmployee, EMPLOYEE;
-				manager: [employee, false; manager_employee] => Code::SuccessForPermissions,
-				admin: [employee] => None::<Code>;
-				guest, grunt,
-			);
-			check!(PgOrganization, ORGANIZATION; admin: [organization] => None::<Code>; grunt, guest, manager);
-			check!(PgContact, CONTACT; admin: [contact_] => None::<Code>; grunt, guest, manager);
-			check!(PgLocation, LOCATION; admin: [location] => None::<Code>; grunt, guest, manager);
-			check!(
-				PgDepartment, DEPARTMENT;
-				admin: [department] => None::<Code>;
-				guest, grunt, manager,
 			);
 
-			PgUser::delete(&pool, users.iter().chain([&user])).await?;
+			let users: Vec<_> =
+				[&admin.0, &guest.0, &grunt.0, &manager.0, &manager_user, &user].into_iter().cloned().collect();
+
 			futures::try_join!(
 				PgContact::delete(&pool, [&contact_].into_iter()),
 				PgJob::delete(&pool, [&job_, &job2].into_iter()),
-				PgRole::delete(&pool, roles.into_iter().chain([&role])),
+				PgUser::delete(&pool, users.iter()),
 			)?;
 
-			PgOrganization::delete(&pool, [&organization].into_iter()).await?;
+			futures::try_join!(
+				PgEmployee::delete(&pool, users.iter().filter_map(User::employee)),
+				PgOrganization::delete(&pool, [&organization].into_iter()),
+				PgRole::delete(&pool, users.iter().map(User::role)),
+			)?;
+
 			futures::try_join!(
 				PgDepartment::delete(&pool, users.iter().filter_map(User::department)),
-				PgEmployee::delete(&pool, users.iter().filter_map(User::employee)),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
 
@@ -1491,19 +1514,23 @@ mod tests
 
 			// TODO: /user
 
-			let users = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect::<Vec<_>>();
-			let roles = users.iter().map(User::role).chain([&role]).collect::<Vec<_>>();
+			let users: Vec<_> = [&admin.0, &guest.0, &grunt.0, &manager.0].into_iter().cloned().collect();
+			let roles: Vec<_> = users.iter().map(User::role).chain([&role]).collect();
 
 			PgUser::delete(&pool, users.iter()).await?;
 			futures::try_join!(
+				// PgJob::delete(&pool, [&job_, &job2].into_iter()),
 				PgRole::delete(&pool, roles.into_iter()),
-				/* PgJob::delete(&pool, [&job_, &job2].into_iter()) */
 			)?;
 
-			PgOrganization::delete(&pool, [organization].iter()).await?;
+			futures::try_join!(
+				// PgEmployee::delete(&pool, [&employee, &manager_employee].into_iter()),
+				PgOrganization::delete(&pool, [&organization].into_iter()),
+			)?;
+
 			futures::try_join!(
 				PgContact::delete(&pool, [&contact_].into_iter()),
-				// PgEmployee::delete(&pool, [&employee].into_iter()),
+				// PgDepartment::delete(&pool, [&department].into_iter()),
 				PgLocation::delete(&pool, [&location].into_iter()),
 			)?;
 
