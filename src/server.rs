@@ -576,30 +576,33 @@ mod tests
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 			macro_rules! check {
-				($Adapter:ty, $route:ident; $($pass:ident: $($data:expr),+ => $count:literal $code:expr),+$(,)?; $($fail:ident),+$(,)?) =>
+				(
+					$Adapter:ty, $route:ident;
+					$($pass:ident: [ $($data:expr$(, $expected:literal)?);+ $(;)? ] => $code:expr),+ $(,)?;
+					$($fail:ident),+ $(,)?
+				) =>
 				{
 					$(
 						tracing::trace!("Asserting {:?} cannot delete {}", stringify!($fail), stringify!($route));
-						client.test_other_unauthorized(Method::Delete(0), routes::$route, &$fail.0, &$fail.1).await;
+						client.test_other_unauthorized(Method::Delete, routes::$route, &$fail.0, &$fail.1).await;
 					)+
 
 					$({
 						tracing::trace!(
-						    "\n\n» Asserting {} can delete {} {}(s) {} with Code::{:?}",
+						    "\n\n» Asserting {} can delete {}(s) {} with Code::{:?}",
 						    stringify!($pass),
-						    $count,
 						    stringify!($route),
-						    stringify!($($data),+),
+						    stringify!($($data$( ($expected))?),+),
 						    $code,
 						);
 
 						client.test_other_success::<$Adapter>(
-							 Method::Delete($count),
+							 Method::Delete,
 							 &pool,
 							 routes::$route,
 							 &$pass.0,
 							 &$pass.1,
-							 vec![$($data.clone()),+],
+							 vec![$(( $data.clone(), true$( && $expected)? )),+],
 							 $code.into(),
 						).await;
 					})+
@@ -758,43 +761,43 @@ mod tests
 
 			check!(
 				PgUser, USER;
-				manager: user, manager_user => 1 Code::SuccessForPermissions,
-				admin: user => 1 None::<Code>;
+				manager: [user, false; manager_user] => Code::SuccessForPermissions,
+				admin: [user] => None::<Code>;
 				grunt, guest,
 			);
-			check!(PgRole, ROLE; admin: role => 1 None::<Code>; grunt, guest, manager);
+			check!(PgRole, ROLE; admin: [role] => None::<Code>; grunt, guest, manager);
 			check!(
 				PgExpenses, EXPENSE;
-				manager: expenses[0], expenses[2] => 1 Code::SuccessForPermissions,
-				admin: expenses[0] => 1 None::<Code>,
-				grunt: expenses[1] => 1 Code::SuccessForPermissions;
+				manager: [expenses[0], false; expenses[2]] => Code::SuccessForPermissions,
+				admin: [expenses[0]] => None::<Code>,
+				grunt: [expenses[1]] => Code::SuccessForPermissions;
 				guest,
 			);
 			check!(
 				PgTimesheet, TIMESHEET;
-				manager: timesheet, timesheet3 => 1 Code::SuccessForPermissions,
-				admin: timesheet => 1 None::<Code>,
-				grunt: timesheet2 => 1 Code::SuccessForPermissions;
+				manager: [timesheet, false; timesheet3] => Code::SuccessForPermissions,
+				admin: [timesheet] => None::<Code>,
+				grunt: [timesheet2] => Code::SuccessForPermissions;
 				guest,
 			);
 			check!(
 				PgJob, JOB;
-				manager: job_, job2 => 1 Code::SuccessForPermissions,
-				admin: job_ => 1 None::<Code>;
+				manager: [job_, false; job2] => Code::SuccessForPermissions,
+				admin: [job_] => None::<Code>;
 				guest, grunt,
 			);
 			check!(
 				PgEmployee, EMPLOYEE;
-				manager: employee, manager_employee => 1 Code::SuccessForPermissions,
-				admin: employee => 1 None::<Code>;
+				manager: [employee, false; manager_employee] => Code::SuccessForPermissions,
+				admin: [employee] => None::<Code>;
 				guest, grunt,
 			);
-			check!(PgOrganization, ORGANIZATION; admin: organization => 1 None::<Code>; grunt, guest, manager);
-			check!(PgContact, CONTACT; admin: contact_ => 1 None::<Code>; grunt, guest, manager);
-			check!(PgLocation, LOCATION; admin: location => 1 None::<Code>; grunt, guest, manager);
+			check!(PgOrganization, ORGANIZATION; admin: [organization] => None::<Code>; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin: [contact_] => None::<Code>; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin: [location] => None::<Code>; grunt, guest, manager);
 			check!(
 				PgDepartment, DEPARTMENT;
-				admin: department => 1 None::<Code>;
+				admin: [department] => None::<Code>;
 				guest, grunt, manager,
 			);
 
@@ -1138,30 +1141,33 @@ mod tests
 				setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
 
 			macro_rules! check {
-				($Adapter:ty, $route:ident; $($pass:ident: $($data:expr),+ => $count:literal $code:expr),+$(,)?; $($fail:ident),+$(,)?) =>
+				(
+					$Adapter:ty, $route:ident;
+					$($pass:ident: [ $($data:expr$(, $expected:literal)?);+ $(;)? ] => $code:expr),+ $(,)?;
+					$($fail:ident),+ $(,)?
+				) =>
 				{
 					$(
 						tracing::trace!("Asserting {:?} cannot patch {}", stringify!($fail), stringify!($route));
-						client.test_other_unauthorized(Method::Patch(0), routes::$route, &$fail.0, &$fail.1).await;
+						client.test_other_unauthorized(Method::Patch, routes::$route, &$fail.0, &$fail.1).await;
 					)+
 
 					$({
 						tracing::trace!(
-						    "\n\n» Asserting {} can patch {} {}(s) {} with Code::{:?}",
+						    "\n\n» Asserting {} can patch {}(s) {} with Code::{:?}",
 						    stringify!($pass),
-						    $count,
 						    stringify!($route),
-						    stringify!($($data),+),
+						    stringify!($($data$( ($expected))?),+),
 						    $code,
 						);
 
 						client.test_other_success::<$Adapter>(
-							 Method::Patch($count),
+							 Method::Patch,
 							 &pool,
 							 routes::$route,
 							 &$pass.0,
 							 &$pass.1,
-							 vec![$($data.clone()),+],
+							 vec![$(( $data.clone(), true$( && $expected)? )),+],
 							 $code.into(),
 						).await;
 					})+
@@ -1374,43 +1380,43 @@ mod tests
 
 			check!(
 				PgUser, USER;
-				manager: user, manager_user => 1 Code::SuccessForPermissions,
-				admin: user => 1 None::<Code>;
+				manager: [user, false; manager_user] => Code::SuccessForPermissions,
+				admin: [user] => None::<Code>;
 				grunt, guest,
 			);
-			check!(PgRole, ROLE; admin: role => 1 None::<Code>; grunt, guest, manager);
+			check!(PgRole, ROLE; admin: [role] => None::<Code>; grunt, guest, manager);
 			check!(
 				PgExpenses, EXPENSE;
-				manager: expenses[0], expenses[2] => 1 Code::SuccessForPermissions,
-				admin: expenses[0] => 1 None::<Code>,
-				grunt: expenses[1] => 1 Code::SuccessForPermissions;
+				manager: [expenses[0], false; expenses[2]] => Code::SuccessForPermissions,
+				admin: [expenses[0]] => None::<Code>,
+				grunt: [expenses[1]] => Code::SuccessForPermissions;
 				guest,
 			);
 			check!(
 				PgTimesheet, TIMESHEET;
-				manager: timesheet, timesheet3 => 1 Code::SuccessForPermissions,
-				admin: timesheet => 1 None::<Code>,
-				grunt: timesheet2 => 1 Code::SuccessForPermissions;
+				manager: [timesheet, false; timesheet3] => Code::SuccessForPermissions,
+				admin: [timesheet] => None::<Code>,
+				grunt: [timesheet2] => Code::SuccessForPermissions;
 				guest,
 			);
 			check!(
 				PgJob, JOB;
-				manager: job_, job2 => 1 Code::SuccessForPermissions,
-				admin: job_ => 1 None::<Code>;
+				manager: [job_, false; job2] => Code::SuccessForPermissions,
+				admin: [job_] => None::<Code>;
 				guest, grunt,
 			);
 			check!(
 				PgEmployee, EMPLOYEE;
-				manager: employee, manager_employee => 1 Code::SuccessForPermissions,
-				admin: employee => 1 None::<Code>;
+				manager: [employee, false; manager_employee] => Code::SuccessForPermissions,
+				admin: [employee] => None::<Code>;
 				guest, grunt,
 			);
-			check!(PgOrganization, ORGANIZATION; admin: organization => 1 None::<Code>; grunt, guest, manager);
-			check!(PgContact, CONTACT; admin: contact_ => 1 None::<Code>; grunt, guest, manager);
-			check!(PgLocation, LOCATION; admin: location => 1 None::<Code>; grunt, guest, manager);
+			check!(PgOrganization, ORGANIZATION; admin: [organization] => None::<Code>; grunt, guest, manager);
+			check!(PgContact, CONTACT; admin: [contact_] => None::<Code>; grunt, guest, manager);
+			check!(PgLocation, LOCATION; admin: [location] => None::<Code>; grunt, guest, manager);
 			check!(
 				PgDepartment, DEPARTMENT;
-				admin: department => 1 None::<Code>;
+				admin: [department] => None::<Code>;
 				guest, grunt, manager,
 			);
 

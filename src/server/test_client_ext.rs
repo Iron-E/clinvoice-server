@@ -10,7 +10,7 @@ use std::{collections::HashSet, sync::OnceLock};
 use axum::http::header;
 use axum_login::axum_sessions::async_session::base64;
 use axum_test_helper::{RequestBuilder, TestClient};
-use pretty_assertions::assert_eq;
+use pretty_assertions::{assert_eq, assert_ne};
 use serde::{de::DeserializeOwned, Serialize};
 use sqlx::Pool;
 use winvoice_adapter::{Deletable, Retrievable};
@@ -42,24 +42,11 @@ fn version_req() -> &'static str
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Method
 {
-	/// The `DELETE` method. The parameter is the number of deleted items.
-	Delete(usize),
+	/// The `DELETE` method.
+	Delete,
 
-	/// The `PATCH` method. Controls how many items should have been patched.
-	Patch(usize),
-}
-
-impl Method
-{
-	/// The expected number of changes in the database.
-	fn expected(&self) -> usize
-	{
-		*match self
-		{
-			Self::Delete(x) => x,
-			Self::Patch(x) => x,
-		}
-	}
+	/// The `PATCH` method.
+	Patch,
 }
 
 /// Extensions for [`TestClient`].
@@ -112,7 +99,7 @@ pub trait TestClientExt
 		route: &str,
 		user: &User,
 		password: &str,
-		entities: Vec<<A as Deletable>::Entity>,
+		entities: Vec<(<A as Deletable>::Entity, bool)>,
 		code: Option<Code>,
 	) where
 		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
@@ -259,7 +246,7 @@ impl TestClientExt for TestClient
 		route: &str,
 		user: &User,
 		password: &str,
-		entities: Vec<<A as Deletable>::Entity>,
+		entities: Vec<(<A as Deletable>::Entity, bool)>,
 		code: Option<Code>,
 	) where
 		A: Deletable + Retrievable<Db = <A as Deletable>::Db, Entity = <A as Deletable>::Entity>,
@@ -272,10 +259,11 @@ impl TestClientExt for TestClient
 		tracing::trace!("\n");
 
 		self.login(user.username(), password).await;
+		let entities_destructured = entities.iter().map(|(e, _)| e.clone()).collect();
 		let response = match method
 		{
-			Method::Delete(_) => self.delete_builder(route).json(&request::Delete::new(entities.clone())),
-			Method::Patch(_) => self.patch_builder(route).json(&request::Patch::new(entities.clone())),
+			Method::Delete => self.delete_builder(route).json(&request::Delete::new(entities_destructured)),
+			Method::Patch => self.patch_builder(route).json(&request::Patch::new(entities_destructured)),
 		}
 		.send()
 		.await;
@@ -286,21 +274,16 @@ impl TestClientExt for TestClient
 		assert_eq!(actual, expected);
 		if code != Some(Code::Unauthorized)
 		{
-			let mut count = 0;
-			for entity in entities
+			for (entity, expected) in entities
 			{
 				let retrieved = A::retrieve(pool, A::Match::from(entity.clone())).await.unwrap();
-				if match method
+				match method
 				{
-					Method::Delete(_) => retrieved.is_empty(),
-					Method::Patch(_) => retrieved.get(0) == Some(&entity),
-				}
-				{
-					count += 1;
+					Method::Delete => assert!(retrieved.is_empty() == expected),
+					Method::Patch if expected => assert_eq!(retrieved.get(0), Some(&entity)),
+					Method::Patch => assert_ne!(retrieved.get(0), Some(&entity)),
 				}
 			}
-
-			assert_eq!(count, method.expected());
 		}
 
 		self.logout().await;
@@ -318,8 +301,8 @@ impl TestClientExt for TestClient
 		self.login(user.username(), password).await;
 		let response = match method
 		{
-			Method::Delete(_) => self.delete_builder(route).json(&request::Delete::<()>::new(Default::default())),
-			Method::Patch(_) => self.patch_builder(route).json(&request::Patch::<()>::new(Default::default())),
+			Method::Delete => self.delete_builder(route).json(&request::Delete::<()>::new(Default::default())),
+			Method::Patch => self.patch_builder(route).json(&request::Patch::<()>::new(Default::default())),
 		}
 		.send()
 		.await;
