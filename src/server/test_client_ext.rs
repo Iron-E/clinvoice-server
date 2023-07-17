@@ -117,7 +117,6 @@ pub trait TestClientExt
 		user: &User,
 		password: &str,
 		args: A,
-		code: Option<Code>,
 	) -> R::Entity
 	where
 		A: Debug + Send + Serialize + Sync,
@@ -339,7 +338,6 @@ impl TestClientExt for TestClient
 		user: &User,
 		password: &str,
 		args: A,
-		code: Option<Code>,
 	) -> R::Entity
 	where
 		A: Debug + Send + Serialize + Sync,
@@ -356,10 +354,11 @@ impl TestClientExt for TestClient
 		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Post<R::Entity>>().await);
+		tracing::debug!("\n\nReceived {actual:#?}\n\n");
 		let expected = {
 			let entity = actual.content().entity().unwrap().clone();
 			let row = R::retrieve(pool, R::Match::from(entity)).await.map(|mut v| v.remove(0)).unwrap();
-			Response::from(Post::new(row.into(), code.unwrap_or(Code::Success).into()))
+			Response::from(Post::new(row.into(), Code::Success.into()))
 		};
 
 		assert_eq!(actual, expected);

@@ -410,8 +410,8 @@ where
 				let (department, name, title) = request.into_args();
 				let code = match state.employee_permissions(&user, ACTION).await?
 				{
-					Object::Employee | Object::EmployeeInDepartment
-						if user.department().map_or(false, |d| d.id == department.id) =>
+					Object::Employee => Code::Success,
+					Object::EmployeeInDepartment if user.department().map_or(false, |d| d.id == department.id) =>
 					{
 						Code::Success
 					},
@@ -741,9 +741,10 @@ where
 				const ACTION: Action = Action::Create;
 				let (client, date_close, date_open, departments, increment, invoice, notes, objectives) =
 					request.into_args();
-				let code = match state.department_permissions(&user, ACTION).await?
+				let code = match state.job_permissions(&user, ACTION).await?
 				{
-					Object::Job | Object::JobInDepartment
+					Object::Job => Code::Success,
+					Object::JobInDepartment
 						if user.department().map_or(false, |d| departments.iter().any(|d2| d2.id == d.id)) =>
 					{
 						Code::Success
@@ -1030,7 +1031,8 @@ where
 				let (employee, expenses, job, time_begin, time_end, work_notes) = request.into_args();
 				let code = match state.timesheet_permissions(&user, ACTION).await?
 				{
-					Object::Timesheet | Object::TimesheetInDepartment
+					Object::Timesheet => Code::Success,
+					Object::TimesheetInDepartment
 						if user.department().map_or(false, |d| job.departments.iter().any(|d2| d2.id == d.id)) =>
 					{
 						Code::Success
@@ -1197,7 +1199,8 @@ where
 				let (employee, password, role, username) = request.into_args();
 				let code = match state.user_permissions(&user, ACTION).await?
 				{
-					Object::User | Object::UserInDepartment
+					Object::User => Code::Success,
+					Object::UserInDepartment
 						if user.department().zip(employee.as_ref()).map_or(false, |(d, e)| d.id == e.department.id) =>
 					{
 						Code::Success
