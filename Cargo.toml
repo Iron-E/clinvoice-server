@@ -54,7 +54,7 @@ optional = true
 
 [dependencies.winvoice-export]
 branch = 'release/0.7'
-features = ['markdown']
+features = ['markdown', 'serde']
 git = 'https://github.com/Iron-E/winvoice-export'
 
 [dependencies.winvoice-match]
