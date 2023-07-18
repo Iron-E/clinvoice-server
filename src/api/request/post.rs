@@ -6,36 +6,27 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Post<Args>
 {
-	/// See [`Retrieve::condition`]
+	/// The arguments for the entity which will be created.
 	args: Args,
 }
 
 impl<Args> Post<Args>
 {
-	/// Create a new GET request body.
+	/// Create a new POST request body.
 	#[allow(dead_code)]
 	pub const fn new(args: Args) -> Self
 	{
 		Self { args }
 	}
 
-	/// The condition used to filter which entities should be retrieved.
-	///
-	/// # See also
-	///
-	/// * [`winvoice_match`]
-	/// * [`winvoice_server::api::match`](crate::match)
+	/// The arguments for the entity which will be created.
 	#[allow(dead_code)]
 	pub const fn args(&self) -> &Args
 	{
 		&self.args
 	}
 
-	/// HACK: can't be an `Into` impl because rust-lang/rust#31844
-	///
-	/// # See also
-	///
-	/// * [`Retrieve::condition`]
+	/// The arguments for the entity which will be created.
 	#[allow(clippy::missing_const_for_fn)] // destructor cannot be evaluated at compile-time
 	pub fn into_args(self) -> Args
 	{

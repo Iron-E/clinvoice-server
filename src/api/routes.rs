@@ -1,9 +1,9 @@
 //! The API endpoints for the [`winvoice_server`](crate)
 
-/// The endpoint for [`winvoice_schema::Contact`]s.
+/// The endpoint for [`winvoice_schema::Contact`]s
 pub const CONTACT: &str = "/contact";
 
-/// The endpoint for [`winvoice_schema::Contact`]s.
+/// The endpoint for [`winvoice_schema::Contact`]s
 pub const DEPARTMENT: &str = "/department";
 
 /// The API endpoint for [`winvoice_schema::Employee`]
@@ -12,16 +12,19 @@ pub const EMPLOYEE: &str = "/employee";
 /// The API endpoint for [`winvoice_schema::Expense`]
 pub const EXPENSE: &str = "/expense";
 
+/// The API endpoint for exporting [`winvoice_schema::Job`]s
+pub const EXPORT: &str = "/job/export";
+
 /// The API endpoint for [`winvoice_schema::Job`]
 pub const JOB: &str = "/job";
 
 /// The API endpoint for [`winvoice_schema::Location`]
 pub const LOCATION: &str = "/location";
 
-/// The API endpoint for logging in.
+/// The API endpoint for logging in
 pub const LOGIN: &str = "/login";
 
-/// The API endpoint for logging out.
+/// The API endpoint for logging out
 pub const LOGOUT: &str = "/logout";
 
 /// The API endpoint for [`winvoice_schema::Organization`]
