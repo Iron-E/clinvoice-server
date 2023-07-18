@@ -152,6 +152,7 @@ where
 			.route(routes::DEPARTMENT, handler.department())
 			.route(routes::EMPLOYEE, handler.employee())
 			.route(routes::EXPENSE, handler.expense())
+			.route(routes::EXPORT, handler.export())
 			.route(routes::JOB, handler.job())
 			.route(routes::LOCATION, handler.location())
 			.route(routes::LOGOUT, handler.logout())

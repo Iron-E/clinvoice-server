@@ -631,6 +631,11 @@ where
 		)
 	}
 
+	/// The handler for the [`routes::EXPORT`](crates::api::routes::EXPORT).
+	pub fn export(&self) -> MethodRouter<ServerState<A::Db>> {
+		todo!()
+	}
+
 	/// The handler for the [`routes::JOB`](crate::api::routes::JOB).
 	pub fn job(&self) -> MethodRouter<ServerState<A::Db>>
 	{
