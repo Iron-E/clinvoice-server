@@ -660,18 +660,22 @@ where
 					let organization = &organization;
 					async move {
 						let currency = requested_currency.unwrap_or_else(|| job.client.location.currency());
-						if currency != Default::default()
+						let mut timesheets = A::Timesheet::retrieve(pool, MatchJob::from(job.id).into())
+							.await
+							.map_err(ExportResponse::from)?;
+
+						if currency != Default::default() || currency != job.invoice.hourly_rate.currency
 						{
 							let rates =
 								rates_cell.get_or_try_init(ExchangeRates::new).await.map_err(ExportResponse::from)?;
 							job.exchange_mut(currency, rates);
+							timesheets.exchange_mut(currency, rates);
 						}
 
-						let timesheets = A::Timesheet::retrieve(pool, MatchJob::from(job.id).into())
-							.await
-							.map_err(ExportResponse::from)?;
-
-						Ok((String::new(), format.export_job(&job, contacts, organization, &timesheets)))
+						Ok((
+							format!("{}--{}.{}", job.client.name.replace(' ', "-"), job.id, format.extension()),
+							format.export_job(&job, contacts, organization, &timesheets),
+						))
 					}
 				})
 				.try_collect::<HashMap<_, _>>()

@@ -7,8 +7,7 @@ use super::*;
 #[traced_test]
 async fn delete() -> DynResult<()>
 {
-	let TestData { admin, client, grunt, guest, manager, pool } =
-		setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+	let TestData { admin, client, grunt, guest, manager, pool } = setup("delete").await?;
 
 	macro_rules! check {
 		(

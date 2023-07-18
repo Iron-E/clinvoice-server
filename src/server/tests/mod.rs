@@ -57,7 +57,7 @@ use super::*;
 use crate::{
 	api::{
 		request,
-		response::{Get, Login, Logout, Post, Version},
+		response::{Export, Get, Login, Logout, Post, Version},
 		Code,
 		Status,
 	},
@@ -130,7 +130,7 @@ macro_rules! fn_setup {
 		/// # Returns
 		///
 		/// * `(client, pool, admin, admin_password, guest, guest_password)`
-		async fn setup(test: &str, session_ttl: Duration, time_out: Option<Duration>) -> DynResult<TestData<$Db>>
+		async fn setup(test: &str) -> DynResult<TestData<$Db>>
 		{
 			let mut role_names = ::std::collections::BTreeSet::new();
 			while role_names.len() < 4
@@ -212,8 +212,8 @@ macro_rules! fn_setup {
 				None,
 				utils::cookie_secret(),
 				ServerState::<$Db>::new(enforcer, pool.clone()),
-				session_ttl,
-				time_out,
+				DEFAULT_SESSION_TTL,
+				DEFAULT_TIMEOUT,
 			)
 			.await?;
 
@@ -227,8 +227,8 @@ macro_rules! fn_setup {
 					.unwrap();
 
 			#[rustfmt::skip]
-					let (admin, grunt, guest, manager) = futures::try_join!(
-						<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
+			let (admin, grunt, guest, manager) = futures::try_join!(
+				<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
 					$rand_department_name()
 				).and_then(|department|
 					<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
@@ -283,7 +283,7 @@ macro_rules! fn_setup {
 		#[traced_test]
 		async fn rejections() -> DynResult<()>
 		{
-			let TestData { client, admin, .. } = setup("rejections", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+			let TestData { client, admin, .. } = setup("rejections").await?;
 
 			#[rustfmt::skip]
 									 stream::iter([

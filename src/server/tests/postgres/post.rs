@@ -7,8 +7,7 @@ use super::*;
 #[traced_test]
 async fn post() -> DynResult<()>
 {
-	let TestData { admin, client, grunt, guest, manager, pool } =
-		setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await?;
+	let TestData { admin, client, grunt, guest, manager, pool } = setup("post").await?;
 
 	client.test_post_unauthorized(routes::CONTACT, &grunt.0, &grunt.1, contact_args()).await;
 	client.test_post_unauthorized(routes::CONTACT, &guest.0, &guest.1, contact_args()).await;
