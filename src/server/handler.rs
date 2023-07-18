@@ -1,7 +1,7 @@
 mod reason;
 
 use core::{marker::PhantomData, time::Duration};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use axum::{
@@ -13,9 +13,11 @@ use axum::{
 	Json,
 	TypedHeader,
 };
-use futures::TryFutureExt;
+use futures::{stream, TryFutureExt, TryStreamExt};
+use money2::{Exchange, ExchangeRates};
 use reason::Reason;
-use sqlx::{Database, Executor, Pool, Result};
+use sqlx::{Database, Executor, Pool};
+use tokio::sync::OnceCell;
 use tracing::Instrument;
 use winvoice_adapter::{
 	schema::{
@@ -51,7 +53,15 @@ use winvoice_schema::{
 
 use super::{
 	auth::{AuthContext, DbUserStore, UserStore},
-	response::{DeleteResponse, LoginResponse, LogoutResponse, PatchResponse, Response, ResponseResult},
+	response::{
+		DeleteResponse,
+		ExportResponse,
+		LoginResponse,
+		LogoutResponse,
+		PatchResponse,
+		Response,
+		ResponseResult,
+	},
 	ServerState,
 };
 use crate::{
@@ -70,7 +80,7 @@ use crate::{
 };
 
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
-fn create<T>(on_success: Code, result: Result<T>) -> ResponseResult<Post<T>>
+fn create<T>(on_success: Code, result: sqlx::Result<T>) -> ResponseResult<Post<T>>
 {
 	result.map_all(
 		|t| Response::from(Post::new(t.into(), on_success.into())),
@@ -632,8 +642,42 @@ where
 	}
 
 	/// The handler for the [`routes::EXPORT`](crates::api::routes::EXPORT).
-	pub fn export(&self) -> MethodRouter<ServerState<A::Db>> {
-		todo!()
+	pub fn export(&self) -> MethodRouter<ServerState<A::Db>>
+	{
+		routing::get(|State(state): State<ServerState<A::Db>>, Json(request): Json<request::Export>| async move {
+			let rates_cell = OnceCell::<ExchangeRates>::new();
+			let requested_currency = request.currency();
+			let format = request.format();
+			let organization = request.organization;
+			let contacts =
+				A::Contact::retrieve(state.pool(), Default::default()).await.map_err(ExportResponse::from)?;
+
+			stream::iter(request.jobs.into_iter().map(Result::<_, ExportResponse>::Ok))
+				.and_then(|mut job| {
+					let contacts = &contacts;
+					let pool = state.pool();
+					let rates_cell = &rates_cell;
+					let organization = &organization;
+					async move {
+						let currency = requested_currency.unwrap_or_else(|| job.client.location.currency());
+						if currency != Default::default()
+						{
+							let rates =
+								rates_cell.get_or_try_init(ExchangeRates::new).await.map_err(ExportResponse::from)?;
+							job.exchange_mut(currency, rates);
+						}
+
+						let timesheets = A::Timesheet::retrieve(pool, MatchJob::from(job.id).into())
+							.await
+							.map_err(ExportResponse::from)?;
+
+						Ok((String::new(), format.export_job(&job, contacts, organization, &timesheets)))
+					}
+				})
+				.try_collect::<HashMap<_, _>>()
+				.await
+				.map(ExportResponse::from)
+		})
 	}
 
 	/// The handler for the [`routes::JOB`](crate::api::routes::JOB).

@@ -31,6 +31,9 @@ pub enum Code
 	/// An error occurred while attempting to de/encode a value.
 	EncodingError = 6,
 
+	/// An error occurred while attempting to exchange [currencies](winvoice_schema::Currency).
+	ExchangeError = 15,
+
 	/// There was an attempt to log in, but it failed because the credentials provided were not
 	/// accepted by the database.
 	InvalidCredentials = 2,

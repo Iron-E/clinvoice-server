@@ -3,6 +3,7 @@
 use argon2::password_hash::Error as PasswordError;
 use axum::http::StatusCode;
 use casbin::Error as CasbinError;
+use money2::Error as MoneyError;
 use sqlx::Error as SqlxError;
 
 use super::Code;
@@ -31,6 +32,7 @@ impl From<Code> for StatusCode
 			Code::BadArguments |
 			Code::CryptError |
 			Code::Database |
+			Code::ExchangeError |
 			Code::LoginError |
 			Code::Other |
 			Code::PermissionsError |
@@ -55,6 +57,14 @@ impl From<&CasbinError> for Code
 			CasbinError::RhaiError(_) |
 			CasbinError::RhaiParseError(_) => Self::Other,
 		}
+	}
+}
+
+impl From<&MoneyError> for Code
+{
+	fn from(_: &MoneyError) -> Self
+	{
+		Self::ExchangeError
 	}
 }
 

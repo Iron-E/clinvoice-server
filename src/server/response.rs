@@ -2,6 +2,7 @@
 
 mod debug;
 mod delete;
+mod export;
 mod hash;
 mod into_response;
 mod login;
@@ -12,6 +13,7 @@ mod version;
 
 use axum::{http::StatusCode, Json};
 pub use delete::DeleteResponse;
+pub use export::ExportResponse;
 pub use login::LoginResponse;
 pub use logout::LogoutResponse;
 pub use version::VersionResponse;

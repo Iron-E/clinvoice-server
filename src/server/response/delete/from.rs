@@ -9,7 +9,7 @@ impl From<Code> for DeleteResponse
 {
 	fn from(code: Code) -> Self
 	{
-		Self::new(code.into(), code.into())
+		Self::from(Status::from(code))
 	}
 }
 

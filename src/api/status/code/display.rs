@@ -25,6 +25,7 @@ impl Display for Code
 				"There was an attempt to log in, but it failed because the credentials provided were incorrect"
 			},
 			Self::EncodingError => "An error occurred while attempting to de/encode a value",
+			Self::ExchangeError => "An error occurred while attempting to exchange currencies",
 			Self::LoginError => "Valid credentials were provided, and then an error occurred when attempting to login",
 			Self::Other => "An unknown operation occurred",
 			Self::PasswordExpired => "A valid login was presented, but the password has expired and must be changed",
