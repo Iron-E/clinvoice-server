@@ -85,6 +85,7 @@ mod tests
 	/// # Returns
 	///
 	/// `(guest, admin)`.
+	#[allow(clippy::needless_pass_by_ref_mut)]
 	async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(User, User)>
 	{
 		let (admin, guest) = role::setup(&mut *tx).await?;
@@ -96,7 +97,7 @@ mod tests
 		let admin_employee = PgEmployee::create(&mut *tx, department, name::full(), job::title()).await?;
 
 		let admin_user = PgUser::create(
-			&mut *tx,
+			tx,
 			admin_employee.into(),
 			password::generate(true, true, true, 8),
 			admin,

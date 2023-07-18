@@ -39,7 +39,7 @@ impl Updatable for PgUser
 		})
 		.await?;
 
-		let employees = entities.clone().flat_map(User::employee);
+		let employees = entities.clone().filter_map(User::employee);
 		PgEmployee::update(&mut *connection, employees).await?;
 		PgRole::update(connection, entities.map(User::role)).await?;
 		Ok(())

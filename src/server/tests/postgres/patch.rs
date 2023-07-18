@@ -9,7 +9,10 @@ async fn patch() -> DynResult<()>
 {
 	let TestData { admin, client, grunt, guest, manager, pool } =
 		setup("employee_get", DEFAULT_SESSION_TTL, DEFAULT_TIMEOUT).await.map(|mut data| {
-			data.grunt.0.employee.as_mut().map(|e| e.active = false);
+			if let Some(e) = data.grunt.0.employee.as_mut()
+			{
+				e.active = false;
+			}
 			data.grunt.0.password_expires = None;
 			data
 		})?;

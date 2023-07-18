@@ -56,7 +56,6 @@ optional = true
 branch = 'release/0.7'
 features = ['markdown']
 git = 'https://github.com/Iron-E/winvoice-export'
-optional = true
 
 [dependencies.winvoice-match]
 branch = 'release/0.14'
@@ -101,7 +100,6 @@ bin = [
 	'tracing-subscriber',
 	'watchman_client',
 	'winvoice-adapter',
-	'winvoice-export',
 ]
 default = ['postgres']
 postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/postgres']

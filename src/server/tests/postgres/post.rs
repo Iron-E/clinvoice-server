@@ -130,7 +130,8 @@ async fn post() -> DynResult<()>
 		tracing::debug!("\n\nReceived {actual:#?}\n\n");
 		let expected = {
 			let entity = actual.content().entity().unwrap();
-			let row = PgExpenses::retrieve(&pool, Match::from_iter(entity.iter().map(|x| x.id)).into()).await.unwrap();
+			let row =
+				PgExpenses::retrieve(&pool, entity.iter().map(|x| x.id).collect::<Match<_>>().into()).await.unwrap();
 			Response::from(Post::new(row.into(), Code::Success.into()))
 		};
 
@@ -150,7 +151,8 @@ async fn post() -> DynResult<()>
 		tracing::debug!("\n\nReceived {actual:#?}\n\n");
 		let expected = {
 			let entity = actual.content().entity().unwrap();
-			let row = PgExpenses::retrieve(&pool, Match::from_iter(entity.iter().map(|x| x.id)).into()).await.unwrap();
+			let row =
+				PgExpenses::retrieve(&pool, entity.iter().map(|x| x.id).collect::<Match<_>>().into()).await.unwrap();
 			Response::from(Post::new(row.into(), Code::Success.into()))
 		};
 

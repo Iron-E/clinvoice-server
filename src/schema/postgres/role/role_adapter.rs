@@ -57,6 +57,7 @@ pub(in crate::schema::postgres) mod tests
 	/// # Returns
 	///
 	/// `(admin, guest)`.
+	#[allow(clippy::needless_pass_by_ref_mut)]
 	pub async fn setup(tx: &mut Transaction<'_, Postgres>) -> Result<(Role, Role)>
 	{
 		let admin = PgRole::create(&mut *tx, words::sentence(4), Duration::from_secs(SECONDS_PER_MONTH).into()).await?;
