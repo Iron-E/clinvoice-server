@@ -34,7 +34,7 @@ use crate::{
 /// It is capable of managing information about clients, employees, jobs, timesheets, and exporting
 /// the information into the format of your choice.
 #[derive(Clone, Debug, Parser)]
-#[command(version = "0.1.0-alpha.1")]
+#[command(version = "0.1.0")]
 pub struct Args
 {
 	/// The IP and port to bind the Winvoice server to.
@@ -79,7 +79,7 @@ pub struct Args
 	///
 	/// When unspecified, uses [`dirs::state_dir`] or [`dirs::data_local_dir`]— whichever can be
 	/// resolved.
-	#[arg(long, short)]
+	#[arg(long, short = 'L')]
 	log_dir: Option<PathBuf>,
 
 	/// How often new log files will be generated.
