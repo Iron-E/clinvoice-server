@@ -36,7 +36,7 @@ pub struct Postgres
 	///
 	/// The default behavior when host is not specified, or is empty, is to connect to a
 	/// Unix-domain socket
-	#[arg(default_value_t, env = "PGHOST", long, short)]
+	#[arg(default_value_t, env = "PGHOST", long, short = 'H')]
 	host: String,
 
 	/// The password used to establish a master connection with the database.
@@ -44,7 +44,7 @@ pub struct Postgres
 	password: String,
 
 	/// Sets the port to connect to at the server host.
-	#[arg(env = "PGPORT", long, short, value_name = "NUMBER")]
+	#[arg(env = "PGPORT", long, short = 'P', value_name = "NUMBER")]
 	port: Option<u16>,
 
 	/// Determines whether or with what priority a secure SSL TCP/IP connection will be negotiated.

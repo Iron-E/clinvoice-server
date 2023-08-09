@@ -64,7 +64,7 @@ pub struct Args
 	connection_idle: Duration,
 
 	/// The domain name that will be used when creating cookies.
-	#[arg(long, short, value_name = "DOMAIN_NAME")]
+	#[arg(long, short = 'D', value_name = "DOMAIN_NAME")]
 	cookie_domain: Option<String>,
 
 	/// The key which will be used to sign cookies. Should be securely generated, rather than
