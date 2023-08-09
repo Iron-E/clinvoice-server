@@ -24,7 +24,7 @@ pub fn version() -> &'static Version
 		build: BuildMetadata::EMPTY,
 		major: 0,
 		minor: 1,
-		patch: 0,
-		pre: Prerelease::new("alpha.1").unwrap(),
+		patch: 1,
+		pre: Prerelease::EMPTY,
 	})
 }
