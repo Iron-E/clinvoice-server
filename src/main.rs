@@ -120,7 +120,13 @@ use result_ext::ResultExt;
 
 /// Interprets arguments `winvoice` (if any) and executes the implied instruction.
 #[tokio::main]
-async fn main() -> DynResult<()>
+async fn main()
 {
-	Args::parse().run().await
+	if let Err(e) = Args::parse().run().await
+	{
+		eprintln!("{e}");
+
+		#[cfg(debug_assertions)]
+		eprintln!("Raw error: {e:#?}");
+	}
 }
