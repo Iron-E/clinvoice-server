@@ -10,7 +10,10 @@ use std::{
 
 use axum_server::tls_rustls::RustlsConfig;
 use casbin::{CoreApi, Enforcer};
-use clap::Parser;
+use clap::{
+	builder::{PossibleValuesParser, TypedValueParser},
+	Parser,
+};
 use command::Command;
 use futures::TryFutureExt;
 use tracing::{instrument, level_filters::LevelFilter, Instrument};
@@ -96,7 +99,7 @@ pub struct Args
 		default_value_t = LevelFilter::ERROR,
 		long,
 		short,
-		value_parser = ["trace", "debug", "info", "warn", "error", "off"],
+		value_parser = PossibleValuesParser::new(["trace", "debug", "info", "warn", "error", "off"]).map(|v| v.parse::<LevelFilter>().unwrap()),
 	)]
 	log_level: LevelFilter,
 
