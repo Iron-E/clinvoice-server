@@ -57,7 +57,7 @@ use super::*;
 use crate::{
 	api::{
 		request,
-		response::{Export, Get, Login, Logout, Post, Version},
+		response::{Export, Get, Login, Logout, Post, Version, WhoAmI},
 		Code,
 		Status,
 	},
@@ -65,7 +65,7 @@ use crate::{
 	permissions::{Action, Object},
 	r#match::{MatchRole, MatchUser},
 	schema::{RoleAdapter, UserAdapter},
-	server::response::{LoginResponse, LogoutResponse, Response},
+	server::response::{LoginResponse, LogoutResponse, Response, WhoAmIResponse},
 	utils,
 };
 

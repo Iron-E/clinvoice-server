@@ -3,6 +3,7 @@ mod export;
 mod get;
 mod patch;
 mod post;
+mod who_am_i;
 
 use sqlx::Postgres;
 use winvoice_adapter_postgres::{
