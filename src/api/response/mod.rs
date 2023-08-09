@@ -8,6 +8,7 @@ mod login;
 mod logout;
 mod post;
 mod version;
+mod who_am_i;
 
 /// The response to [updating](winvoice_adapter::Updatable::update) some information.
 #[allow(dead_code)]
@@ -19,3 +20,4 @@ pub use login::Login;
 pub use logout::Logout;
 pub use post::Post;
 pub use version::Version;
+pub use who_am_i::WhoAmI;

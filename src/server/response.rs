@@ -10,6 +10,7 @@ mod logout;
 mod partial_eq;
 mod partial_ord;
 mod version;
+mod who_am_i;
 
 use axum::{http::StatusCode, Json};
 pub use delete::DeleteResponse;
@@ -17,6 +18,7 @@ pub use export::ExportResponse;
 pub use login::LoginResponse;
 pub use logout::LogoutResponse;
 pub use version::VersionResponse;
+pub use who_am_i::WhoAmIResponse;
 
 use crate::{api::Code, twin_result::TwinResult};
 
@@ -64,7 +66,7 @@ macro_rules! new_response {
 		{
 			fn from(response: $crate::server::response::Response<$Type>) -> Self
 			{
-                Self(response)
+				Self(response)
 			}
 		}
 	};

@@ -61,6 +61,7 @@ use super::{
 		PatchResponse,
 		Response,
 		ResponseResult,
+		WhoAmIResponse,
 	},
 	ServerState,
 };
@@ -1271,5 +1272,11 @@ where
 				create(code, A::User::create(state.pool(), employee, password, role, username).await)
 			},
 		)
+	}
+
+	/// The handler for the [`routes::WHO_AM_I`](crate::api::routes::USER).
+	pub fn who_am_i(&self) -> MethodRouter<ServerState<A::Db>>
+	{
+		routing::get(|Extension(user): Extension<User>| async move { WhoAmIResponse::from(user.username) })
 	}
 }

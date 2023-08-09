@@ -38,3 +38,6 @@ pub const TIMESHEET: &str = "/timesheet";
 
 /// The API endpoint for [`User`](crate::schema::User)
 pub const USER: &str = "/user";
+
+/// The API endpoint for retrieving the currently logged in [`User`](crate::schema::User)'s information.
+pub const WHO_AM_I: &str = "/whoami";

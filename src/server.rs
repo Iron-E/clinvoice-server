@@ -160,6 +160,7 @@ where
 			.route(routes::ROLE, handler.role())
 			.route(routes::TIMESHEET, handler.timesheet())
 			.route(routes::USER, handler.user())
+			.route(routes::WHO_AM_I, handler.who_am_i())
 			.route_layer(RequireAuthLayer::login())
 			.route(routes::LOGIN, handler.login());
 
