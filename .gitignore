@@ -2,6 +2,10 @@
 cert.pem
 key.pem
 
+# test casbin files
+model.conf
+policy.csv
+
 # vim sessions
 *.vim
 
