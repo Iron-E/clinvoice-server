@@ -8,6 +8,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use axum::http::HeaderValue;
 use axum_server::tls_rustls::RustlsConfig;
 use casbin::{CoreApi, Enforcer};
 use clap::{
@@ -73,6 +74,10 @@ pub struct Args
 	/// TODO: allow changing without restarting the server
 	#[arg(long, short = 'S', value_name = "KEY")]
 	cookie_secret: Option<Vec<u8>>,
+
+	/// A list of origins which are allowed in Cross-Origin Resource Sharing.
+	#[arg(long, short = 'O', value_name = "ORIGIN")]
+	cors_allow_origin: Vec<String>,
 
 	/// The file containing the key to use for TLS. Must be in PEM format.
 	#[arg(long, short, value_name = "FILE")]
@@ -148,6 +153,8 @@ impl Args
 	{
 		init_tracing(self.log_level, self.log_dir, &self.log_rotation)?;
 
+		let origins = self.cors_allow_origin.into_iter().map(|o| o.parse()).collect::<Result<Vec<HeaderValue>, _>>()?;
+
 		let model_path = self.permissions_model.map(utils::leak_string);
 		let policy_path = utils::leak_string(self.permissions_policy);
 
@@ -171,6 +178,7 @@ impl Args
 						self.connection_idle,
 						self.cookie_domain,
 						self.cookie_secret.unwrap_or_else(utils::cookie_secret),
+						origins,
 						permissions,
 						self.session_ttl,
 						self.timeout,
@@ -206,7 +214,7 @@ fn init_tracing(log_level: LevelFilter, log_dir: Option<PathBuf>, log_rotation: 
 		r => unreachable!("`--log-rotation` was an unexpected value: {r}"),
 	}(dir, "server.log"));
 
-	tracing_subscriber::fmt().with_max_level(log_level).with_writer(non_blocking).init();
+	tracing_subscriber::fmt().with_max_level(log_level).with_writer(non_blocking).try_init()?;
 	Ok(())
 }
 

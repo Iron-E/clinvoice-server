@@ -37,7 +37,7 @@ tracing-subscriber = {optional = true, version = '0.3'}
 watchman_client = {optional = true, version = '0.8'}
 
 [dependencies.tower-http]
-features = ['compression-br', 'compression-deflate', 'compression-gzip', 'compression-zstd', 'trace']
+features = ['compression-br', 'compression-deflate', 'compression-gzip', 'compression-zstd', 'cors', 'trace']
 optional = true
 version = '0.4'
 

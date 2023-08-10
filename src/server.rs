@@ -16,7 +16,13 @@ use std::net::SocketAddr;
 use auth::{DbUserStore, InitializableWithAuthorization, RequireAuthLayer, UserStore};
 use axum::{
 	error_handling::HandleErrorLayer,
-	http::{HeaderMap, Request, StatusCode},
+	http::{
+		header::{self, HeaderMap, HeaderName},
+		HeaderValue,
+		Method,
+		Request,
+		StatusCode,
+	},
 	middleware::{self, Next},
 	BoxError,
 	Router,
@@ -34,7 +40,7 @@ use semver::VersionReq;
 use sqlx::{Connection, Database, Executor, QueryBuilder};
 pub use state::ServerState;
 use tower::{timeout, ServiceBuilder};
-use tower_http::{compression::CompressionLayer, trace::TraceLayer};
+use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
 use winvoice_adapter::{fmt::sql, Initializable};
 
 use crate::{
@@ -81,12 +87,13 @@ where
 		self,
 		cookie_domain: Option<String>,
 		cookie_secret: Vec<u8>,
+		cors_allow_origin: Vec<HeaderValue>,
 		state: ServerState<A::Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
 	) -> DynResult<()>
 	{
-		let router = Self::router(cookie_domain, cookie_secret, state, session_ttl, timeout).await?;
+		let router = Self::router(cookie_domain, cookie_secret, cors_allow_origin, state, session_ttl, timeout).await?;
 		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
 		Ok(())
 	}
@@ -95,6 +102,7 @@ where
 	async fn router(
 		cookie_domain: Option<String>,
 		cookie_secret: Vec<u8>,
+		cors_allow_origin: Vec<HeaderValue>,
 		state: ServerState<A::Db>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
@@ -199,6 +207,97 @@ where
 			})
 			.layer(middleware::from_fn(version_checker))
 			.layer(CompressionLayer::new())
+			.layer(
+				CorsLayer::new()
+					.allow_credentials(true)
+					.allow_headers([
+						HeaderName::from_static(api::HEADER),
+						header::ACCEPT,
+						header::ACCEPT_CHARSET,
+						header::ACCEPT_ENCODING,
+						header::ACCEPT_LANGUAGE,
+						header::ACCEPT_RANGES,
+						header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+						header::ACCESS_CONTROL_ALLOW_HEADERS,
+						header::ACCESS_CONTROL_ALLOW_METHODS,
+						header::ACCESS_CONTROL_ALLOW_ORIGIN,
+						header::ACCESS_CONTROL_EXPOSE_HEADERS,
+						header::ACCESS_CONTROL_MAX_AGE,
+						header::ACCESS_CONTROL_REQUEST_HEADERS,
+						header::ACCESS_CONTROL_REQUEST_METHOD,
+						header::AGE,
+						header::ALLOW,
+						header::ALT_SVC,
+						header::AUTHORIZATION,
+						header::CACHE_CONTROL,
+						header::CACHE_STATUS,
+						header::CDN_CACHE_CONTROL,
+						header::CONNECTION,
+						header::CONTENT_DISPOSITION,
+						header::CONTENT_ENCODING,
+						header::CONTENT_LANGUAGE,
+						header::CONTENT_LENGTH,
+						header::CONTENT_LOCATION,
+						header::CONTENT_RANGE,
+						header::CONTENT_SECURITY_POLICY,
+						header::CONTENT_SECURITY_POLICY_REPORT_ONLY,
+						header::CONTENT_TYPE,
+						header::COOKIE,
+						header::DATE,
+						header::DNT,
+						header::ETAG,
+						header::EXPECT,
+						header::EXPIRES,
+						header::FORWARDED,
+						header::FROM,
+						header::HOST,
+						header::IF_MATCH,
+						header::IF_MODIFIED_SINCE,
+						header::IF_NONE_MATCH,
+						header::IF_RANGE,
+						header::IF_UNMODIFIED_SINCE,
+						header::LAST_MODIFIED,
+						header::LINK,
+						header::LOCATION,
+						header::MAX_FORWARDS,
+						header::ORIGIN,
+						header::PRAGMA,
+						header::PROXY_AUTHENTICATE,
+						header::PROXY_AUTHORIZATION,
+						header::PUBLIC_KEY_PINS,
+						header::PUBLIC_KEY_PINS_REPORT_ONLY,
+						header::RANGE,
+						header::REFERER,
+						header::REFERRER_POLICY,
+						header::REFRESH,
+						header::RETRY_AFTER,
+						header::SEC_WEBSOCKET_ACCEPT,
+						header::SEC_WEBSOCKET_EXTENSIONS,
+						header::SEC_WEBSOCKET_KEY,
+						header::SEC_WEBSOCKET_PROTOCOL,
+						header::SEC_WEBSOCKET_VERSION,
+						header::SERVER,
+						header::SET_COOKIE,
+						header::STRICT_TRANSPORT_SECURITY,
+						header::TE,
+						header::TRAILER,
+						header::TRANSFER_ENCODING,
+						header::UPGRADE,
+						header::UPGRADE_INSECURE_REQUESTS,
+						header::USER_AGENT,
+						header::VARY,
+						header::VIA,
+						header::WARNING,
+						header::WWW_AUTHENTICATE,
+						header::X_CONTENT_TYPE_OPTIONS,
+						header::X_DNS_PREFETCH_CONTROL,
+						header::X_FRAME_OPTIONS,
+						header::X_XSS_PROTECTION,
+					])
+					.allow_methods([Method::DELETE, Method::GET, Method::PATCH, Method::POST])
+					.allow_origin(cors_allow_origin)
+					.allow_private_network(true),
+			)
 			.layer(TraceLayer::new_for_http())
 			.with_state(state))
 	}

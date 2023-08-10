@@ -1,6 +1,7 @@
 use core::time::Duration;
 use std::{net::SocketAddr, path::PathBuf};
 
+use axum::http::HeaderValue;
 use axum_server::tls_rustls::RustlsConfig;
 use casbin::Enforcer;
 use clap::Args;
@@ -78,6 +79,7 @@ impl Postgres
 		connection_idle: Duration,
 		cookie_domain: Option<String>,
 		cookie_secret: Vec<u8>,
+		cors_allow_origin: Vec<HeaderValue>,
 		permissions: Lock<Enforcer>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
@@ -114,7 +116,14 @@ impl Postgres
 			PoolOptions::<sqlx::Postgres>::new().idle_timeout(connection_idle).connect_with(connect_options).await?;
 
 		Server::<PgSchema>::new(address, tls)
-			.serve(cookie_domain, cookie_secret, ServerState::new(permissions, pool), session_ttl, timeout)
+			.serve(
+				cookie_domain,
+				cookie_secret,
+				cors_allow_origin,
+				ServerState::new(permissions, pool),
+				session_ttl,
+				timeout,
+			)
 			.await
 	}
 }

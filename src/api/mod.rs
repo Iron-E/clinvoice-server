@@ -12,7 +12,7 @@ use semver::{BuildMetadata, Prerelease, Version};
 pub use status::{Code, Status};
 
 /// The header which is used to advertise the semantic version that the client accepts.
-pub const HEADER: &str = "Api-Version";
+pub const HEADER: &str = "api-version";
 
 /// The current API version.
 static VERSION: OnceLock<Version> = OnceLock::new();
