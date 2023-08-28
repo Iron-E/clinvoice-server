@@ -99,14 +99,6 @@ where
 	Ok((model_path, policy_path))
 }
 
-/// Convert `s` into a `'static` [`str`] by [`Box::leak`]ing it.
-/// TODO: use [`String::leak`] (rust-lang/rust#102929)
-#[allow(dead_code)]
-pub fn leak_string(s: String) -> &'static str
-{
-	Box::leak(s.into_boxed_str())
-}
-
 /// Generate a random [`Currency`] using [`mockd`].
 #[allow(dead_code)]
 #[cfg(test)]

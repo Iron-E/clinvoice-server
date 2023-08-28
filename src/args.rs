@@ -155,8 +155,8 @@ impl Args
 
 		let origins = self.cors_allow_origin.into_iter().map(|o| o.parse()).collect::<Result<Vec<HeaderValue>, _>>()?;
 
-		let model_path = self.permissions_model.map(utils::leak_string);
-		let policy_path = utils::leak_string(self.permissions_policy);
+		let model_path = self.permissions_model.map(|m| -> &'static str { m.leak() });
+		let policy_path: &'static str = self.permissions_policy.leak();
 
 		let (permissions, tls) = futures::try_join!(
 			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into::<DynError>(),
@@ -326,8 +326,8 @@ mod tests
 		)
 		.await?;
 
-		let model_path_str = utils::leak_string(model_path.to_string_lossy().into());
-		let policy_path_str = utils::leak_string(policy_path.to_string_lossy().into());
+		let model_path_str: &'static str = model_path.to_string_lossy().to_owned().leak();
+		let policy_path_str: &'static str = policy_path.to_string_lossy().to_owned().leak();
 
 		let permissions = Enforcer::new(model_path_str, policy_path_str).await.map(lock::new)?;
 		super::init_watchman(permissions.clone(), Some(model_path_str), policy_path_str).await?;

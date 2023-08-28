@@ -201,8 +201,8 @@ macro_rules! fn_setup {
 				policy,
 			)
 			.await
-			.map(|(m, p)| {
-				(utils::leak_string(m.to_string_lossy().into()), utils::leak_string(p.to_string_lossy().into()))
+			.map(|(m, p)| -> (&'static str, &'static str) {
+				(m.to_string_lossy().to_owned().leak(), p.to_string_lossy().to_owned().leak())
 			})?;
 
 			let enforcer = Enforcer::new(model_path, policy_path).await.map(lock::new)?;
@@ -227,8 +227,8 @@ macro_rules! fn_setup {
 					.unwrap();
 
 			#[rustfmt::skip]
-			let (admin, grunt, guest, manager) = futures::try_join!(
-				<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
+					let (admin, grunt, guest, manager) = futures::try_join!(
+						<$Adapter as ::winvoice_adapter::schema::Adapter>::Department::create(&pool,
 					$rand_department_name()
 				).and_then(|department|
 					<$Adapter as ::winvoice_adapter::schema::Adapter>::Employee::create(&pool,
@@ -286,8 +286,8 @@ macro_rules! fn_setup {
 			let TestData { client, admin, .. } = setup("rejections").await?;
 
 			#[rustfmt::skip]
-									 stream::iter([
-						routes::CONTACT, routes::EMPLOYEE, routes::EXPENSE, routes::JOB, routes::LOCATION,
+            stream::iter([
+                routes::CONTACT, routes::EMPLOYEE, routes::EXPENSE, routes::JOB, routes::LOCATION,
 				routes::LOGOUT, routes::ORGANIZATION, routes::ROLE, routes::TIMESHEET, routes::USER,
 			])
 			.for_each(|route| async {
