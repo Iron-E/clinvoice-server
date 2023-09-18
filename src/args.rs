@@ -326,8 +326,8 @@ mod tests
 		)
 		.await?;
 
-		let model_path_str: &'static str = model_path.to_string_lossy().to_owned().leak();
-		let policy_path_str: &'static str = policy_path.to_string_lossy().to_owned().leak();
+		let model_path_str: &'static str = model_path.to_string_lossy().into_owned().leak();
+		let policy_path_str: &'static str = policy_path.to_string_lossy().into_owned().leak();
 
 		let permissions = Enforcer::new(model_path_str, policy_path_str).await.map(lock::new)?;
 		super::init_watchman(permissions.clone(), Some(model_path_str), policy_path_str).await?;

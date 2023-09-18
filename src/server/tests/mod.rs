@@ -202,7 +202,7 @@ macro_rules! fn_setup {
 			)
 			.await
 			.map(|(m, p)| -> (&'static str, &'static str) {
-				(m.to_string_lossy().to_owned().leak(), p.to_string_lossy().to_owned().leak())
+				(m.to_string_lossy().into_owned().leak(), p.to_string_lossy().into_owned().leak())
 			})?;
 
 			let enforcer = Enforcer::new(model_path, policy_path).await.map(lock::new)?;
