@@ -33,10 +33,11 @@ pub(in crate::schema::postgres) mod tests
 
 	use mockd::words;
 	use pretty_assertions::{assert_eq, assert_str_eq};
-	use sqlx::Transaction;
+	use sqlx::{PgPool, Transaction};
 	use tracing_test::traced_test;
 	use winvoice_adapter::{Deletable, Retrievable, Updatable};
 	use winvoice_adapter_postgres::schema::util::{connect, different_string, duration_from};
+	use winvoice_schema::Id;
 
 	use super::{Duration, PgRole, Postgres, Result, RoleAdapter};
 	use crate::{dyn_result::DynResult, schema::Role};
@@ -94,6 +95,13 @@ pub(in crate::schema::postgres) mod tests
 		Ok(())
 	}
 
+	/// Cleanup the [`delete`] function.
+	pub async fn delete_cleanup(pool: &PgPool, ids: &[Id]) -> sqlx::Result<()>
+	{
+		sqlx::query!("DELETE FROM roles WHERE id = ANY($1)", ids).execute(pool).await?;
+		Ok(())
+	}
+
 	#[tokio::test]
 	#[traced_test]
 	async fn delete() -> DynResult<()>
@@ -101,9 +109,12 @@ pub(in crate::schema::postgres) mod tests
 		let pool = connect();
 		let mut tx = pool.begin().await?;
 		let (admin, guest) = setup(&mut tx).await?;
+		tx.commit().await?;
 
-		PgRole::delete(&mut tx, [&admin].into_iter()).await?;
-		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
+		PgRole::delete(&pool, [&admin].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&pool, admin.id(), guest.id());
+		delete_cleanup(&pool, &[admin.id(), guest.id()]).await?;
+
 		assert!(!rows.contains_key(&admin.id()));
 		assert!(rows.contains_key(&guest.id()));
 		assert_eq!(rows.len(), 1);

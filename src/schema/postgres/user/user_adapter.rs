@@ -149,9 +149,15 @@ mod tests
 		let pool = connect();
 		let mut tx = pool.begin().await?;
 		let (guest, admin) = setup(&mut tx).await?;
+		tx.commit().await?;
 
-		PgUser::delete(&mut tx, [&guest].into_iter()).await?;
-		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
+		PgUser::delete(&pool, [&guest].into_iter()).await?;
+		let rows: HashMap<_, _> = select!(&pool, guest.id(), admin.id());
+
+		// wipe the test data ahead of time, in case the assertions fail.
+		sqlx::query!("DELETE FROM users WHERE id = ANY($1)", &[guest.id(), admin.id()]).execute(&pool).await?;
+		role::delete_cleanup(&pool, &[guest.role().id(), admin.role().id()]).await?;
+
 		assert!(!rows.contains_key(&guest.id()));
 		assert!(rows.contains_key(&admin.id()));
 		assert_eq!(rows.len(), 1);
