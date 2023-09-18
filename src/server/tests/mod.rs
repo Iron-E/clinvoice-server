@@ -211,6 +211,7 @@ macro_rules! fn_setup {
 			let server = Server::<$Adapter>::router(
 				None,
 				utils::cookie_secret(),
+				Vec::default(),
 				ServerState::<$Db>::new(enforcer, pool.clone()),
 				DEFAULT_SESSION_TTL,
 				DEFAULT_TIMEOUT,
