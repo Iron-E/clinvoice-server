@@ -14,6 +14,7 @@ use axum::{
 	TypedHeader,
 };
 use futures::{stream, TryFutureExt, TryStreamExt};
+use humantime_serde::Serde;
 use money2::{Exchange, ExchangeRates};
 use reason::Reason;
 use sqlx::{Database, Executor, Pool};
@@ -785,7 +786,7 @@ where
 					Option<DateTime<Utc>>,
 					DateTime<Utc>,
 					BTreeSet<Department>,
-					Duration,
+					Serde<Duration>,
 					Invoice,
 					String,
 					String,
@@ -793,8 +794,10 @@ where
 			>| async move {
 				#[warn(clippy::type_complexity)]
 				const ACTION: Action = Action::Create;
-				let (client, date_close, date_open, departments, increment, invoice, notes, objectives) =
+				let (client, date_close, date_open, departments, serde_increment, invoice, notes, objectives) =
 					request.into_args();
+
+				let increment = serde_increment.into_inner();
 				let code = match state.job_permissions(&user, ACTION).await?
 				{
 					Object::Job => Code::Success,
