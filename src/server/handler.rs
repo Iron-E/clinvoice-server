@@ -141,7 +141,7 @@ where
 
 /// Create routes which are able to be implemented generically.
 macro_rules! route {
-	($Entity:ident, $Args:ty, $($param:ident),+) => {
+	($Entity:ident, $Args:ty, $($param:ident$( = $map:expr)?),+) => {
 		routing::delete(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
@@ -172,6 +172,7 @@ macro_rules! route {
 				 Json(request): Json<request::Post<$Args>>| async move {
 					state.enforce_permission(&user, Object::$Entity, Action::Create).await?;
 					let ( $($param),+ ) = request.into_args();
+					$($(let $param = $map;)*)+
 					create(Code::Success, A::$Entity::create(state.pool(), $($param),+).await)
 				},
 			)
@@ -939,7 +940,7 @@ where
 	/// The handler for the [`routes::ROLE`](crate::api::routes::ROLE).
 	pub fn role(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		route!(Role, (String, Option<Duration>), name, password_ttl)
+		route!(Role, (String, Option<Serde<Duration>>), name, password_ttl = password_ttl.map(Serde::into_inner))
 	}
 
 	/// The handler for the [`routes::TIMESHEET`](crate::api::routes::TIMESHEET).

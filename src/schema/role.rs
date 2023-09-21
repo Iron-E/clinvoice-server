@@ -20,6 +20,7 @@ pub struct Role
 	/// How frequent password rotation must occur for [`User`](super::User) with this [`Role`].
 	///
 	/// [`None`] indicates that the password lasts forever.
+	#[serde(with = "humantime_serde::option")]
 	password_ttl: Option<Duration>,
 }
 
