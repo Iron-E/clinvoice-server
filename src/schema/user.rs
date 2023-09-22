@@ -44,7 +44,7 @@ pub struct User
 	///
 	/// The password in plaintext, which *will* be [hashed](argon2) and stored in the
 	/// [`Database`](sqlx::Database) by [`winvoice_server`].
-	#[serde(serialize_with = "serialize_password")]
+	#[cfg_attr(not(test), serde(serialize_with = "serialize_password"))]
 	pub(crate) password: String,
 
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
@@ -60,17 +60,11 @@ pub struct User
 /// A custom serializer for the [`User`] password which prevents anyone from ever seeing the
 /// password [hash](argon2), and instead prompts them with the intended use of the field when it is
 /// visible.
-#[cfg_attr(not(test), allow(unused_variables))]
-fn serialize_password<S>(orig: &str, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_password<S>(_: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
 	S: Serializer,
 {
-	#[cfg(test)]
-	let ok = serializer.serialize_str(orig)?;
-
-	#[cfg(not(test))]
-	let ok = serializer.serialize_str("[replace this text to set new password]")?;
-
+	let ok = serializer.serialize_str("")?;
 	Ok(ok)
 }
 
