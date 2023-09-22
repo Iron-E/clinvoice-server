@@ -55,28 +55,28 @@ async fn post() -> DynResult<()>
 
 	client
 		.test_post_unauthorized(routes::JOB, &grunt.0, &grunt.1, {
-			let args = job_args();
+			let args = job_args_fmt();
 			(organization.clone(), args.0, args.1, vec![department.clone()], args.2, args.3, args.4, args.5)
 		})
 		.await;
 
 	client
 		.test_post_unauthorized(routes::JOB, &guest.0, &guest.1, {
-			let args = job_args();
+			let args = job_args_fmt();
 			(organization.clone(), args.0, args.1, vec![department.clone()], args.2, args.3, args.4, args.5)
 		})
 		.await;
 
 	let job_ = client
 		.test_post_success::<PgJob, _>(&pool, routes::JOB, &admin.0, &admin.1, {
-			let args = job_args();
+			let args = job_args_fmt();
 			(organization.clone(), args.0, args.1, vec![department.clone()], args.2, args.3, args.4, args.5)
 		})
 		.await;
 
 	#[rustfmt::skip]
 	let job2 = client.test_post_success::<PgJob, _>(&pool, routes::JOB, &manager.0, &manager.1, {
-			 let args = job_args();
+			 let args = job_args_fmt();
 			 (
 				  organization.clone(),
 				  args.0, args.1,
@@ -159,10 +159,10 @@ async fn post() -> DynResult<()>
 		client.logout().await;
 	}
 
-	client.test_post_unauthorized(routes::ROLE, &grunt.0, &grunt.1, role_args()).await;
-	client.test_post_unauthorized(routes::ROLE, &guest.0, &guest.1, role_args()).await;
-	client.test_post_unauthorized(routes::ROLE, &manager.0, &manager.1, role_args()).await;
-	let role = client.test_post_success::<PgRole, _>(&pool, routes::ROLE, &admin.0, &admin.1, role_args()).await;
+	client.test_post_unauthorized(routes::ROLE, &grunt.0, &grunt.1, role_args_fmt()).await;
+	client.test_post_unauthorized(routes::ROLE, &guest.0, &guest.1, role_args_fmt()).await;
+	client.test_post_unauthorized(routes::ROLE, &manager.0, &manager.1, role_args_fmt()).await;
+	let role = client.test_post_success::<PgRole, _>(&pool, routes::ROLE, &admin.0, &admin.1, role_args_fmt()).await;
 
 	client
 		.test_post_unauthorized(

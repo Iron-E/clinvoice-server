@@ -90,6 +90,11 @@ fn expense_args() -> (String, Money, String)
 	(words::word(), Money::new(20_00, 2, utils::rand_currency()), words::sentence(5))
 }
 
+fn fmt_duration(duration: Duration) -> String
+{
+	humantime::format_duration(duration).to_string()
+}
+
 fn job_args() -> (Option<DateTime<Utc>>, DateTime<Utc>, Duration, Invoice, String, String)
 {
 	(
@@ -102,6 +107,12 @@ fn job_args() -> (Option<DateTime<Utc>>, DateTime<Utc>, Duration, Invoice, Strin
 	)
 }
 
+fn job_args_fmt() -> (Option<DateTime<Utc>>, DateTime<Utc>, String, Invoice, String, String)
+{
+	let args = job_args();
+	(args.0, args.1, fmt_duration(args.2), args.3, args.4, args.5)
+}
+
 /// The fields for a [`Location`]
 fn location_args() -> (Option<Currency>, String, Option<Location>)
 {
@@ -112,6 +123,13 @@ fn location_args() -> (Option<Currency>, String, Option<Location>)
 fn role_args() -> (String, Option<Duration>)
 {
 	(words::sentence(5), Duration::from_secs(rand::random::<u16>().into()).into())
+}
+
+/// The fields for a [`Role`]
+fn role_args_fmt() -> (String, Option<String>)
+{
+	let args = role_args();
+	(args.0, args.1.map(fmt_duration))
 }
 
 /// The fields for a [`Timesheet`](winvoice_schema::Timesheet)
