@@ -32,7 +32,7 @@ use super::MatchRole;
 ///     "name": {"regex": "[Aa]ndy$"}
 ///   }},
 ///   "password": "asdlkjasfhjdklasdklj",
-///   "password_set": {"some": "2070-01-01T00:00:00"},
+///   "password_set": "2070-01-01T00:00:00",
 ///   "role": {"name": "Admin"},
 ///   "username": "admin"
 /// }
@@ -42,9 +42,7 @@ use super::MatchRole;
 /// #     ..Default::default()
 /// #   }).into(),
 /// #   password: "asdlkjasfhjdklasdklj".to_owned().into(),
-/// #   password_set: Some(
-/// #     NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().into()
-/// #   ).into(),
+/// #   password_set: NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().into(),
 /// #   role: MatchRole { name: "Admin".to_owned().into(), ..Default::default() },
 /// #   username: "admin".to_owned().into(),
 /// #   ..Default::default()

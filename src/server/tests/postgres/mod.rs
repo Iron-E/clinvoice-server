@@ -7,6 +7,7 @@ mod who_am_i;
 
 use sqlx::Postgres;
 use winvoice_adapter_postgres::{
+	fmt::DateTimeExt,
 	schema::{
 		util::{connect, rand_department_name},
 		PgContact,

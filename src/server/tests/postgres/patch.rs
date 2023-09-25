@@ -12,7 +12,7 @@ async fn patch() -> DynResult<()>
 		{
 			e.active = false;
 		}
-		data.grunt.0.password_expires = None;
+		data.grunt.0.password_set = Utc::now().pg_sanitize();
 		data
 	})?;
 

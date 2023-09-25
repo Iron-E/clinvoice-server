@@ -99,7 +99,7 @@ impl RoleColumns<&'static str>
 	///       .prepare()
 	///       .sql(),
 	///     " SELECT R.id,R.name,R.password_ttl,\
-	///         U.employee_id,U.id,U.password,U.password_expires,U.role_id,U.username;"
+	///         U.employee_id,U.id,U.password,U.password_set,U.role_id,U.username;"
 	///   );
 	/// }
 	///
@@ -113,7 +113,7 @@ impl RoleColumns<&'static str>
 	///       .push_more_columns(&RoleColumns::default().default_scope().r#as(RoleColumns::unique()))
 	///       .prepare()
 	///       .sql(),
-	///     " SELECT U.employee_id,U.id,U.password,U.password_expires,U.role_id,U.username,\
+	///     " SELECT U.employee_id,U.id,U.password,U.password_set,U.role_id,U.username,\
 	///         R.id AS unique_8_role_id,\
 	///         R.name AS unique_8_role_name,\
 	///         R.password_ttl AS unique_8_role_password_ttl;"
