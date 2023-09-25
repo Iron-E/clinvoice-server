@@ -15,7 +15,9 @@ use argon2::{
 	password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
 	Argon2,
 };
-use serde::{Deserialize, Serialize, Serializer};
+#[cfg(not(test))]
+use serde::Serializer;
+use serde::{Deserialize, Serialize};
 use winvoice_schema::{
 	chrono::{DateTime, Duration, OutOfRangeError, Utc},
 	Department,
@@ -60,12 +62,12 @@ pub struct User
 /// A custom serializer for the [`User`] password which prevents anyone from ever seeing the
 /// password [hash](argon2), and instead prompts them with the intended use of the field when it is
 /// visible.
+#[cfg(not(test))]
 fn serialize_password<S>(_: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
 	S: Serializer,
 {
-	let ok = serializer.serialize_str("")?;
-	Ok(ok)
+	serializer.serialize_str("")
 }
 
 impl User
