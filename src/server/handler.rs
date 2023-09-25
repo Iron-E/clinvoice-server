@@ -890,8 +890,9 @@ where
 					)?;
 
 					// HACK: no if-let chain…
-					if let Some(date) = user.password_expires()
+					if let Some(result) = user.password_expires()
 					{
+						let date = result?;
 						if date < Utc::now()
 						{
 							tracing::info!("User {} attempted to login with expired password", user.username());
@@ -1243,6 +1244,27 @@ where
 
 					p => p.unreachable(),
 				};
+
+				// retrieve all passwords which were potentially updated.
+				let passwords = A::User::retrieve(
+					state.pool(),
+					entities
+						.iter()
+						.filter_map(|u| u.password.is_empty().then_some_or(None, Some(u.id())))
+						.collect::<Match<_>>()
+						.into(),
+				)
+				.await
+				.map(|vec| vec.into_iter().map(|user| (user.id(), user.password)).collect::<HashMap<_, _>>())?;
+
+				// ensure that the "new" passwords are actually new, and then update the password set date.
+				entities.iter_mut().for_each(|user| {
+					// TODO: no if-let chain… `if let Some(password) = get() && password != user.password {}`
+					if passwords.get(&user.id()).map_or(false, |password| user.password.ne(password))
+					{
+						user.password_set = Utc::now();
+					}
+				});
 
 				update::<A::User>(state.pool(), entities, code).await
 			},

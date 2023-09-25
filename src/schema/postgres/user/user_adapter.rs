@@ -24,12 +24,12 @@ impl UserAdapter for PgUser
 		let user = User::new(employee, Id::new_v4(), password, role, username).map_err(Error::Decode)?;
 
 		sqlx::query!(
-			"INSERT INTO users (id, employee_id, password, password_expires, role_id, username) VALUES ($1, $2, $3, \
-			 $4, $5, $6);",
+			"INSERT INTO users (id, employee_id, password, password_set, role_id, username) VALUES ($1, $2, $3, $4, \
+			 $5, $6);",
 			user.id(),
 			user.employee().map(|e| e.id),
 			user.password(),
-			user.password_expires().map(|d| d.naive_utc()),
+			user.password_set().naive_utc(),
 			user.role().id(),
 			user.username(),
 		)

@@ -32,7 +32,7 @@ impl Updatable for PgUser
 				q.push_bind(e.employee().map(|emp| emp.id))
 					.push_bind(e.id())
 					.push_bind(e.password())
-					.push_bind(e.password_expires())
+					.push_bind(e.password_set())
 					.push_bind(e.role().id())
 					.push_bind(e.username());
 			});

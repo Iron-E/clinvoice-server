@@ -32,7 +32,7 @@ use super::MatchRole;
 ///     "name": {"regex": "[Aa]ndy$"}
 ///   }},
 ///   "password": "asdlkjasfhjdklasdklj",
-///   "password_expires": {"some": "2070-01-01T00:00:00"},
+///   "password_set": {"some": "2070-01-01T00:00:00"},
 ///   "role": {"name": "Admin"},
 ///   "username": "admin"
 /// }
@@ -42,7 +42,7 @@ use super::MatchRole;
 /// #     ..Default::default()
 /// #   }).into(),
 /// #   password: "asdlkjasfhjdklasdklj".to_owned().into(),
-/// #   password_expires: Some(
+/// #   password_set: Some(
 /// #     NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().into()
 /// #   ).into(),
 /// #   role: MatchRole { name: "Admin".to_owned().into(), ..Default::default() },
@@ -67,7 +67,7 @@ pub struct MatchUser
 
 	#[allow(missing_docs)]
 	#[serde(default)]
-	pub password_expires: MatchOption<Match<NaiveDateTime>>,
+	pub password_set: Match<NaiveDateTime>,
 
 	#[allow(missing_docs)]
 	#[serde(default)]

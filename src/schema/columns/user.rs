@@ -19,8 +19,8 @@ pub struct UserColumns<T = &'static str>
 	/// The name of the `password` column of the `users` table.
 	pub password: T,
 
-	/// The name of the `password_expires` column of the `users` table.
-	pub password_expires: T,
+	/// The name of the `password_set` column of the `users` table.
+	pub password_set: T,
 
 	/// The name of the `role` column of the `users` table.
 	pub role_id: T,
@@ -57,7 +57,7 @@ impl<T> UserColumns<T>
 			employee_id: WithIdentifier(alias, self.employee_id),
 			id: WithIdentifier(alias, self.id),
 			password: WithIdentifier(alias, self.password),
-			password_expires: WithIdentifier(alias, self.password_expires),
+			password_set: WithIdentifier(alias, self.password_set),
 			role_id: WithIdentifier(alias, self.role_id),
 			username: WithIdentifier(alias, self.username),
 		}
@@ -73,7 +73,7 @@ impl UserColumns<&'static str>
 			employee_id: "employee_id",
 			id: "id",
 			password: "password",
-			password_expires: "password_expires",
+			password_set: "password_set",
 			role_id: "role_id",
 			username: "username",
 		}

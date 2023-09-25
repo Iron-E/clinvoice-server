@@ -32,7 +32,7 @@ mod postgres
 				employee: employee_id.map(|_| PgEmployee::row_to_view(EMPLOYEE_COLUMNS, DEPARTMENT_COLUMNS, row)),
 				id: row.try_get(USER_COLUMNS.id)?,
 				password: row.try_get(USER_COLUMNS.password)?,
-				password_expires: row.try_get(USER_COLUMNS.password_expires).map(pg_util::naive_date_opt_to_utc)?,
+				password_set: row.try_get(USER_COLUMNS.password_set).map(pg_util::naive_date_to_utc)?,
 				role: PgRole::row_to_view(&ROLE_COLUMNS, row)?,
 				username: row.try_get(USER_COLUMNS.username)?,
 			})

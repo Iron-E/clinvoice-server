@@ -8,6 +8,6 @@ impl DateTimeExt for User
 {
 	fn pg_sanitize(self) -> Self
 	{
-		Self { password_expires: self.password_expires.map(DateTimeExt::pg_sanitize), ..self }
+		Self { password_set: self.password_set.pg_sanitize(), ..self }
 	}
 }

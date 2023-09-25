@@ -25,7 +25,7 @@ impl From<User> for MatchUser
 	{
 		Self {
 			id: user.id().into(),
-			password_expires: user.password_expires().map(|d| d.naive_local().into()).into(),
+			password_set: user.password_set().naive_local().into(),
 			employee: user.employee.map(Into::into).into(),
 			password: user.password.into(),
 			role: user.role.into(),

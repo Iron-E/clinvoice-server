@@ -18,7 +18,7 @@ where
 			.push(self.employee_id)
 			.push(self.id)
 			.push(self.password)
-			.push(self.password_expires)
+			.push(self.password_set)
 			.push(self.role_id)
 			.push(self.username);
 	}
@@ -34,7 +34,7 @@ where
 			.push(',')
 			.push_equal(self.password, Coalesce(NullIf(values_columns.password, "''"), self.default_scope().password))
 			.push(',')
-			.push_equal(self.password_expires, values_columns.password_expires)
+			.push_equal(self.password_set, values_columns.password_set)
 			.push(',')
 			.push_equal(self.role_id, values_columns.role_id)
 			.push(',')

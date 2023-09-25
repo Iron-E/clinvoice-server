@@ -4,6 +4,7 @@ use argon2::password_hash::Error as PasswordError;
 use casbin::Error as CasbinError;
 use money2::Error as MoneyError;
 use sqlx::Error as SqlxError;
+use winvoice_schema::chrono::OutOfRangeError;
 
 use super::{Code, Status};
 use crate::{
@@ -30,6 +31,14 @@ impl From<&CasbinError> for Status
 impl From<&MoneyError> for Status
 {
 	fn from(error: &MoneyError) -> Self
+	{
+		Self::new(error.into(), error.to_string())
+	}
+}
+
+impl From<&OutOfRangeError> for Status
+{
+	fn from(error: &OutOfRangeError) -> Self
 	{
 		Self::new(error.into(), error.to_string())
 	}

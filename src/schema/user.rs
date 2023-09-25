@@ -17,7 +17,7 @@ use argon2::{
 };
 use serde::{Deserialize, Serialize, Serializer};
 use winvoice_schema::{
-	chrono::{DateTime, Duration, Utc},
+	chrono::{DateTime, Duration, OutOfRangeError, Utc},
 	Department,
 	Employee,
 	Id,
@@ -48,7 +48,7 @@ pub struct User
 	pub(crate) password: String,
 
 	/// The [`DateTime`] that the `password` was set. Used to enforce password rotation.
-	pub(crate) password_expires: Option<DateTime<Utc>>,
+	pub(crate) password_set: DateTime<Utc>,
 
 	/// The [`Role`] assigned to the [`User`].
 	pub(crate) role: Role,
@@ -97,15 +97,15 @@ impl User
 	/// Create a new [`User`].
 	pub fn new(employee: Option<Employee>, id: Id, password: String, role: Role, username: String) -> DynResult<Self>
 	{
-		let password_expires =
-			role.password_ttl().map(|ttl| Duration::from_std(ttl).map(|d| Utc::now() + d)).transpose()?;
+		let mut this = Self { employee, id, role, password, password_set: Utc::now(), username };
 
 		let argon = ARGON.get_or_init(Argon2::default);
 		let salt = SaltString::generate(&mut OsRng);
-		argon.hash_password(password.as_bytes(), &salt).map_all(
-			|hash| Self { employee, id, role, password: hash.to_string(), password_expires, username },
-			|e| format!("{e}").into(),
-		)
+		argon
+			.hash_password(this.password.as_bytes(), &salt)
+			.map_all(|hash| this.password = hash.to_string(), |e| format!("{e}"))?;
+
+		Ok(this)
 	}
 
 	/// Get the [`User`]'s [`argon2`]-hashed password.
@@ -114,10 +114,16 @@ impl User
 		self.password.as_ref()
 	}
 
-	/// Get the [`DateTime`] that the `password` was set. Used to enforce password rotation.
-	pub const fn password_expires(&self) -> Option<DateTime<Utc>>
+	/// Get the [`DateTime`] that the `password` expires. Used to enforce password rotation.
+	pub fn password_expires(&self) -> Option<Result<DateTime<Utc>, OutOfRangeError>>
 	{
-		self.password_expires
+		self.role.password_ttl().map(|ttl| Duration::from_std(ttl).map(|d| self.password_set + d))
+	}
+
+	/// Get the [`DateTime`] that the `password` was set. Used to enforce password rotation.
+	pub const fn password_set(&self) -> DateTime<Utc>
+	{
+		self.password_set
 	}
 
 	/// The [`Id`] of the [`Role`](super::Role) assigned to the [`User`].

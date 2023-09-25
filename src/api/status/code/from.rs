@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 use casbin::Error as CasbinError;
 use money2::Error as MoneyError;
 use sqlx::Error as SqlxError;
+use winvoice_schema::chrono::OutOfRangeError;
 
 use super::Code;
 
@@ -65,6 +66,14 @@ impl From<&MoneyError> for Code
 	fn from(_: &MoneyError) -> Self
 	{
 		Self::ExchangeError
+	}
+}
+
+impl From<&OutOfRangeError> for Code
+{
+	fn from(_: &OutOfRangeError) -> Self
+	{
+		Self::EncodingError
 	}
 }
 
