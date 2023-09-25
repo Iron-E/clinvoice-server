@@ -1,6 +1,6 @@
 //! Implementations of [`From`] for [`Code`].
 
-use argon2::password_hash::Error as PasswordError;
+use argon2::password_hash::Error as HashError;
 use axum::http::StatusCode;
 use casbin::Error as CasbinError;
 use money2::Error as MoneyError;
@@ -61,6 +61,20 @@ impl From<&CasbinError> for Code
 	}
 }
 
+impl From<&HashError> for Code
+{
+	fn from(error: &HashError) -> Self
+	{
+		match error
+		{
+			HashError::B64Encoding(_) => Self::EncodingError,
+			HashError::Crypto => Self::CryptError,
+			HashError::Password => Self::InvalidCredentials,
+			_ => Self::Other,
+		}
+	}
+}
+
 impl From<&MoneyError> for Code
 {
 	fn from(_: &MoneyError) -> Self
@@ -74,20 +88,6 @@ impl From<&OutOfRangeError> for Code
 	fn from(_: &OutOfRangeError) -> Self
 	{
 		Self::EncodingError
-	}
-}
-
-impl From<&PasswordError> for Code
-{
-	fn from(error: &PasswordError) -> Self
-	{
-		match error
-		{
-			PasswordError::B64Encoding(_) => Self::EncodingError,
-			PasswordError::Crypto => Self::CryptError,
-			PasswordError::Password => Self::InvalidCredentials,
-			_ => Self::Other,
-		}
 	}
 }
 

@@ -1,6 +1,6 @@
 //! Contains the [`From`] implementations for [`Status`].
 
-use argon2::password_hash::Error as PasswordError;
+use argon2::password_hash::Error as HashError;
 use casbin::Error as CasbinError;
 use money2::Error as MoneyError;
 use sqlx::Error as SqlxError;
@@ -28,6 +28,14 @@ impl From<&CasbinError> for Status
 	}
 }
 
+impl From<&HashError> for Status
+{
+	fn from(error: &HashError) -> Self
+	{
+		Self::new(error.into(), error.to_string())
+	}
+}
+
 impl From<&MoneyError> for Status
 {
 	fn from(error: &MoneyError) -> Self
@@ -39,14 +47,6 @@ impl From<&MoneyError> for Status
 impl From<&OutOfRangeError> for Status
 {
 	fn from(error: &OutOfRangeError) -> Self
-	{
-		Self::new(error.into(), error.to_string())
-	}
-}
-
-impl From<&PasswordError> for Status
-{
-	fn from(error: &PasswordError) -> Self
 	{
 		Self::new(error.into(), error.to_string())
 	}

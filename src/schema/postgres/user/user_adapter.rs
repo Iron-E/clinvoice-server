@@ -21,7 +21,7 @@ impl UserAdapter for PgUser
 	where
 		Conn: Executor<'connection, Database = Postgres>,
 	{
-		let user = User::new(employee, Id::new_v4(), password, role, username).map_err(Error::Decode)?;
+		let user = User::new(employee, Id::new_v4(), password, role, username).map_err(|e| Error::Decode(e.into()))?;
 
 		sqlx::query!(
 			"INSERT INTO users (id, employee_id, password, password_set, role_id, username) VALUES ($1, $2, $3, $4, \

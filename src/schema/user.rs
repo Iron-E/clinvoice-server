@@ -12,7 +12,7 @@ mod from_row;
 use std::sync::OnceLock;
 
 use argon2::{
-	password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+	password_hash::{rand_core::OsRng, Error as HashError, PasswordHasher, SaltString},
 	Argon2,
 };
 #[cfg(not(test))]
@@ -26,7 +26,6 @@ use winvoice_schema::{
 };
 
 use super::Role;
-use crate::{dyn_result::DynResult, ResultExt};
 
 static ARGON: OnceLock<Argon2> = OnceLock::new();
 
@@ -97,16 +96,16 @@ impl User
 	}
 
 	/// Create a new [`User`].
-	pub fn new(employee: Option<Employee>, id: Id, password: String, role: Role, username: String) -> DynResult<Self>
+	pub fn new(
+		employee: Option<Employee>,
+		id: Id,
+		password: String,
+		role: Role,
+		username: String,
+	) -> Result<Self, HashError>
 	{
 		let mut this = Self { employee, id, role, password, password_set: Utc::now(), username };
-
-		let argon = ARGON.get_or_init(Argon2::default);
-		let salt = SaltString::generate(&mut OsRng);
-		argon
-			.hash_password(this.password.as_bytes(), &salt)
-			.map_all(|hash| this.password = hash.to_string(), |e| format!("{e}"))?;
-
+		this.hash_password()?;
 		Ok(this)
 	}
 
@@ -114,6 +113,16 @@ impl User
 	pub fn password(&self) -> &str
 	{
 		self.password.as_ref()
+	}
+
+	/// [Hash](Argon2::hash_password) the current value of `self.password`.
+	pub fn hash_password(&mut self) -> Result<(), HashError>
+	{
+		let argon = ARGON.get_or_init(Argon2::default);
+		let salt = SaltString::generate(&mut OsRng);
+		let hash = argon.hash_password(self.password.as_bytes(), &salt)?;
+		self.password = hash.to_string();
+		Ok(())
 	}
 
 	/// Get the [`DateTime`] that the `password` expires. Used to enforce password rotation.

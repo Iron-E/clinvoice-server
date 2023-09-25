@@ -1,5 +1,6 @@
 //! Contains [`From`] implementations for a [`DeleteResponse`].
 
+use argon2::password_hash::Error as HashError;
 use sqlx::Error as SqlxError;
 
 use super::DeleteResponse;
@@ -10,6 +11,14 @@ impl From<Code> for DeleteResponse
 	fn from(code: Code) -> Self
 	{
 		Self::from(Status::from(code))
+	}
+}
+
+impl From<HashError> for DeleteResponse
+{
+	fn from(error: HashError) -> Self
+	{
+		Self::from(Status::from(&error))
 	}
 }
 

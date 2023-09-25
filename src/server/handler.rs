@@ -3,7 +3,7 @@ mod reason;
 use core::{marker::PhantomData, time::Duration};
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use argon2::{password_hash::Error as HashError, Argon2, PasswordHash, PasswordVerifier};
 use axum::{
 	extract::State,
 	headers::{authorization::Basic, Authorization},
@@ -1258,13 +1258,16 @@ where
 				.map(|vec| vec.into_iter().map(|user| (user.id(), user.password)).collect::<HashMap<_, _>>())?;
 
 				// ensure that the "new" passwords are actually new, and then update the password set date.
-				entities.iter_mut().for_each(|user| {
+				entities.iter_mut().try_for_each(|user| {
 					// TODO: no if-let chain… `if let Some(password) = get() && password != user.password {}`
 					if passwords.get(&user.id()).map_or(false, |password| user.password.ne(password))
 					{
+						user.hash_password()?;
 						user.password_set = Utc::now();
 					}
-				});
+
+					Ok::<_, HashError>(())
+				})?;
 
 				update::<A::User>(state.pool(), entities, code).await
 			},
