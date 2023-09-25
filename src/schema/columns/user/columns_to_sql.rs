@@ -1,10 +1,7 @@
-mod coalesce;
-
 use core::fmt::Display;
 
-use coalesce::Coalesce;
 use sqlx::{Database, QueryBuilder};
-use winvoice_adapter::fmt::{ColumnsToSql, QueryBuilderExt};
+use winvoice_adapter::fmt::{Coalesce, ColumnsToSql, NullIf, QueryBuilderExt};
 
 use super::UserColumns;
 
@@ -35,7 +32,7 @@ where
 		query
 			.push_equal(self.employee_id, values_columns.employee_id)
 			.push(',')
-			.push_equal(self.password, Coalesce(values_columns.password, self.default_scope().password))
+			.push_equal(self.password, Coalesce(NullIf(values_columns.password, "''"), self.default_scope().password))
 			.push(',')
 			.push_equal(self.password_expires, values_columns.password_expires)
 			.push(',')
