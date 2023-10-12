@@ -54,7 +54,7 @@ pub struct User
 	/// The [`Role`] assigned to the [`User`].
 	pub(crate) role: Role,
 
-	/// Get the [`User`]'s username.
+	/// Post the [`User`]'s username.
 	pub(crate) username: String,
 }
 
@@ -109,7 +109,7 @@ impl User
 		Ok(this)
 	}
 
-	/// Get the [`User`]'s [`argon2`]-hashed password.
+	/// Post the [`User`]'s [`argon2`]-hashed password.
 	pub fn password(&self) -> &str
 	{
 		self.password.as_ref()
@@ -125,13 +125,13 @@ impl User
 		Ok(())
 	}
 
-	/// Get the [`DateTime`] that the `password` expires. Used to enforce password rotation.
+	/// Post the [`DateTime`] that the `password` expires. Used to enforce password rotation.
 	pub fn password_expires(&self) -> Option<Result<DateTime<Utc>, OutOfRangeError>>
 	{
 		self.role.password_ttl().map(|ttl| Duration::from_std(ttl).map(|d| self.password_set + d))
 	}
 
-	/// Get the [`DateTime`] that the `password` was set. Used to enforce password rotation.
+	/// Post the [`DateTime`] that the `password` was set. Used to enforce password rotation.
 	pub const fn password_set(&self) -> DateTime<Utc>
 	{
 		self.password_set
@@ -143,7 +143,7 @@ impl User
 		&self.role
 	}
 
-	/// Get the [`User`]'s username.
+	/// Post the [`User`]'s username.
 	pub fn username(&self) -> &str
 	{
 		self.username.as_ref()

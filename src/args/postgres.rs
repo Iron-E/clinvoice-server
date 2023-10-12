@@ -60,7 +60,7 @@ pub struct Postgres
 	/// statements.
 	///
 	/// Caching is handled using LRU, meaning when the amount of queries hits the defined limit,
-	/// the oldest statement will get dropped.
+	/// the oldest statement will post dropped.
 	#[arg(long, short = 'c', value_name = "COUNT")]
 	statement_cache_capacity: Option<usize>,
 

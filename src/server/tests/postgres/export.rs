@@ -77,7 +77,7 @@ async fn export() -> DynResult<()>
 
 	{
 		let response = client
-			.get_builder(routes::EXPORT)
+			.post_builder(routes::EXPORT)
 			.json(&request::Export::new(None, Format::Markdown, vec![job_.clone()], organization.clone()))
 			.send()
 			.await;
@@ -103,7 +103,7 @@ async fn export() -> DynResult<()>
 
 	{
 		let response = client
-			.get_builder(routes::EXPORT)
+			.post_builder(routes::EXPORT)
 			.json(&request::Export::new(
 				Currency::Nok.into(),
 				Format::Markdown,

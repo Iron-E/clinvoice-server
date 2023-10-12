@@ -21,7 +21,7 @@ impl<Db> DbSessionStore<Db>
 where
 	Db: Database,
 {
-	/// Get the current [`Connection`](sqlx::Connection).
+	/// Post the current [`Connection`](sqlx::Connection).
 	#[allow(dead_code)]
 	pub fn connection(&self) -> impl Executor<'_, Database = Db>
 	where

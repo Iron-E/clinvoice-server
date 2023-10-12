@@ -44,7 +44,7 @@ where
 
 		if !can_get_all
 		{
-			// if they cannot get their assigned department, then they cannot
+			// if they cannot post their assigned department, then they cannot
 			// retrieve ANY departments.
 			object = Object::AssignedDepartment;
 			self.enforce_permission(user, object, action).await?;
@@ -164,7 +164,7 @@ where
 		Self { pool, permissions }
 	}
 
-	/// Get the [`Pool`] of connections to the [`Database`].
+	/// Post the [`Pool`] of connections to the [`Database`].
 	pub const fn pool(&self) -> &Pool<Db>
 	{
 		&self.pool

@@ -69,7 +69,7 @@ use super::{
 use crate::{
 	api::{
 		request,
-		response::{Get, Put},
+		response::{Post, Put},
 		Code,
 		Status,
 	},
@@ -105,13 +105,13 @@ async fn retrieve<R>(
 	pool: &Pool<R::Db>,
 	condition: R::Match,
 	on_success: Code,
-) -> ResponseResult<Get<<R as Retrievable>::Entity>>
+) -> ResponseResult<Post<<R as Retrievable>::Entity>>
 where
 	R: Retrievable,
 {
 	R::retrieve(pool, condition).await.map_all(
-		|vec| Response::from(Get::new(vec, on_success.into())),
-		|e| Response::from(Get::from(Status::from(&e))),
+		|vec| Response::from(Post::new(vec, on_success.into())),
+		|e| Response::from(Post::from(Status::from(&e))),
 	)
 }
 
@@ -126,7 +126,7 @@ where
 	tx.commit().await.map_all(|_| PatchResponse::from(on_success), PatchResponse::from)
 }
 
-/// Return a [`ResponseResult`] for when a [`User`] tries to GET something, but they *effectively*
+/// Return a [`ResponseResult`] for when a [`User`] tries to POST something, but they *effectively*
 /// have no permissions (rather than outright having no permissions).
 #[allow(clippy::unnecessary_wraps)]
 fn no_effective_perms<R>(action: Action, object: Object, reason: Reason) -> ResponseResult<R>
@@ -150,10 +150,10 @@ macro_rules! route {
 					delete::<A::$Entity>(state.pool(), request.into_entities(), Code::Success).await
 				},
 			)
-			.get(
+			.post(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Get<<A::$Entity as Retrievable>::Match>>| async move {
+				 Json(request): Json<request::Post<<A::$Entity as Retrievable>::Match>>| async move {
 					state.enforce_permission(&user, Object::$Entity, Action::Retrieve).await?;
 					retrieve::<A::$Entity>(state.pool(), request.into_condition(), Code::Success).await
 				},
@@ -223,10 +223,10 @@ where
 				delete::<A::Department>(state.pool(), entities, code).await
 			},
 		)
-		.get(
+		.post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Get<MatchDepartment>>| async move {
+			 Json(request): Json<request::Post<MatchDepartment>>| async move {
 				const ACTION: Action = Action::Retrieve;
 				let mut condition = request.into_condition();
 				let code = match state.department_permissions(&user, ACTION).await?
@@ -337,10 +337,10 @@ where
 				delete::<A::Employee>(state.pool(), entities, code).await
 			},
 		)
-		.get(
+		.post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Get<MatchEmployee>>| async move {
+			 Json(request): Json<request::Post<MatchEmployee>>| async move {
 				const ACTION: Action = Action::Retrieve;
 				let mut condition = request.into_condition();
 				let code = match state.employee_permissions(&user, ACTION).await?
@@ -502,7 +502,7 @@ where
 				{
 					Object::Expenses => Code::Success,
 
-					// The user can only get expenses iff they are in the same department, or were created
+					// The user can only post expenses iff they are in the same department, or were created
 					// by that user.
 					p =>
 					{
@@ -517,10 +517,10 @@ where
 				delete::<A::Expenses>(state.pool(), entities, code).await
 			},
 		)
-		.get(
+		.post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Get<MatchExpense>>| async move {
+			 Json(request): Json<request::Post<MatchExpense>>| async move {
 				const ACTION: Action = Action::Retrieve;
 				let permission = state.expense_permissions(&user, ACTION).await?;
 				enforce_effective_permissions!(user, ACTION, permission);
@@ -529,25 +529,25 @@ where
 
 				let mut vec = A::Expenses::retrieve(state.pool(), condition)
 					.await
-					.map_err(|e| Response::from(Get::<Expense>::from(Status::from(&e))))?;
+					.map_err(|e| Response::from(Post::<Expense>::from(Status::from(&e))))?;
 
 				let code = match permission
 				{
 					Object::Expenses => Code::Success,
 
-					// The user can only get expenses iff they are in the same department, or were created
+					// The user can only post expenses iff they are in the same department, or were created
 					// by that user.
 					p =>
 					{
 						retain_matching::<A>(state.pool(), &user, &mut vec, p)
 							.await
-							.map_err(|e| Response::from(Get::from(Status::from(&e))))?;
+							.map_err(|e| Response::from(Post::from(Status::from(&e))))?;
 
 						Code::SuccessForPermissions
 					},
 				};
 
-				Ok::<_, Response<_>>(Response::from(Get::new(vec, code.into())))
+				Ok::<_, Response<_>>(Response::from(Post::new(vec, code.into())))
 			},
 		)
 		.patch(
@@ -564,7 +564,7 @@ where
 				{
 					Object::Expenses => Code::Success,
 
-					// The user can only get expenses iff they are in the same department, or were created
+					// The user can only post expenses iff they are in the same department, or were created
 					// by that user.
 					p =>
 					{
@@ -612,7 +612,7 @@ where
 				{
 					Object::Expenses => Code::Success,
 
-					// The user can only get expenses iff they are in the same department, or were created
+					// The user can only post expenses iff they are in the same department, or were created
 					// by that user.
 					p =>
 					{
@@ -647,7 +647,7 @@ where
 	/// The handler for the [`routes::EXPORT`](crates::api::routes::EXPORT).
 	pub fn export(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::get(|State(state): State<ServerState<A::Db>>, Json(request): Json<request::Export>| async move {
+		routing::post(|State(state): State<ServerState<A::Db>>, Json(request): Json<request::Export>| async move {
 			let rates_cell = OnceCell::<ExchangeRates>::new();
 			let requested_currency = request.currency();
 			let format = request.format();
@@ -719,10 +719,10 @@ where
 				delete::<A::Job>(state.pool(), entities, code).await
 			},
 		)
-		.get(
+		.post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Get<MatchJob>>| async move {
+			 Json(request): Json<request::Post<MatchJob>>| async move {
 				const ACTION: Action = Action::Retrieve;
 				let mut condition = request.into_condition();
 
@@ -853,7 +853,7 @@ where
 	/// The handler for the [`routes::LOGIN`](crate::api::routes::LOGIN).
 	pub fn login(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::get(
+		routing::post(
 			|mut auth: AuthContext<A::Db>,
 			 State(state): State<ServerState<A::Db>>,
 			 TypedHeader(credentials): TypedHeader<Authorization<Basic>>| {
@@ -917,7 +917,7 @@ where
 	/// The handler for the [`routes::LOGOUT`](crate::api::routes::LOGOUT).
 	pub fn logout(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::get(|mut auth: AuthContext<A::Db>| {
+		routing::post(|mut auth: AuthContext<A::Db>| {
 			async move {
 				auth.logout().await;
 				LogoutResponse::from(Code::Success)
@@ -989,10 +989,10 @@ where
 				delete::<A::Timesheet>(state.pool(), entities, code).await
 			},
 		)
-		.get(
+		.post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Get<MatchTimesheet>>| async move {
+			 Json(request): Json<request::Post<MatchTimesheet>>| async move {
 				const ACTION: Action = Action::Retrieve;
 				let mut condition = request.into_condition();
 				let code = match state.timesheet_permissions(&user, ACTION).await?
@@ -1169,10 +1169,10 @@ where
 				delete::<A::User>(state.pool(), entities, code).await
 			},
 		)
-		.get(
+		.post(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Get<MatchUser>>| async move {
+			 Json(request): Json<request::Post<MatchUser>>| async move {
 				const ACTION: Action = Action::Retrieve;
 				let mut condition = request.into_condition();
 				let code = match state.user_permissions(&user, ACTION).await?
@@ -1259,7 +1259,7 @@ where
 
 				// ensure that the "new" passwords are actually new, and then update the password set date.
 				entities.iter_mut().try_for_each(|user| {
-					// TODO: no if-let chain… `if let Some(password) = get() && password != user.password {}`
+					// TODO: no if-let chain… `if let Some(password) = post() && password != user.password {}`
 					if passwords.get(&user.id()).map_or(false, |password| user.password.ne(password))
 					{
 						user.hash_password()?;
@@ -1306,6 +1306,6 @@ where
 	/// The handler for the [`routes::WHO_AM_I`](crate::api::routes::USER).
 	pub fn who_am_i(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::get(|Extension(user): Extension<User>| async move { WhoAmIResponse::from(user.username) })
+		routing::post(|Extension(user): Extension<User>| async move { WhoAmIResponse::from(user.username) })
 	}
 }

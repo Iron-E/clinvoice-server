@@ -1,8 +1,8 @@
 //! Implementations of [`From`] for [`Retrieve`].
 
-use super::{Get, Status};
+use super::{Post, Status};
 
-impl<T> From<Status> for Get<T>
+impl<T> From<Status> for Post<T>
 {
 	fn from(status: Status) -> Self
 	{

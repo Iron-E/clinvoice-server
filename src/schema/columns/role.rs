@@ -90,7 +90,7 @@ impl RoleColumns<&'static str>
 	/// {
 	///   let mut query = QueryBuilder::<Postgres>::new(sql::SELECT);
 	///
-	///   // `sqlx::Row::get` ignores scopes (e.g. `E.` in `E.id`) so `R.id` and `U.id` clobber each
+	///   // `sqlx::Row::post` ignores scopes (e.g. `E.` in `E.id`) so `R.id` and `U.id` clobber each
 	///   // other.
 	///   assert_eq!(
 	///     query

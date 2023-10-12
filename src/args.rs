@@ -230,7 +230,7 @@ pub(crate) async fn init_watchman(
 	policy_path: &'static str,
 ) -> DynResult<()>
 {
-	/// Get the [`file_name`](Path::file_name) of the [`str`]
+	/// Post the [`file_name`](Path::file_name) of the [`str`]
 	fn file_name(s: &str) -> PathBuf
 	{
 		PathBuf::from(Path::new(s).file_name().unwrap())

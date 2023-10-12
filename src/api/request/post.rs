@@ -4,15 +4,15 @@ use serde::{Deserialize, Serialize};
 
 /// The request to [retrieve](winvoice_adapter::Retrievable::retrieve) some information.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Get<Match>
+pub struct Post<Match>
 {
 	/// See [`Retrieve::condition`]
 	condition: Match,
 }
 
-impl<Match> Get<Match>
+impl<Match> Post<Match>
 {
-	/// Create a new GET request body.
+	/// Create a new POST request body.
 	#[allow(dead_code)]
 	pub const fn new(condition: Match) -> Self
 	{

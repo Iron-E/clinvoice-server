@@ -20,7 +20,7 @@ use crate::{
 	api::{
 		self,
 		request,
-		response::{Delete, Get, Login, Logout, Patch, Put},
+		response::{Delete, Login, Logout, Patch, Post, Put},
 		routes,
 		Code,
 		Status,
@@ -29,7 +29,7 @@ use crate::{
 	server::response::Response,
 };
 
-/// Get the default version requirement for tests.
+/// Post the default version requirement for tests.
 fn version_req() -> &'static str
 {
 	static VERSION_REQ: OnceLock<String> = OnceLock::new();
@@ -56,8 +56,8 @@ pub trait TestClientExt
 	/// Make a DELETE [`RequestBuilder`] on the given `route`.
 	fn delete_builder(&self, route: &str) -> RequestBuilder;
 
-	/// Make a GET [`RequestBuilder`] on the given `route`.
-	fn get_builder(&self, route: &str) -> RequestBuilder;
+	/// Make a POST [`RequestBuilder`] on the given `route`.
+	fn post_builder(&self, route: &str) -> RequestBuilder;
 
 	/// Log in a [`User`](crate::schema::User) into the [`TestClient`].
 	async fn login(&self, username: &str, password: &str);
@@ -71,7 +71,7 @@ pub trait TestClientExt
 	/// Make a PUT [`RequestBuilder`] on the given `route`.
 	fn put_builder(&self, route: &str) -> RequestBuilder;
 
-	/// assert logged in user GET with permissions is accepted
+	/// assert logged in user POST with permissions is accepted
 	async fn test_get_success<'ent, M, E, Iter>(
 		&self,
 		route: &str,
@@ -85,7 +85,7 @@ pub trait TestClientExt
 		Iter: Debug + Iterator<Item = &'ent E> + Send,
 		M: Debug + Serialize + Send + Sync;
 
-	/// assert logged in user GET with permissions is rejected
+	/// assert logged in user POST with permissions is rejected
 	async fn test_get_unauthorized<M>(&self, route: &str, user: &User, password: &str)
 	where
 		M: Debug + Default + Serialize + Send + Sync;
@@ -138,16 +138,16 @@ impl TestClientExt for TestClient
 		self.delete(route).header(api::HEADER, version_req())
 	}
 
-	fn get_builder(&self, route: &str) -> RequestBuilder
+	fn post_builder(&self, route: &str) -> RequestBuilder
 	{
-		self.get(route).header(api::HEADER, version_req())
+		self.post(route).header(api::HEADER, version_req())
 	}
 
 	#[tracing::instrument(skip(self))]
 	async fn login(&self, username: &str, password: &str)
 	{
 		let response = self
-			.get(routes::LOGIN)
+			.post(routes::LOGIN)
 			.header(api::HEADER, version_req())
 			.header(header::AUTHORIZATION, format!("Basic {}", base64::encode(format!("{username}:{password}"))))
 			.send()
@@ -161,7 +161,7 @@ impl TestClientExt for TestClient
 	#[tracing::instrument(skip(self))]
 	async fn logout(&self)
 	{
-		let response = self.get(routes::LOGOUT).header(api::HEADER, version_req()).send().await;
+		let response = self.post(routes::LOGOUT).header(api::HEADER, version_req()).send().await;
 		let expected = LogoutResponse::from(Code::Success);
 		assert_eq!(response.status(), expected.status());
 		assert_eq!(&response.json::<Logout>().await, expected.content());
@@ -197,10 +197,10 @@ impl TestClientExt for TestClient
 		tracing::trace!("\n");
 
 		self.login(user.username(), password).await;
-		let response = self.get_builder(route).json(&request::Get::new(condition)).send().await;
+		let response = self.post_builder(route).json(&request::Post::new(condition)).send().await;
 
-		let actual = Response::new(response.status(), response.json::<Get<E>>().await);
-		let expected = Response::from(Get::<E>::new(
+		let actual = Response::new(response.status(), response.json::<Post<E>>().await);
+		let expected = Response::from(Post::<E>::new(
 			entities.into_iter().cloned().collect(),
 			code.unwrap_or(Code::Success).into(),
 		));
@@ -225,10 +225,10 @@ impl TestClientExt for TestClient
 		tracing::trace!("\n");
 
 		self.login(user.username(), password).await;
-		let response = self.get_builder(route).json(&request::Get::new(M::default())).send().await;
+		let response = self.post_builder(route).json(&request::Post::new(M::default())).send().await;
 
-		let actual = Response::new(response.status(), response.json::<Get<()>>().await);
-		let expected = Response::from(Get::<()>::from(Status::from(Code::Unauthorized)));
+		let actual = Response::new(response.status(), response.json::<Post<()>>().await);
+		let expected = Response::from(Post::<()>::from(Status::from(Code::Unauthorized)));
 
 		assert_eq!(actual.status(), expected.status());
 		assert_eq!(actual.content().entities(), expected.content().entities());
@@ -286,12 +286,12 @@ impl TestClientExt for TestClient
 					Method::Patch if expected =>
 					{
 						tracing::debug!(parent: None, "checking if {retrieved:#?} is {entity:#?}");
-						assert_eq!(retrieved.get(0), Some(&entity))
+						assert_eq!(retrieved.post(0), Some(&entity))
 					},
 					Method::Patch =>
 					{
 						tracing::debug!(parent: None, "checking if {retrieved:#?} is NOT {entity:#?}");
-						assert_ne!(retrieved.get(0), Some(&entity))
+						assert_ne!(retrieved.post(0), Some(&entity))
 					},
 				}
 			}

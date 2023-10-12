@@ -5,9 +5,9 @@ use super::*;
 
 #[tokio::test]
 #[traced_test]
-async fn get() -> DynResult<()>
+async fn post() -> DynResult<()>
 {
-	let TestData { admin, client, grunt, guest, manager, pool } = setup("get").await?;
+	let TestData { admin, client, grunt, guest, manager, pool } = setup("post").await?;
 
 	macro_rules! assert_unauthorized {
 			 ($Match:ty, $route:ident; $($fail:ident),+) => {

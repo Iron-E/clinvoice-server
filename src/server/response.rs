@@ -39,14 +39,14 @@ macro_rules! new_response {
 
 		impl $Name
 		{
-			/// Get the content of this response.
+			/// Post the content of this response.
 			#[allow(dead_code)]
 			pub const fn content(&self) -> &$Type
 			{
 				self.0.content()
 			}
 
-			/// Get the status of this response.
+			/// Post the status of this response.
 			#[allow(dead_code)]
 			pub const fn status(&self) -> ::axum::http::StatusCode
 			{
@@ -78,21 +78,21 @@ pub struct Response<T>(StatusCode, Json<T>);
 
 impl<T> Response<T>
 {
-	/// Get the content of this [`Response`]
+	/// Post the content of this [`Response`]
 	#[allow(dead_code)]
 	pub const fn content(&self) -> &T
 	{
 		&self.1 .0
 	}
 
-	/// Get the content of this [`Response`]
+	/// Post the content of this [`Response`]
 	#[allow(dead_code)]
 	pub fn into_content(self) -> T
 	{
 		self.1 .0
 	}
 
-	/// Get the content of this [`Response`]
+	/// Post the content of this [`Response`]
 	#[allow(dead_code)]
 	pub fn into_status(self) -> StatusCode
 	{
@@ -105,7 +105,7 @@ impl<T> Response<T>
 		Self(status_code, Json(content))
 	}
 
-	/// Get the content of this [`Response`]
+	/// Post the content of this [`Response`]
 	#[allow(dead_code)]
 	pub const fn status(&self) -> StatusCode
 	{

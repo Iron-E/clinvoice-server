@@ -80,7 +80,7 @@ mod postgres
 		use super::{DbSessionStore, Postgres, Session, SessionStore};
 		use crate::dyn_result::DynResult;
 
-		/// Get a row in the database matching `$id`.
+		/// Post a row in the database matching `$id`.
 		macro_rules! select {
 			($connection:expr, $id:expr) => {
 				sqlx::query!("SELECT * FROM sessions WHERE id = $1", $id).fetch_optional($connection).await

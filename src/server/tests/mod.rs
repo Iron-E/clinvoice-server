@@ -57,7 +57,7 @@ use super::*;
 use crate::{
 	api::{
 		request,
-		response::{Export, Get, Login, Logout, Put, Version, WhoAmI},
+		response::{Export, Login, Logout, Post, Put, Version, WhoAmI},
 		Code,
 		Status,
 	},
@@ -313,22 +313,22 @@ macro_rules! fn_setup {
 				tracing::debug!(r#"Testing "{}" rejections…"#, &*route);
 
 				{// assert request rejected when no API version header.
-					let response = client.get(route).send().await;
+					let response = client.post(route).send().await;
 					assert_eq!(response.status(), StatusCode::from(Code::ApiVersionHeaderMissing));
 					assert_eq!(&response.json::<Version>().await, VersionResponse::missing().content());
 				}
 
 				if route.ne(routes::LOGOUT)
 				{
-					{// assert GETs w/out login are rejected
-						let response = client.get_builder(route).send().await;
+					{// assert POSTs w/out login are rejected
+						let response = client.post_builder(route).send().await;
 						assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 					}
 
-					{// assert GETs w/ wrong body are rejected
+					{// assert POSTs w/ wrong body are rejected
 						client.login(admin.0.username(), &admin.1).await;
 
-						let response = client.get_builder(route).body("").send().await;
+						let response = client.post_builder(route).body("").send().await;
 						assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
 
 						client.logout().await;

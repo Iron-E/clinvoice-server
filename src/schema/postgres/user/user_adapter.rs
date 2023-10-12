@@ -118,9 +118,9 @@ mod tests
 		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
 
 		let guest_row =
-			rows.get(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+			rows.post(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
 		let admin_row =
-			rows.get(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+			rows.post(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
 
 		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee_id);
 		assert_eq!(guest.id(), guest_row.id);
@@ -233,7 +233,7 @@ mod tests
 		PgUser::update(&mut tx, [&guest].into_iter()).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, guest.id(), admin.id());
 		let guest_row =
-			rows.get(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+			rows.post(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
 
 		assert_eq!(guest.employee().map(|e| e.id), guest_row.employee_id);
 		assert_eq!(guest.id(), guest_row.id);
