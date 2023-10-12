@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::Status;
 
-/// The response for a POST / create operation.
+/// The response for a PUT / create operation.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Post<T>
+pub struct Put<T>
 {
 	/// The entity in the database which was created as a result of the operation.
 	entity: Option<T>,
@@ -18,7 +18,7 @@ pub struct Post<T>
 	status: Status,
 }
 
-impl<T> Post<T>
+impl<T> Put<T>
 {
 	/// Create a new [`Retrieve`] response.
 	pub const fn new(entity: Option<T>, status: Status) -> Self

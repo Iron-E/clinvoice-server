@@ -20,7 +20,7 @@ use crate::{
 	api::{
 		self,
 		request,
-		response::{Delete, Get, Login, Logout, Patch, Post},
+		response::{Delete, Get, Login, Logout, Patch, Put},
 		routes,
 		Code,
 		Status,
@@ -68,8 +68,8 @@ pub trait TestClientExt
 	/// Make a PATCH [`RequestBuilder`] on the given `route`.
 	fn patch_builder(&self, route: &str) -> RequestBuilder;
 
-	/// Make a POST [`RequestBuilder`] on the given `route`.
-	fn post_builder(&self, route: &str) -> RequestBuilder;
+	/// Make a PUT [`RequestBuilder`] on the given `route`.
+	fn put_builder(&self, route: &str) -> RequestBuilder;
 
 	/// assert logged in user GET with permissions is accepted
 	async fn test_get_success<'ent, M, E, Iter>(
@@ -109,7 +109,7 @@ pub trait TestClientExt
 	/// assert logged in user DELETE with permissions is rejected
 	async fn test_other_unauthorized(&self, method: Method, route: &str, user: &User, password: &str);
 
-	/// assert logged in user POST with permissions is accepted
+	/// assert logged in user PUT with permissions is accepted
 	async fn test_post_success<R, A>(
 		&self,
 		pool: &Pool<R::Db>,
@@ -124,7 +124,7 @@ pub trait TestClientExt
 		R::Entity: Clone + Debug + DeserializeOwned + PartialEq + Send,
 		R::Match: Debug + From<R::Entity> + Send;
 
-	/// assert logged in user POST with permissions is rejected
+	/// assert logged in user PUT with permissions is rejected
 	async fn test_post_unauthorized<A>(&self, route: &str, user: &User, password: &str, args: A)
 	where
 		A: Debug + Send + Serialize + Sync;
@@ -172,9 +172,9 @@ impl TestClientExt for TestClient
 		self.patch(route).header(api::HEADER, version_req())
 	}
 
-	fn post_builder(&self, route: &str) -> RequestBuilder
+	fn put_builder(&self, route: &str) -> RequestBuilder
 	{
-		self.post(route).header(api::HEADER, version_req())
+		self.put(route).header(api::HEADER, version_req())
 	}
 
 	#[tracing::instrument(skip(self))]
@@ -351,14 +351,14 @@ impl TestClientExt for TestClient
 		tracing::trace!("\n");
 
 		self.login(user.username(), password).await;
-		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
+		let response = self.put_builder(route).json(&request::Put::new(args)).send().await;
 
-		let actual = Response::new(response.status(), response.json::<Post<R::Entity>>().await);
+		let actual = Response::new(response.status(), response.json::<Put<R::Entity>>().await);
 		tracing::debug!("\n\nReceived {actual:#?}\n\n");
 		let expected = {
 			let entity = actual.content().entity().unwrap().clone();
 			let row = R::retrieve(pool, R::Match::from(entity)).await.map(|mut v| v.remove(0)).unwrap();
-			Response::from(Post::new(row.into(), Code::Success.into()))
+			Response::from(Put::new(row.into(), Code::Success.into()))
 		};
 
 		assert_eq!(actual, expected);
@@ -378,10 +378,10 @@ impl TestClientExt for TestClient
 		tracing::trace!("\n");
 
 		self.login(user.username(), password).await;
-		let response = self.post_builder(route).json(&request::Post::new(args)).send().await;
+		let response = self.put_builder(route).json(&request::Put::new(args)).send().await;
 
-		let actual = Response::new(response.status(), response.json::<Post<()>>().await);
-		let expected = Response::from(Post::new(None, Code::Unauthorized.into()));
+		let actual = Response::new(response.status(), response.json::<Put<()>>().await);
+		let expected = Response::from(Put::new(None, Code::Unauthorized.into()));
 
 		assert_eq!(actual.status(), expected.status());
 		assert_eq!(actual.content().entity(), expected.content().entity());

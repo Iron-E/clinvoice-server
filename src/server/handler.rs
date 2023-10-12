@@ -69,7 +69,7 @@ use super::{
 use crate::{
 	api::{
 		request,
-		response::{Get, Post},
+		response::{Get, Put},
 		Code,
 		Status,
 	},
@@ -82,11 +82,11 @@ use crate::{
 };
 
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
-fn create<T>(on_success: Code, result: sqlx::Result<T>) -> ResponseResult<Post<T>>
+fn create<T>(on_success: Code, result: sqlx::Result<T>) -> ResponseResult<Put<T>>
 {
 	result.map_all(
-		|t| Response::from(Post::new(t.into(), on_success.into())),
-		|e| Response::from(Post::from(Status::from(&e))),
+		|t| Response::from(Put::new(t.into(), on_success.into())),
+		|e| Response::from(Put::from(Status::from(&e))),
 	)
 }
 
@@ -166,10 +166,10 @@ macro_rules! route {
 					update::<A::$Entity>(state.pool(), request.into_entities(), Code::Success).await
 				},
 			)
-			.post(
+			.put(
 				|Extension(user): Extension<User>,
 				 State(state): State<ServerState<A::Db>>,
-				 Json(request): Json<request::Post<$Args>>| async move {
+				 Json(request): Json<request::Put<$Args>>| async move {
 					state.enforce_permission(&user, Object::$Entity, Action::Create).await?;
 					let ( $($param),+ ) = request.into_args();
 					$($(let $param = $map;)*)+
@@ -276,10 +276,10 @@ where
 				update::<A::Department>(state.pool(), entities, code).await
 			},
 		)
-		.post(
+		.put(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<String>>| async move {
+			 Json(request): Json<request::Put<String>>| async move {
 				const ACTION: Action = Action::Create;
 				let name = request.into_args();
 				let code = match state.department_permissions(&user, ACTION).await?
@@ -415,10 +415,10 @@ where
 				update::<A::Employee>(state.pool(), entities, code).await
 			},
 		)
-		.post(
+		.put(
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(Department, String, String)>>| async move {
+			 Json(request): Json<request::Put<(Department, String, String)>>| async move {
 				const ACTION: Action = Action::Create;
 				let (department, name, title) = request.into_args();
 				let code = match state.employee_permissions(&user, ACTION).await?
@@ -579,11 +579,11 @@ where
 				update::<A::Expenses>(state.pool(), entities, code).await
 			},
 		)
-		.post(
+		.put(
 			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(Vec<(String, Money, String)>, Id)>>| async move {
+			 Json(request): Json<request::Put<(Vec<(String, Money, String)>, Id)>>| async move {
 				#[warn(clippy::type_complexity)]
 				const ACTION: Action = Action::Create;
 				let permission = state.expense_permissions(&user, ACTION).await?;
@@ -627,7 +627,7 @@ where
 						.await
 						.map_all(
 							|vec| vec.into_iter().map(|t| t.id).collect(),
-							|e| Response::from(Post::from(Status::from(&e))),
+							|e| Response::from(Put::from(Status::from(&e))),
 						)?;
 
 						if !matching.contains(&timesheet_id)
@@ -777,12 +777,12 @@ where
 				update::<A::Job>(state.pool(), entities, code).await
 			},
 		)
-		.post(
+		.put(
 			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<
-				request::Post<(
+				request::Put<(
 					Organization,
 					Option<DateTime<Utc>>,
 					DateTime<Utc>,
@@ -1071,12 +1071,12 @@ where
 				update::<A::Timesheet>(state.pool(), entities, code).await
 			},
 		)
-		.post(
+		.put(
 			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
 			 Json(request): Json<
-				request::Post<(
+				request::Put<(
 					Employee,
 					Vec<(String, Money, String)>,
 					Job,
@@ -1272,11 +1272,11 @@ where
 				update::<A::User>(state.pool(), entities, code).await
 			},
 		)
-		.post(
+		.put(
 			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Post<(Option<Employee>, String, Role, String)>>| async move {
+			 Json(request): Json<request::Put<(Option<Employee>, String, Role, String)>>| async move {
 				#[warn(clippy::type_complexity)]
 				const ACTION: Action = Action::Create;
 				let (employee, password, role, username) = request.into_args();

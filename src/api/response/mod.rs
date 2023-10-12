@@ -6,7 +6,7 @@ mod export;
 mod get;
 mod login;
 mod logout;
-mod post;
+mod put;
 mod version;
 mod who_am_i;
 
@@ -18,6 +18,6 @@ pub use export::Export;
 pub use get::Get;
 pub use login::Login;
 pub use logout::Logout;
-pub use post::Post;
+pub use put::Put;
 pub use version::Version;
 pub use who_am_i::WhoAmI;

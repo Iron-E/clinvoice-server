@@ -5,9 +5,9 @@ use super::*;
 
 #[tokio::test]
 #[traced_test]
-async fn post() -> DynResult<()>
+async fn put() -> DynResult<()>
 {
-	let TestData { admin, client, grunt, guest, manager, pool } = setup("post").await?;
+	let TestData { admin, client, grunt, guest, manager, pool } = setup("put").await?;
 
 	client.test_post_unauthorized(routes::CONTACT, &grunt.0, &grunt.1, contact_args()).await;
 	client.test_post_unauthorized(routes::CONTACT, &guest.0, &guest.1, contact_args()).await;
@@ -120,18 +120,18 @@ async fn post() -> DynResult<()>
 	{
 		client.login(admin.0.username(), &admin.1).await;
 		let response = client
-			.post_builder(routes::EXPENSE)
-			.json(&request::Post::new((vec![expense_args()], timesheet.id)))
+			.put_builder(routes::EXPENSE)
+			.json(&request::Put::new((vec![expense_args()], timesheet.id)))
 			.send()
 			.await;
 
-		let actual = Response::new(response.status(), response.json::<Post<Vec<Expense>>>().await);
+		let actual = Response::new(response.status(), response.json::<Put<Vec<Expense>>>().await);
 		tracing::debug!("\n\nReceived {actual:#?}\n\n");
 		let expected = {
 			let entity = actual.content().entity().unwrap();
 			let row =
 				PgExpenses::retrieve(&pool, entity.iter().map(|x| x.id).collect::<Match<_>>().into()).await.unwrap();
-			Response::from(Post::new(row.into(), Code::Success.into()))
+			Response::from(Put::new(row.into(), Code::Success.into()))
 		};
 
 		assert_eq!(actual, expected);
@@ -141,18 +141,18 @@ async fn post() -> DynResult<()>
 	{
 		client.login(manager.0.username(), &manager.1).await;
 		let response = client
-			.post_builder(routes::EXPENSE)
-			.json(&request::Post::new((vec![expense_args()], timesheet2.id)))
+			.put_builder(routes::EXPENSE)
+			.json(&request::Put::new((vec![expense_args()], timesheet2.id)))
 			.send()
 			.await;
 
-		let actual = Response::new(response.status(), response.json::<Post<Vec<Expense>>>().await);
+		let actual = Response::new(response.status(), response.json::<Put<Vec<Expense>>>().await);
 		tracing::debug!("\n\nReceived {actual:#?}\n\n");
 		let expected = {
 			let entity = actual.content().entity().unwrap();
 			let row =
 				PgExpenses::retrieve(&pool, entity.iter().map(|x| x.id).collect::<Match<_>>().into()).await.unwrap();
-			Response::from(Post::new(row.into(), Code::Success.into()))
+			Response::from(Put::new(row.into(), Code::Success.into()))
 		};
 
 		assert_eq!(actual, expected);

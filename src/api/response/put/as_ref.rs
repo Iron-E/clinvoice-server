@@ -1,9 +1,9 @@
 //! Implementations for [`AsRef`] for [`Retrieve`]
 
-use super::Post;
+use super::Put;
 use crate::api::Code;
 
-impl<T> AsRef<Code> for Post<T>
+impl<T> AsRef<Code> for Put<T>
 {
 	fn as_ref(&self) -> &Code
 	{

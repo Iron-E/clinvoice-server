@@ -4,15 +4,15 @@ use serde::{Deserialize, Serialize};
 
 /// The request to create some information.
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Post<Args>
+pub struct Put<Args>
 {
 	/// The arguments for the entity which will be created.
 	args: Args,
 }
 
-impl<Args> Post<Args>
+impl<Args> Put<Args>
 {
-	/// Create a new POST request body.
+	/// Create a new PUT request body.
 	#[allow(dead_code)]
 	pub const fn new(args: Args) -> Self
 	{

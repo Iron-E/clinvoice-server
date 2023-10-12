@@ -2,7 +2,7 @@ mod delete;
 mod export;
 mod get;
 mod patch;
-mod post;
+mod put;
 mod who_am_i;
 
 use sqlx::Postgres;

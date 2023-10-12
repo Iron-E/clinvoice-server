@@ -294,7 +294,7 @@ where
 						header::X_FRAME_OPTIONS,
 						header::X_XSS_PROTECTION,
 					])
-					.allow_methods([Method::DELETE, Method::GET, Method::PATCH, Method::POST])
+					.allow_methods([Method::DELETE, Method::GET, Method::PATCH, Method::PUT])
 					.allow_origin(cors_allow_origin)
 					.allow_private_network(true),
 			)

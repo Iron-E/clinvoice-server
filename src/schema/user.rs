@@ -41,7 +41,7 @@ pub struct User
 
 	/// The [hashed](argon2) password.
 	///
-	/// # `POST`/`PATCH`
+	/// # `PUT`/`PATCH`
 	///
 	/// The password in plaintext, which *will* be [hashed](argon2) and stored in the
 	/// [`Database`](sqlx::Database) by [`winvoice_server`].

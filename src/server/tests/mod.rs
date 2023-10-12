@@ -57,7 +57,7 @@ use super::*;
 use crate::{
 	api::{
 		request,
-		response::{Export, Get, Login, Logout, Post, Version, WhoAmI},
+		response::{Export, Get, Login, Logout, Put, Version, WhoAmI},
 		Code,
 		Status,
 	},
