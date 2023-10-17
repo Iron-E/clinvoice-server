@@ -3834,8 +3834,8 @@ dependencies = [
 
 [[package]]
 name = "winvoice-adapter-postgres"
-version = "0.18.0"
-source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.18#434f0a5f78c5ed10e5bc68d45bec1b93b3ea2929"
+version = "0.18.1"
+source = "git+https://github.com/Iron-E/winvoice-adapter-postgres?branch=release/0.18#38d92616116f5d1acb7b30881b2c9e59553cc12e"
 dependencies = [
  "async-trait",
  "dotenvy",
