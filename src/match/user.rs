@@ -4,7 +4,10 @@ mod from;
 
 use serde::{Deserialize, Serialize};
 use winvoice_match::{Match, MatchEmployee, MatchOption, MatchStr};
-use winvoice_schema::{chrono::NaiveDateTime, Id};
+use winvoice_schema::{
+	chrono::{DateTime, Utc},
+	Id,
+};
 
 use super::MatchRole;
 
@@ -32,7 +35,7 @@ use super::MatchRole;
 ///     "name": {"regex": "[Aa]ndy$"}
 ///   }},
 ///   "password": "asdlkjasfhjdklasdklj",
-///   "password_set": "2070-01-01T00:00:00",
+///   "password_set": "2070-01-01T00:00:00Z",
 ///   "role": {"name": "Admin"},
 ///   "username": "admin"
 /// }
@@ -65,7 +68,7 @@ pub struct MatchUser
 
 	#[allow(missing_docs)]
 	#[serde(default)]
-	pub password_set: Match<NaiveDateTime>,
+	pub password_set: Match<DateTime<Utc>>,
 
 	#[allow(missing_docs)]
 	#[serde(default)]

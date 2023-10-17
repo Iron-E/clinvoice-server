@@ -286,12 +286,12 @@ impl TestClientExt for TestClient
 					Method::Patch if expected =>
 					{
 						tracing::debug!(parent: None, "checking if {retrieved:#?} is {entity:#?}");
-						assert_eq!(retrieved.post(0), Some(&entity))
+						assert_eq!(retrieved.get(0), Some(&entity))
 					},
 					Method::Patch =>
 					{
 						tracing::debug!(parent: None, "checking if {retrieved:#?} is NOT {entity:#?}");
-						assert_ne!(retrieved.post(0), Some(&entity))
+						assert_ne!(retrieved.get(0), Some(&entity))
 					},
 				}
 			}

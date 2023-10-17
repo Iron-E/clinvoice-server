@@ -78,9 +78,9 @@ pub(in crate::schema::postgres) mod tests
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
 
 		let admin_row =
-			rows.post(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+			rows.get(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
 		let guest_row =
-			rows.post(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
+			rows.get(&guest.id()).ok_or_else(|| "The `guest` row does not exist in the database".to_owned())?;
 
 		let admin_row_password_ttl = admin_row.password_ttl.clone().map(duration_from).transpose()?;
 		let guest_row_password_ttl = guest_row.password_ttl.clone().map(duration_from).transpose()?;
@@ -165,7 +165,7 @@ pub(in crate::schema::postgres) mod tests
 		PgRole::update(&mut tx, [&admin].into_iter()).await?;
 		let rows: HashMap<_, _> = select!(&mut tx, admin.id(), guest.id());
 		let admin_row =
-			rows.post(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
+			rows.get(&admin.id()).ok_or_else(|| "The `admin` row does not exist in the database".to_owned())?;
 		let admin_row_password_ttl = admin_row.password_ttl.clone().map(duration_from).transpose()?;
 
 		assert_eq!(admin.id(), admin_row.id);
