@@ -1,6 +1,7 @@
 //! This module contains the response for a login.
 
 use serde::{Deserialize, Serialize};
+
 use crate::schema::User;
 
 /// The login request response.

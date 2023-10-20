@@ -42,6 +42,6 @@ impl From<Status> for LoginResponse
 {
 	fn from(status: Status) -> Self
 	{
-		Self::new(status.code().into(), status)
+		Self::new(status.code().into(), status, None)
 	}
 }

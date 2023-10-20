@@ -879,6 +879,7 @@ where
 							Err(LoginResponse::new(
 								StatusCode::INTERNAL_SERVER_ERROR,
 								Status::new(Code::EncodingError, e.to_string()),
+								None,
 							))
 						},
 						|hash| {
@@ -900,14 +901,16 @@ where
 						}
 					}
 
-					auth.login(&user).await.map_all(
-						|_| LoginResponse::from(Code::Success),
-						|e| {
+					match auth.login(&user).await
+					{
+						Ok(_) => Ok(LoginResponse::success(user)),
+						Err(e) =>
+						{
 							const CODE: Code = Code::LoginError;
 							tracing::error!("Failed to to log in user {}: {e}", user.username());
-							LoginResponse::new(CODE.into(), Status::new(CODE, e.to_string()))
+							Err(LoginResponse::from(Status::new(CODE, e.to_string())))
 						},
-					)
+					}
 				}
 				.instrument(tracing::info_span!("login_handler"))
 			},

@@ -5,7 +5,10 @@ mod from;
 use winvoice_schema::chrono::{DateTime, Utc};
 
 use super::{Response, StatusCode};
-use crate::api::{response::Login, Code, Status};
+use crate::{
+	api::{response::Login, Code, Status},
+	schema::User,
+};
 
 crate::new_response!(LoginResponse(Login): Clone, Debug, Default, Eq, Hash, PartialEq, Ord, PartialOrd);
 
@@ -15,19 +18,26 @@ impl LoginResponse
 	pub fn expired(date: DateTime<Utc>) -> Self
 	{
 		const CODE: Code = Code::PasswordExpired;
-		Self::new(CODE.into(), Status::new(CODE, format!("Password expired on {date}")))
+		Self::new(CODE.into(), Status::new(CODE, format!("Password expired on {date}")), None)
 	}
 
 	/// A [`LoginResponse`] indicating that the credentials passed were invalid.
 	pub fn invalid_credentials(message: Option<String>) -> Self
 	{
 		const CODE: Code = Code::InvalidCredentials;
-		Self::new(CODE.into(), message.map_or_else(|| CODE.into(), |m| Status::new(CODE, m)))
+		Self::new(CODE.into(), message.map_or_else(|| CODE.into(), |m| Status::new(CODE, m)), None)
 	}
 
 	/// Create a new [`LoginResponse`].
-	pub const fn new(code: StatusCode, status: Status) -> Self
+	pub const fn new(code: StatusCode, status: Status, user: Option<User>) -> Self
 	{
-		Self(Response::new(code, Login::new(status)))
+		Self(Response::new(code, Login::new(status, user)))
+	}
+
+	/// A [`LoginResponse`] indicating that the request succeeded.
+	pub fn success(user: User) -> Self
+	{
+		const CODE: Code = Code::Success;
+		Self::new(CODE.into(), CODE.into(), Some(user))
 	}
 }
