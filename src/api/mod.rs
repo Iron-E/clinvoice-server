@@ -23,7 +23,7 @@ pub fn version() -> &'static Version
 	VERSION.get_or_init(|| Version {
 		build: BuildMetadata::EMPTY,
 		major: 0,
-		minor: 3,
+		minor: 4,
 		patch: 0,
 		pre: Prerelease::EMPTY,
 	})

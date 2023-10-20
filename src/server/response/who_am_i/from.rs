@@ -3,12 +3,12 @@
 use axum::http::StatusCode;
 
 use super::{WhoAmI, WhoAmIResponse};
-use crate::server::response::Response;
+use crate::{schema::User, server::response::Response};
 
-impl From<String> for WhoAmIResponse
+impl From<User> for WhoAmIResponse
 {
-	fn from(s: String) -> Self
+	fn from(u: User) -> Self
 	{
-		Self::from(Response::new(StatusCode::OK, WhoAmI::new(s)))
+		Self::from(Response::new(StatusCode::OK, WhoAmI::new(u)))
 	}
 }

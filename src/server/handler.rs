@@ -1306,6 +1306,6 @@ where
 	/// The handler for the [`routes::WHO_AM_I`](crate::api::routes::USER).
 	pub fn who_am_i(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		routing::post(|Extension(user): Extension<User>| async move { WhoAmIResponse::from(user.username) })
+		routing::post(|Extension(user): Extension<User>| async move { WhoAmIResponse::from(user) })
 	}
 }
