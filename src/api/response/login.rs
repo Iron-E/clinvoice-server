@@ -35,7 +35,7 @@ impl Login
 
 	/// The [`User`] of the login resposne.
 	#[allow(dead_code)]
-	pub fn user(&self) -> Option<&User>
+	pub const fn user(&self) -> Option<&User>
 	{
 		self.user.as_ref()
 	}

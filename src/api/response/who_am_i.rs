@@ -22,7 +22,7 @@ impl WhoAmI
 
 	/// The username of the [`User`](crate::schema::User).
 	#[allow(dead_code)]
-	pub fn user(&self) -> &User
+	pub const fn user(&self) -> &User
 	{
 		&self.user
 	}

@@ -35,6 +35,7 @@ use winvoice_adapter::{
 	Retrievable,
 	Updatable,
 };
+use winvoice_export::Format;
 use winvoice_match::{Match, MatchDepartment, MatchEmployee, MatchExpense, MatchJob, MatchOption, MatchTimesheet};
 use winvoice_schema::{
 	chrono::{DateTime, Utc},
@@ -80,7 +81,6 @@ use crate::{
 	twin_result::TwinResult,
 	ResultExt,
 };
-
 /// Map `result` of creating some enti`T`y into a [`ResponseResult`].
 fn create<T>(on_success: Code, result: sqlx::Result<T>) -> ResponseResult<Put<T>>
 {
@@ -647,20 +647,20 @@ where
 	/// The handler for the [`routes::EXPORT`](crates::api::routes::EXPORT).
 	pub fn export(&self) -> MethodRouter<ServerState<A::Db>>
 	{
+		const FORMAT: Format = Format::Markdown;
+		const EXTENSION: &str = FORMAT.extension();
 		routing::post(|State(state): State<ServerState<A::Db>>, Json(request): Json<request::Export>| async move {
 			let rates_cell = OnceCell::<ExchangeRates>::new();
 			let requested_currency = request.currency();
-			let format = request.format();
-			let organization = request.organization;
-			let contacts =
-				A::Contact::retrieve(state.pool(), Default::default()).await.map_err(ExportResponse::from)?;
+			let contacts = A::Contact::retrieve(state.pool(), Default::default())
+				.await
+				.map_all(|vec| vec.into_iter().map(|c| (c.label, c.kind)).collect(), ExportResponse::from)?;
 
 			stream::iter(request.jobs.into_iter().map(Result::<_, ExportResponse>::Ok))
 				.and_then(|mut job| {
 					let contacts = &contacts;
 					let pool = state.pool();
 					let rates_cell = &rates_cell;
-					let organization = &organization;
 					async move {
 						let currency = requested_currency.unwrap_or_else(|| job.client.location.currency());
 						let mut timesheets = A::Timesheet::retrieve(pool, MatchJob::from(job.id).into())
@@ -676,8 +676,8 @@ where
 						}
 
 						Ok((
-							format!("{}--{}.{}", job.client.name.replace(' ', "-"), job.id, format.extension()),
-							format.export_job(&job, contacts, organization, &timesheets),
+							format!("{}--{}.{EXTENSION}", job.client.name.replace(' ', "-"), job.id),
+							FORMAT.export_job(&job, contacts, &timesheets),
 						))
 					}
 				})
