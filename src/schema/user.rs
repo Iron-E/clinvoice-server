@@ -37,7 +37,7 @@ pub struct User
 	pub(crate) employee: Option<Employee>,
 
 	/// The [`Id`] of the [`User`].
-	id: Id,
+	pub(crate) id: Id,
 
 	/// The [hashed](argon2) password.
 	///

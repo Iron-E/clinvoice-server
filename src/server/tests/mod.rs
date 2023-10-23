@@ -326,7 +326,7 @@ macro_rules! fn_setup {
 					}
 
 					{// assert POSTs w/ wrong body are rejected
-						client.login(admin.0.username(), &admin.1).await;
+						client.login(&admin.0, &admin.1).await;
 
 						let response = client.post_builder(route).body("").send().await;
 						assert_eq!(response.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);

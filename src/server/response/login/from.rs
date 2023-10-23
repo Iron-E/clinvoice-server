@@ -4,7 +4,10 @@ use sqlx::Error as SqlxError;
 use winvoice_schema::chrono::OutOfRangeError;
 
 use super::LoginResponse;
-use crate::api::{Code, Status};
+use crate::{
+	api::{Code, Status},
+	schema::User,
+};
 
 impl From<Code> for LoginResponse
 {
@@ -43,5 +46,14 @@ impl From<Status> for LoginResponse
 	fn from(status: Status) -> Self
 	{
 		Self::new(status.code().into(), status, None)
+	}
+}
+
+impl From<User> for LoginResponse
+{
+	fn from(user: User) -> Self
+	{
+		const CODE: Code = Code::Success;
+		Self::new(CODE.into(), CODE.into(), Some(user))
 	}
 }

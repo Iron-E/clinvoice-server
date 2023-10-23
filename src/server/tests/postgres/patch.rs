@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use winvoice_schema::Employee;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
@@ -7,14 +8,7 @@ use super::*;
 #[traced_test]
 async fn patch() -> DynResult<()>
 {
-	let TestData { admin, client, grunt, guest, manager, pool } = setup("patch").await.map(|mut data| {
-		if let Some(e) = data.grunt.0.employee.as_mut()
-		{
-			e.active = false;
-		}
-		data.grunt.0.password_set = Utc::now().pg_sanitize();
-		data
-	})?;
+	let TestData { admin, client, mut grunt, guest, manager, pool } = setup("patch").await?;
 
 	macro_rules! check {
 		(
@@ -89,14 +83,16 @@ async fn patch() -> DynResult<()>
 		})?
 	};
 
+	let grunt_employee = Employee { active: false, ..grunt.0.employee.clone().unwrap() };
 	check!(
 		PgEmployee, EMPLOYEE;
 		manager: [employee, false; manager_employee] => Code::SuccessForPermissions,
 		admin: [employee] => None::<Code>,
-		grunt: [grunt.0.employee().unwrap()] => Code::SuccessForPermissions;
+		grunt: [grunt_employee] => Code::SuccessForPermissions;
 		guest,
 	);
 
+	grunt.0.employee = grunt_employee.into();
 	let location = {
 		let (currency, address_, outer) = location_args();
 		PgLocation::create(&pool, currency, address_, outer).await.map(|mut l| {
@@ -282,7 +278,7 @@ async fn patch() -> DynResult<()>
 		PgUser, USER;
 		manager: [user, false; manager_user] => Code::SuccessForPermissions,
 		admin: [user] => None::<Code>,
-		grunt: [grunt.0] => Code::SuccessForPermissions;
+		grunt: [User {password_set: Utc::now().pg_sanitize(), ..grunt.0.clone()}] => Code::SuccessForPermissions;
 		guest,
 	);
 

@@ -903,7 +903,7 @@ where
 
 					match auth.login(&user).await
 					{
-						Ok(_) => Ok(LoginResponse::success(user)),
+						Ok(_) => Ok(LoginResponse::from(user)),
 						Err(e) =>
 						{
 							const CODE: Code = Code::LoginError;

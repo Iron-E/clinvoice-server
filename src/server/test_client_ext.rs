@@ -60,7 +60,7 @@ pub trait TestClientExt
 	fn post_builder(&self, route: &str) -> RequestBuilder;
 
 	/// Log in a [`User`](crate::schema::User) into the [`TestClient`].
-	async fn login(&self, username: &str, password: &str);
+	async fn login(&self, user: &User, password: &str);
 
 	/// Log out a [`User`](crate::schema::User) into the [`TestClient`].
 	async fn logout(&self);
@@ -144,16 +144,19 @@ impl TestClientExt for TestClient
 	}
 
 	#[tracing::instrument(skip(self))]
-	async fn login(&self, username: &str, password: &str)
+	async fn login(&self, user: &User, password: &str)
 	{
 		let response = self
 			.post(routes::LOGIN)
 			.header(api::HEADER, version_req())
-			.header(header::AUTHORIZATION, format!("Basic {}", base64::encode(format!("{username}:{password}"))))
+			.header(
+				header::AUTHORIZATION,
+				format!("Basic {}", base64::encode(format!("{}:{password}", user.username()))),
+			)
 			.send()
 			.await;
 
-		let expected = LoginResponse::from(Code::Success);
+		let expected = LoginResponse::from(user.clone());
 		assert_eq!(response.status(), expected.status());
 		assert_eq!(&response.json::<Login>().await, expected.content());
 	}
@@ -196,7 +199,7 @@ impl TestClientExt for TestClient
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		self.login(user.username(), password).await;
+		self.login(user, password).await;
 		let response = self.post_builder(route).json(&request::Post::new(condition)).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Post<E>>().await);
@@ -224,7 +227,7 @@ impl TestClientExt for TestClient
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		self.login(user.username(), password).await;
+		self.login(user, password).await;
 		let response = self.post_builder(route).json(&request::Post::new(M::default())).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Post<()>>().await);
@@ -257,7 +260,7 @@ impl TestClientExt for TestClient
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		self.login(user.username(), password).await;
+		self.login(user, password).await;
 		let entities_destructured = entities.iter().map(|(e, _)| e.clone()).collect();
 		let response = match method
 		{
@@ -309,7 +312,7 @@ impl TestClientExt for TestClient
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		self.login(user.username(), password).await;
+		self.login(user, password).await;
 		let response = match method
 		{
 			Method::Delete => self.delete_builder(route).json(&request::Delete::<()>::new(Default::default())),
@@ -350,7 +353,7 @@ impl TestClientExt for TestClient
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		self.login(user.username(), password).await;
+		self.login(user, password).await;
 		let response = self.put_builder(route).json(&request::Put::new(args)).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Put<R::Entity>>().await);
@@ -377,7 +380,7 @@ impl TestClientExt for TestClient
 		tracing::trace!(parent: None, "\n");
 		tracing::trace!("\n");
 
-		self.login(user.username(), password).await;
+		self.login(user, password).await;
 		let response = self.put_builder(route).json(&request::Put::new(args)).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Put<()>>().await);

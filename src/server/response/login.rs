@@ -33,11 +33,4 @@ impl LoginResponse
 	{
 		Self(Response::new(code, Login::new(status, user)))
 	}
-
-	/// A [`LoginResponse`] indicating that the request succeeded.
-	pub fn success(user: User) -> Self
-	{
-		const CODE: Code = Code::Success;
-		Self::new(CODE.into(), CODE.into(), Some(user))
-	}
 }

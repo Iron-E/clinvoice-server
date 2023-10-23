@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
 use winvoice_export::Format;
+use winvoice_schema::Contact;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
@@ -10,9 +11,10 @@ async fn export() -> DynResult<()>
 {
 	let TestData { admin, client, pool, .. } = setup("export").await?;
 
-	let contact_ = {
+	let contacts = {
 		let (kind, label) = contact_args();
-		PgContact::create(&pool, kind, label).await?
+		let contact = PgContact::create(&pool, kind, label).await?;
+		[contact].into_iter().map(|c| (c.label, c.kind)).collect()
 	};
 
 	let department = PgDepartment::create(&pool, rand_department_name()).await?;
@@ -72,15 +74,12 @@ async fn export() -> DynResult<()>
 		t
 	};
 
-	client.login(admin.0.username(), &admin.1).await;
+	client.login(&admin.0, &admin.1).await;
 	let rates = ExchangeRates::new().await?;
 
 	{
-		let response = client
-			.post_builder(routes::EXPORT)
-			.json(&request::Export::new(None, Format::Markdown, vec![job_.clone()], organization.clone()))
-			.send()
-			.await;
+		let response =
+			client.post_builder(routes::EXPORT).json(&request::Export::new(None, vec![job_.clone()])).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Export>().await);
 		let expected = Response::from(Export::new(
@@ -88,8 +87,7 @@ async fn export() -> DynResult<()>
 				format!("{}--{}.{}", job_client.name.replace(' ', "-"), job_.id, Format::Markdown.extension()),
 				Format::Markdown.export_job(
 					&job_.clone().exchange(job_client.location.currency(), &rates),
-					&[contact_.clone()],
-					&organization,
+					&contacts,
 					&[timesheet.clone().exchange(job_client.location.currency(), &rates)],
 				),
 			)]
@@ -104,12 +102,7 @@ async fn export() -> DynResult<()>
 	{
 		let response = client
 			.post_builder(routes::EXPORT)
-			.json(&request::Export::new(
-				Currency::Nok.into(),
-				Format::Markdown,
-				vec![job_.clone()],
-				organization.clone(),
-			))
+			.json(&request::Export::new(Currency::Nok.into(), vec![job_.clone()]))
 			.send()
 			.await;
 
@@ -117,12 +110,9 @@ async fn export() -> DynResult<()>
 		let expected = Response::from(Export::new(
 			[(
 				format!("{}--{}.{}", job_client.name.replace(' ', "-"), job_.id, Format::Markdown.extension()),
-				Format::Markdown.export_job(
-					&job_.clone().exchange(Currency::Nok, &rates),
-					&[contact_.clone()],
-					&organization,
-					&[timesheet.clone().exchange(Currency::Nok, &rates)],
-				),
+				Format::Markdown.export_job(&job_.clone().exchange(Currency::Nok, &rates), &contacts, &[timesheet
+					.clone()
+					.exchange(Currency::Nok, &rates)]),
 			)]
 			.into_iter()
 			.collect(),
@@ -145,8 +135,9 @@ async fn export() -> DynResult<()>
 		PgRole::delete(&pool, roles.iter()),
 	)?;
 
+	let contacts = contacts.into_iter().map(|(label, kind)| Contact { label, kind }).collect::<Vec<_>>();
 	futures::try_join!(
-		PgContact::delete(&pool, [&contact_].into_iter()),
+		PgContact::delete(&pool, contacts.iter()),
 		PgLocation::delete(&pool, [&organization, &job_client].into_iter().map(|o| &o.location)),
 		PgDepartment::delete(
 			&pool,

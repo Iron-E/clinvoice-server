@@ -75,7 +75,7 @@ mockd = {features = ["address", "company", "contact", "currency", "datetime", "i
 pretty_assertions = '1'
 regex = "1"
 serde_json = "1"
-tracing-test = {features = ['no-env-filter'], version = '0.2'}
+tracing-test = '0.2'
 
 [features]
 bin = [

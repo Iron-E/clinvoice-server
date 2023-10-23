@@ -14,11 +14,11 @@ async fn who_am_i() -> DynResult<()>
 	{
 		tracing::trace!("Testing /whoami on {user:#?}");
 
-		client.login(user.username(), password).await;
+		client.login(user, password).await;
 		let response = client.post_builder(routes::WHO_AM_I).send().await;
 
 		let actual = WhoAmIResponse::from(Response::new(response.status(), response.json::<WhoAmI>().await));
-		let expected = WhoAmIResponse::from(user.username().to_owned());
+		let expected = WhoAmIResponse::from(user.clone());
 
 		assert_eq!(actual, expected);
 		client.logout().await;
