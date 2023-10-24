@@ -1,7 +1,7 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 name = 'winvoice-server'
-version = '0.5.0'
+version = '0.5.1'
 authors = ['Iron-E <code.iron.e@gmail.com>']
 description = 'HTTP server to run Winvoice commands on from any frontend'
 
@@ -75,7 +75,7 @@ mockd = {features = ["address", "company", "contact", "currency", "datetime", "i
 pretty_assertions = '1'
 regex = "1"
 serde_json = "1"
-tracing-test = '0.2'
+tracing-test = {features = ['no-env-filter'], version = '0.2'}
 
 [features]
 bin = [

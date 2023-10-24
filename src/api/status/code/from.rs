@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use casbin::Error as CasbinError;
 use money2::Error as MoneyError;
 use sqlx::Error as SqlxError;
-use winvoice_schema::chrono::OutOfRangeError;
+use winvoice_schema::{chrono::OutOfRangeError, IncrementError};
 
 use super::Code;
 
@@ -71,6 +71,18 @@ impl From<&HashError> for Code
 			HashError::Crypto => Self::CryptError,
 			HashError::Password => Self::InvalidCredentials,
 			_ => Self::Other,
+		}
+	}
+}
+
+impl From<&IncrementError> for Code
+{
+	fn from(error: &IncrementError) -> Self
+	{
+		match error
+		{
+			IncrementError::OutOfRange(e) => e.into(),
+			IncrementError::Rounding(_) => Self::EncodingError,
 		}
 	}
 }

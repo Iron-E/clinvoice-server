@@ -85,11 +85,11 @@ async fn export() -> DynResult<()>
 		let expected = Response::from(Export::new(
 			[(
 				format!("{}--{}.{}", job_client.name.replace(' ', "-"), job_.id, Format::Markdown.extension()),
-				Format::Markdown.export_job(
-					&job_.clone().exchange(job_client.location.currency(), &rates),
-					&contacts,
-					&[timesheet.clone().exchange(job_client.location.currency(), &rates)],
-				),
+				Format::Markdown
+					.export_job(&job_.clone().exchange(job_client.location.currency(), &rates), &contacts, &[timesheet
+						.clone()
+						.exchange(job_client.location.currency(), &rates)])
+					.unwrap(),
 			)]
 			.into_iter()
 			.collect(),
@@ -110,9 +110,11 @@ async fn export() -> DynResult<()>
 		let expected = Response::from(Export::new(
 			[(
 				format!("{}--{}.{}", job_client.name.replace(' ', "-"), job_.id, Format::Markdown.extension()),
-				Format::Markdown.export_job(&job_.clone().exchange(Currency::Nok, &rates), &contacts, &[timesheet
-					.clone()
-					.exchange(Currency::Nok, &rates)]),
+				Format::Markdown
+					.export_job(&job_.clone().exchange(Currency::Nok, &rates), &contacts, &[timesheet
+						.clone()
+						.exchange(Currency::Nok, &rates)])
+					.unwrap(),
 			)]
 			.into_iter()
 			.collect(),

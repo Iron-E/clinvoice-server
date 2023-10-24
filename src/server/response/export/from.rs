@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use money2::Error as MoneyError;
 use sqlx::Error as SqlxError;
+use winvoice_schema::IncrementError;
 
 use super::ExportResponse;
 use crate::api::{Code, Status};
@@ -13,6 +14,14 @@ impl From<Code> for ExportResponse
 	fn from(code: Code) -> Self
 	{
 		Self::from(Status::from(code))
+	}
+}
+
+impl From<IncrementError> for ExportResponse
+{
+	fn from(error: IncrementError) -> Self
+	{
+		Self::from(Status::from(&error))
 	}
 }
 

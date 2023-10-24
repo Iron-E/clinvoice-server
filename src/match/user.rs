@@ -26,7 +26,7 @@ use super::MatchRole;
 /// ```rust
 /// # use pretty_assertions::assert_eq;
 /// # use winvoice_match::{MatchEmployee, MatchStr};
-/// # use winvoice_schema::chrono::NaiveDate;
+/// # use winvoice_schema::chrono::{NaiveDate, Utc};
 /// # use winvoice_server::r#match::{MatchRole, MatchUser};
 /// // JSON
 /// # assert_eq!(serde_json::from_str::<MatchUser>(r#"
@@ -45,7 +45,7 @@ use super::MatchRole;
 /// #     ..Default::default()
 /// #   }).into(),
 /// #   password: "asdlkjasfhjdklasdklj".to_owned().into(),
-/// #   password_set: NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().into(),
+/// #   password_set: NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().and_utc(),
 /// #   role: MatchRole { name: "Admin".to_owned().into(), ..Default::default() },
 /// #   username: "admin".to_owned().into(),
 /// #   ..Default::default()
