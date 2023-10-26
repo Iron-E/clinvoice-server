@@ -3,6 +3,11 @@
 
 use sqlx::{Pool, Result};
 use winvoice_adapter::Initializable;
+use winvoice_schema::Id;
+
+#[cfg(feature = "postgres")]
+use crate::schema::postgres::{PgRole, PgUser};
+use crate::schema::{RoleAdapter, UserAdapter};
 
 /// Implementors of this trait are marked as able to both Initialize the base Winvoice
 /// tables (see [`winvoice_adapter`]), but also an extended set of tables used by the
@@ -47,6 +52,13 @@ impl InitializableWithAuthorization for winvoice_adapter_postgres::PgSchema
 		)
 		.execute(&mut tx)
 		.await?;
+
+		let has_rows = sqlx::query!("SELECT * FROM users LIMIT 1").fetch_optional(&mut tx).await?;
+		if has_rows.is_none()
+		{
+			let role = PgRole::create(&mut tx, "admin".into(), None).await?;
+			PgUser::create(&mut tx, None, "password".into(), role, "admin".into()).await?;
+		}
 
 		tx.commit().await
 	}
