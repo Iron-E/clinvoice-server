@@ -14,12 +14,12 @@
 //! >
 //! > ```json
 //! > {
-//! >   "username": "admin",
-//! >   "password": "password",
-//! >   "role": {
-//! >     "name": "admin"
-//! >     "password_ttl": null, # password lasts forever
-//! >   },
+//! > "username": "admin",
+//! > "password": "password",
+//! > "role": {
+//! > "name": "admin"
+//! > "password_ttl": null, # password lasts forever
+//! > },
 //! > }
 //! > ```
 //! >
