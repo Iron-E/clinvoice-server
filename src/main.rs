@@ -5,8 +5,26 @@
 //!
 //! # Usage
 //!
-//! * For basic information, run `winvoice-server help` from the command line.
-//! * For an in-depth guide, see the [wiki](https://github.com/Iron-E/winvoice-server/wiki/Usage).
+//! See `winvoice-server help`.
+//!
+//! > *Note*
+//! >
+//! > A template user will be created upon first running the user. It has the following fields (some information omitted
+//! > for simplicity):
+//! >
+//! > ```json
+//! > {
+//! >   "username": "admin",
+//! >   "password": "password",
+//! >   "role": {
+//! >     "name": "admin"
+//! >     "password_ttl": null, # password lasts forever
+//! >   },
+//! > }
+//! > ```
+//! >
+//! > It is recommended to change the password and the Password TTL of the admin role in order to increase the security
+//! > of your installation.
 //!
 //! ## Installation
 //!
@@ -33,7 +51,8 @@
 //! git = "https://github.com/Iron-E/winvoice-server"
 //! ```
 //!
-//! If you are working with another language, see [the docs](TODO).
+//! To see information about the API, run `cargo doc` and look for `winvoice_server::api::request`,
+//! `winvoice_server::api::response`, and `winvoice_server::api::routes`.
 //!
 //! # Development
 //!

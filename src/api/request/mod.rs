@@ -1,5 +1,13 @@
 //! This module contains all of the valid [HTTP](axum::http) requests that the server may
 //! [respond](super::response) to.
+//!
+//! **All requests to the server** expect an [API version header](super::HEADER) to be present in order to ensure that
+//! the client supports a [version range](https://docs.rs/semver/latest/semver/struct.VersionReq.html#method.parse)
+//! which includes the server's [API version](super::version).
+//!
+//! **With the exception of** [`/login`](super::routes::LOGIN), [`/logout`](super::routes::LOGOUT),
+//! [`/whoami`](super::routes::WHO_AM_I), **all requests** expect a JSON body, the schema of which depending on the
+//! nature of the request. Requests to `DELETE` should use match a [`Delete`] request, `POST` to [`Post`], etc.
 
 mod delete;
 mod export;
