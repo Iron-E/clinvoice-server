@@ -7,7 +7,7 @@
 //!
 //! See `winvoice-server help`.
 //!
-//! > *Note*
+//! > **Note**
 //! >
 //! > A template user will be created upon first running the user. It has the following fields (some information omitted
 //! > for simplicity):
