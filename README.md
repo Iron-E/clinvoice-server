@@ -2,7 +2,7 @@
 
 <!-- cargo-rdme start -->
 
-`winvoice-server` is WIP backend for Winvoice libraries. It aims to allow any
+`winvoice-server` is backend for Winvoice libraries. It aims to allow any
 number of different frontends, such as [winvoice-cli](https://github.com/Iron-E/winvoice-cli) or
 [winvoice-gui](https://github.com/Iron-E/winvoice-gui), to communicate with it without having to be
 written in Rust or re-implement common procedures.
