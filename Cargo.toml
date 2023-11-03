@@ -1,9 +1,9 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 name = 'winvoice-server'
-version = '0.5.1'
+version = '0.6.0'
 authors = ['Iron-E <code.iron.e@gmail.com>']
-description = 'HTTP server to run Winvoice commands on from any frontend'
+description = 'HTTPS server to run Winvoice commands on from any frontend'
 
 categories = ['command-line-utilities', 'database', 'web-programming::http-server']
 edition = '2021'
@@ -24,7 +24,7 @@ dirs = {optional = true, version = '5'}
 futures = {optional = true, version = '0.3'}
 humantime = {optional = true, version = '2'}
 humantime-serde = '1'
-money2 = {features = ['serde'], optional = true, version = '1'}
+money2 = {features = ['history', 'serde'], optional = true, version = '1'}
 rand = {optional = true, version = '0.8'}
 semver = {optional = true, version = '1'}
 serde = '1'
@@ -48,7 +48,7 @@ git = 'https://github.com/Iron-E/winvoice-adapter'
 optional = true
 
 [dependencies.winvoice-adapter-postgres]
-branch = 'release/0.18'
+branch = 'release/0.19'
 git = 'https://github.com/Iron-E/winvoice-adapter-postgres'
 optional = true
 
