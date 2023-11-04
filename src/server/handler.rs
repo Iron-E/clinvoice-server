@@ -15,10 +15,9 @@ use axum::{
 };
 use futures::{stream, TryFutureExt, TryStreamExt};
 use humantime_serde::Serde;
-use money2::{Exchange, ExchangeRates};
+use money2::{Exchange, HistoricalExchangeRates};
 use reason::Reason;
 use sqlx::{Database, Executor, Pool};
-use tokio::sync::OnceCell;
 use tracing::Instrument;
 use winvoice_adapter::{
 	schema::{
@@ -583,7 +582,7 @@ where
 			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Put<(Vec<(String, Money, String)>, Id)>>| async move {
+			 Json(request): Json<request::Put<(Vec<(String, Money, String)>, Id, DateTime<Utc>)>>| async move {
 				#[warn(clippy::type_complexity)]
 				const ACTION: Action = Action::Create;
 				let permission = state.expense_permissions(&user, ACTION).await?;
@@ -606,7 +605,7 @@ where
 					}
 				};
 
-				let (expenses, timesheet_id) = request.into_args();
+				let (expenses, timesheet_id, timesheet_time_begin) = request.into_args();
 
 				let code = match permission
 				{
@@ -639,7 +638,7 @@ where
 					},
 				};
 
-				create(code, A::Expenses::create(state.pool(), expenses, timesheet_id).await)
+				create(code, A::Expenses::create(state.pool(), expenses, timesheet_id, timesheet_time_begin).await)
 			},
 		)
 	}
@@ -650,7 +649,7 @@ where
 		const FORMAT: Format = Format::Markdown;
 		const EXTENSION: &str = FORMAT.extension();
 		routing::post(|State(state): State<ServerState<A::Db>>, Json(request): Json<request::Export>| async move {
-			let rates_cell = OnceCell::<ExchangeRates>::new();
+			let history = HistoricalExchangeRates::history().await?;
 			let requested_currency = request.currency();
 			let contacts = A::Contact::retrieve(state.pool(), Default::default())
 				.await
@@ -660,7 +659,7 @@ where
 				.and_then(|mut job| {
 					let contacts = &contacts;
 					let pool = state.pool();
-					let rates_cell = &rates_cell;
+					let history = &history;
 					async move {
 						let currency = requested_currency.unwrap_or_else(|| job.client.location.currency());
 						let mut timesheets = A::Timesheet::retrieve(pool, MatchTimesheet {
@@ -675,10 +674,13 @@ where
 
 						if currency != Default::default() || currency != job.invoice.hourly_rate.currency
 						{
-							let rates =
-								rates_cell.get_or_try_init(ExchangeRates::new).await.map_err(ExportResponse::from)?;
-							job.exchange_mut(currency, rates);
-							timesheets.exchange_mut(currency, rates);
+							let job_rates =
+								HistoricalExchangeRates::index_ref_from(history, Some(job.date_open.into()));
+							job.exchange_mut(currency, job_rates);
+							timesheets.iter_mut().for_each(|t| {
+								let rates = HistoricalExchangeRates::index_ref_from(history, Some(t.time_begin.into()));
+								t.exchange_mut_historically(currency, rates, job_rates);
+							});
 						}
 
 						let export = FORMAT.export_job(&job, contacts, &timesheets).map_err(ExportResponse::from)?;

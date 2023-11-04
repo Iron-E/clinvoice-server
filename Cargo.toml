@@ -101,7 +101,7 @@ bin = [
 	'watchman_client',
 	'winvoice-adapter',
 ]
-default = ['postgres']
+default = ['test-postgres']
 postgres = ['axum-login/postgres', 'bin', 'winvoice-adapter-postgres', 'sqlx/postgres']
 test-postgres = ['postgres', 'winvoice-adapter-postgres/test-utils']
 

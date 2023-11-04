@@ -3,7 +3,6 @@
 
 use sqlx::{Pool, Result};
 use winvoice_adapter::Initializable;
-use winvoice_schema::Id;
 
 #[cfg(feature = "postgres")]
 use crate::schema::postgres::{PgRole, PgUser};
