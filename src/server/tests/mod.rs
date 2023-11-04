@@ -10,7 +10,7 @@ use casbin::{CoreApi, Enforcer};
 use csv::WriterBuilder;
 use futures::{stream, FutureExt, StreamExt, TryFutureExt};
 use mockd::{address, company, contact, internet, job, name, password, words};
-use money2::{Exchange, ExchangeRates};
+use money2::{Exchange, HistoricalExchangeRates};
 use sqlx::Pool;
 use test_client_ext::{Method, TestClientExt};
 use tracing_test::traced_test;

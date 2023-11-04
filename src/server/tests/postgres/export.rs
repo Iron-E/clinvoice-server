@@ -75,20 +75,25 @@ async fn export() -> DynResult<()>
 	};
 
 	client.login(&admin.0, &admin.1).await;
-	let rates = ExchangeRates::new().await?;
+	let history = HistoricalExchangeRates::history().await?;
 
 	{
 		let response =
 			client.post_builder(routes::EXPORT).json(&request::Export::new(None, vec![job_.clone()])).send().await;
 
 		let actual = Response::new(response.status(), response.json::<Export>().await);
+		let job_rates = HistoricalExchangeRates::index_ref_from(&history, Some(job_.date_open.into()));
 		let expected = Response::from(Export::new(
 			[(
 				format!("{}--{}.{}", job_client.name.replace(' ', "-"), job_.id, Format::Markdown.extension()),
 				Format::Markdown
-					.export_job(&job_.clone().exchange(job_client.location.currency(), &rates), &contacts, &[timesheet
-						.clone()
-						.exchange(job_client.location.currency(), &rates)])
+					.export_job(&job_.clone().exchange(job_client.location.currency(), job_rates), &contacts, &[
+						timesheet.clone().exchange_historically(
+							job_client.location.currency(),
+							HistoricalExchangeRates::index_ref_from(&history, Some(timesheet.time_begin.into())),
+							job_rates,
+						),
+					])
 					.unwrap(),
 			)]
 			.into_iter()
@@ -107,13 +112,18 @@ async fn export() -> DynResult<()>
 			.await;
 
 		let actual = Response::new(response.status(), response.json::<Export>().await);
+		let job_rates = HistoricalExchangeRates::index_ref_from(&history, Some(job_.date_open.into()));
 		let expected = Response::from(Export::new(
 			[(
 				format!("{}--{}.{}", job_client.name.replace(' ', "-"), job_.id, Format::Markdown.extension()),
 				Format::Markdown
-					.export_job(&job_.clone().exchange(Currency::Nok, &rates), &contacts, &[timesheet
+					.export_job(&job_.clone().exchange(Currency::Nok, &job_rates), &contacts, &[timesheet
 						.clone()
-						.exchange(Currency::Nok, &rates)])
+						.exchange_historically(
+							Currency::Nok,
+							HistoricalExchangeRates::index_ref_from(&history, Some(timesheet.time_begin.into())),
+							job_rates,
+						)])
 					.unwrap(),
 			)]
 			.into_iter()

@@ -105,7 +105,7 @@ async fn post() -> DynResult<()>
 	.await;
 	assert_unauthorized!(MatchOrganization, ORGANIZATION; guest, grunt, manager);
 
-	let rates = ExchangeRates::new().await?;
+	let history = HistoricalExchangeRates::history().await?;
 
 	let [job_, job2]: [_; 2] = {
 		let mut tx = pool.begin().await?;
@@ -138,7 +138,14 @@ async fn post() -> DynResult<()>
 		.await?;
 
 		tx.commit().await?;
-		[j, j2].into_iter().map(|jo| jo.exchange(Default::default(), &rates)).collect::<Vec<_>>().try_into().unwrap()
+		[j, j2]
+			.into_iter()
+			.map(|jo| {
+				HistoricalExchangeRates::exchange_from(&history, Some(jo.date_open.into()), Default::default(), jo)
+			})
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap()
 	};
 
 	#[rustfmt::skip]
@@ -191,7 +198,11 @@ async fn post() -> DynResult<()>
 		tx.commit().await?;
 		[t, t2, t3]
 			.into_iter()
-			.map(|ts| ts.exchange(Default::default(), &rates))
+			.map(|ts| {
+				let begin = HistoricalExchangeRates::index_ref_from(&history, Some(ts.time_begin.into()));
+				let open = HistoricalExchangeRates::index_ref_from(&history, Some(ts.job.date_open.into()));
+				ts.exchange_historically(Default::default(), begin, open)
+			})
 			.collect::<Vec<_>>()
 			.try_into()
 			.unwrap()
@@ -223,12 +234,12 @@ async fn post() -> DynResult<()>
 		let mut x = Vec::with_capacity(2 * 3);
 		for t in [&timesheet, &timesheet2, &timesheet3]
 		{
-			PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), t.id)
+			let rates = HistoricalExchangeRates::index_ref_from(&history, Some(t.time_begin.into()));
+			PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), t.id, t.time_begin)
 				.await
-				.map(|mut v| x.append(&mut v))?;
+				.map(|v| x.extend(v.into_iter().map(|item| item.exchange(Default::default(), &rates))))?;
 		}
-
-		x.exchange(Default::default(), &rates)
+		x
 	};
 
 	#[rustfmt::skip]
