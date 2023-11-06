@@ -235,7 +235,7 @@ async fn post() -> DynResult<()>
 		for t in [&timesheet, &timesheet2, &timesheet3]
 		{
 			let rates = HistoricalExchangeRates::index_ref_from(&history, Some(t.time_begin.into()));
-			PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), t.id, t.time_begin)
+			PgExpenses::create(&pool, iter::repeat_with(expense_args).take(2).collect(), (t.id, t.time_begin))
 				.await
 				.map(|v| x.extend(v.into_iter().map(|item| item.exchange(Default::default(), &rates))))?;
 		}

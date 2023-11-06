@@ -237,7 +237,7 @@ async fn patch() -> DynResult<()>
 		for t in [&timesheet, &timesheet2, &timesheet3]
 		{
 			let rates = HistoricalExchangeRates::index_ref_from(&history, Some(t.time_begin.into()));
-			PgExpenses::create(&pool, vec![expense_args()], t.id, t.time_begin).await.map(|v| {
+			PgExpenses::create(&pool, vec![expense_args()], (t.id, t.time_begin)).await.map(|v| {
 				x.extend(v.into_iter().map(|mut x| {
 					x.category = words::sentence(3);
 					x.exchange(Default::default(), &rates)

@@ -114,29 +114,15 @@ async fn put() -> DynResult<()>
 		})
 		.await;
 
-	client
-		.test_post_unauthorized(
-			routes::EXPENSE,
-			&grunt.0,
-			&grunt.1,
-			(Vec::<()>::new(), timesheet.id, timesheet.time_begin),
-		)
-		.await;
+	client.test_post_unauthorized(routes::EXPENSE, &grunt.0, &grunt.1, (Vec::<()>::new(), timesheet.id)).await;
 
-	client
-		.test_post_unauthorized(
-			routes::EXPENSE,
-			&guest.0,
-			&guest.1,
-			(Vec::<()>::new(), timesheet.id, timesheet.time_begin),
-		)
-		.await;
+	client.test_post_unauthorized(routes::EXPENSE, &guest.0, &guest.1, (Vec::<()>::new(), timesheet.id)).await;
 
 	{
 		client.login(&admin.0, &admin.1).await;
 		let response = client
 			.put_builder(routes::EXPENSE)
-			.json(&request::Put::new((vec![expense_args()], timesheet.id, timesheet.time_begin)))
+			.json(&request::Put::new((vec![expense_args()], timesheet.id)))
 			.send()
 			.await;
 
@@ -157,7 +143,7 @@ async fn put() -> DynResult<()>
 		client.login(&manager.0, &manager.1).await;
 		let response = client
 			.put_builder(routes::EXPENSE)
-			.json(&request::Put::new((vec![expense_args()], timesheet2.id, timesheet2.time_begin)))
+			.json(&request::Put::new((vec![expense_args()], timesheet2.id)))
 			.send()
 			.await;
 

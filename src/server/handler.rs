@@ -582,7 +582,7 @@ where
 			#[allow(clippy::type_complexity)]
 			|Extension(user): Extension<User>,
 			 State(state): State<ServerState<A::Db>>,
-			 Json(request): Json<request::Put<(Vec<(String, Money, String)>, Id, DateTime<Utc>)>>| async move {
+			 Json(request): Json<request::Put<(Vec<(String, Money, String)>, Id)>>| async move {
 				#[warn(clippy::type_complexity)]
 				const ACTION: Action = Action::Create;
 				let permission = state.expense_permissions(&user, ACTION).await?;
@@ -605,7 +605,7 @@ where
 					}
 				};
 
-				let (expenses, timesheet_id, timesheet_time_begin) = request.into_args();
+				let (expenses, timesheet_id) = request.into_args();
 
 				let code = match permission
 				{
@@ -638,7 +638,13 @@ where
 					},
 				};
 
-				create(code, A::Expenses::create(state.pool(), expenses, timesheet_id, timesheet_time_begin).await)
+				let pool = state.pool();
+				create(
+					code,
+					<A::Timesheet>::retrieve(pool, timesheet_id.into())
+						.and_then(|t| A::Expenses::create(pool, expenses, (timesheet_id, t[0].time_begin)))
+						.await,
+				)
 			},
 		)
 	}

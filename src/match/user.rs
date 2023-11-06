@@ -45,7 +45,7 @@ use super::MatchRole;
 /// #     ..Default::default()
 /// #   }).into(),
 /// #   password: "asdlkjasfhjdklasdklj".to_owned().into(),
-/// #   password_set: NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().and_utc(),
+/// #   password_set: NaiveDate::from_ymd_opt(2070, 1, 1).and_then(|d| d.and_hms_opt(0, 0, 0)).unwrap().and_utc().into(),
 /// #   role: MatchRole { name: "Admin".to_owned().into(), ..Default::default() },
 /// #   username: "admin".to_owned().into(),
 /// #   ..Default::default()
