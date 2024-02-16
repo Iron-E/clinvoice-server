@@ -1,0 +1,169 @@
+{
+  "db": "PostgreSQL",
+  "04d541f18e0ece0479bcfcd639d2dbff521cf07b352de6bbc721f9aae80469b0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Interval"
+        ]
+      }
+    },
+    "query": "INSERT INTO roles (id, name, password_ttl) VALUES ($1, $2, $3);"
+  },
+  "581cc3004d405abed0d3452bc0661d8261b09c87fde7da61de5882bf7e225ae5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "CREATE TABLE IF NOT EXISTS roles\n\t\t\t(\n\t\t\t\tid uuid PRIMARY KEY,\n\t\t\t\tname text NOT NULL UNIQUE,\n\t\t\t\tpassword_ttl interval\n\t\t\t);"
+  },
+  "5ba7589561b369c060e857e200df9f5386b0b2f3bd8304dd81041bcfb7d1c9cf": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "CREATE TABLE IF NOT EXISTS sessions\n\t\t\t(\n\t\t\t\tid text NOT NULL PRIMARY KEY,\n\t\t\t\texpiry timestamp,\n\t\t\t\tsession json NOT NULL\n\t\t\t);"
+  },
+  "7a819be8d4deae151a9f7f72dffce501623d52236cf3117f083d39ac124094e5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "DELETE FROM sessions WHERE id = $1;"
+  },
+  "b02d43ef7bf08f653062b0129c0d7b6f75ae079df1867c4131f513f33af0fea6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "session!: Json<Session>",
+          "ordinal": 0,
+          "type_info": "Json"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Timestamp"
+        ]
+      }
+    },
+    "query": "SELECT session as \"session!: Json<Session>\" FROM sessions WHERE id = $1 AND (expiry IS NULL OR expiry > $2);"
+  },
+  "b43447a1341f852c30d2558aaaaca1d66fc970d1e363daf089d31d784074a3d0": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid",
+          "Text",
+          "Timestamp",
+          "Uuid",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO users (id, employee_id, password, password_set, role_id, username) VALUES ($1, $2, $3, $4, $5, $6);"
+  },
+  "b6666623bae180378d88581f29a030d3c6d5a7802c2e99bfdb0d6db5ea7c0dc6": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Json",
+          "Timestamp"
+        ]
+      }
+    },
+    "query": "INSERT INTO sessions (id, session, expiry) VALUES ($1, $2, $3) ON CONFLICT(id) DO UPDATE SET expiry = EXCLUDED.expiry, session = EXCLUDED.session"
+  },
+  "d0742bac30f0d09b00319c8000f2e83cc71f9e1bd8fe6b81e312f8e54f55b6b3": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "TRUNCATE sessions;"
+  },
+  "d43e911075bdcd8e751112f079ef42bfb69ef8816069001a131ee6bfc8b9b4ca": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "CREATE TABLE IF NOT EXISTS users\n\t\t\t(\n\t\t\t\tid uuid PRIMARY KEY,\n\t\t\t\temployee_id uuid REFERENCES employees(id),\n\t\t\t\tpassword text NOT NULL,\n\t\t\t\tpassword_set timestamp NOT NULL,\n\t\t\t\trole_id uuid NOT NULL REFERENCES roles(id),\n\t\t\t\tusername text NOT NULL UNIQUE\n\t\t\t);"
+  },
+  "e047e8ddf743a1c88af392d4d7d08274c6b449c8ac1c128e3a42e6e5f02c7d8e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "employee_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "password",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "password_set",
+          "ordinal": 3,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "role_id",
+          "ordinal": 4,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "username",
+          "ordinal": 5,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT * FROM users LIMIT 1"
+  }
+}

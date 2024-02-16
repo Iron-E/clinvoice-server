@@ -28,7 +28,7 @@ money2 = {features = ['history', 'serde'], optional = true, version = '1'}
 rand = {optional = true, version = '0.8'}
 semver = {optional = true, version = '1'}
 serde = '1'
-sqlx = {features = ['json', 'runtime-tokio-rustls', 'tls'], optional = true, version = '0.6'}
+sqlx = {features = ['json', 'offline', 'runtime-tokio-rustls', 'tls'], optional = true, version = '0.6'}
 tokio = {features = ['macros', 'rt-multi-thread'], optional = true, version = '1'}
 tower = {features = ['timeout'], optional = true, version = '0.4'}
 tracing = {optional = true, version = '0.1'}
