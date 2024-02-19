@@ -10,8 +10,6 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.3.0 AS xx
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-alpine AS build
 WORKDIR /app
 
-ENV APP_NAME=winvoice-server
-
 # Copy cross compilation utilities from the xx stage.
 COPY --from=xx / /
 
@@ -39,12 +37,12 @@ RUN --mount=type=bind,source=src,target=src \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=sqlx-data.json,target=sqlx-data.json \
-    --mount=type=cache,target=/app/target/,id=rust-cache-${APP_NAME}-${TARGETPLATFORM} \
+    --mount=type=cache,target=/app/target/,id=rust-cache-winvoice-server-${TARGETPLATFORM} \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     xx-cargo build --locked --release --target-dir ./target && \
-    cp ./target/$(xx-cargo --print-target-triple)/release/$APP_NAME /bin/$APP_NAME && \
-    xx-verify /bin/$APP_NAME
+    cp ./target/$(xx-cargo --print-target-triple)/release/winvoice-server /bin/winvoice-server && \
+    xx-verify /bin/winvoice-server
 
 ################################################################################
 # Create a new stage for running the application that contains the minimal
@@ -83,12 +81,11 @@ RUN adduser \
 USER appuser
 
 # Copy the executable from the "build" stage.
-COPY --from=build /bin/$APP_NAME /bin/
+COPY --from=build /bin/winvoice-server /bin/
 
 # Expose the port that the application listens on.
-ENV HOSTNAME=127.0.0.1
-ENV PORT=3000
+ARG PORT=3000
 EXPOSE $PORT
 
 # What the container should run when it is started.
-ENTRYPOINT ["sh", "-c", "/bin/$APP_NAME --address $HOSTNAME:$PORT"]
+ENTRYPOINT ["/bin/winvoice-server"]
