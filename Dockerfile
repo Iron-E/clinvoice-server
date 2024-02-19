@@ -1,15 +1,4 @@
-# syntax=docker/dockerfile:1
-
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
-
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
-
 ARG RUST_VERSION=1.76.0
-ARG APP_NAME=winvoice-server
-ARG ADDR=127.0.0.1
-ARG PORT=3000
 
 ################################################################################
 # xx is a helper for cross-compilation.
@@ -19,8 +8,9 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.3.0 AS xx
 ################################################################################
 # Create a stage for building the application.
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-alpine AS build
-ARG APP_NAME
 WORKDIR /app
+
+ENV APP_NAME=winvoice-server
 
 # Copy cross compilation utilities from the xx stage.
 COPY --from=xx / /
@@ -52,9 +42,9 @@ RUN --mount=type=bind,source=src,target=src \
     --mount=type=cache,target=/app/target/,id=rust-cache-${APP_NAME}-${TARGETPLATFORM} \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
-xx-cargo build --locked --release --target-dir ./target && \
-cp ./target/$(xx-cargo --print-target-triple)/release/$APP_NAME /bin/$APP_NAME && \
-xx-verify /bin/$APP_NAME
+    xx-cargo build --locked --release --target-dir ./target && \
+    cp ./target/$(xx-cargo --print-target-triple)/release/$APP_NAME /bin/$APP_NAME && \
+    xx-verify /bin/$APP_NAME
 
 ################################################################################
 # Create a new stage for running the application that contains the minimal
@@ -67,7 +57,16 @@ xx-verify /bin/$APP_NAME
 # reproducability is important, consider using a digest
 # (e.g., alpine@sha256:664888ac9cfd28068e062c991ebcff4b4c7307dc8dd4df9e728bedde5c449d91).
 FROM alpine:3.18 AS final
-ARG APP_NAME
+
+LABEL org.opencontainers.image.authors="Iron-E <code.iron.e@gmail.com>"
+LABEL org.opencontainers.image.description="winvoice-server docker image"
+LABEL org.opencontainers.image.documentation="https://github.com/Iron-E/winvoice-server"
+LABEL org.opencontainers.image.license="GPL-3.0-only"
+LABEL org.opencontainers.image.source="https://github.com/Iron-E/winvoice-server"
+LABEL org.opencontainers.image.title="winvoice-server"
+LABEL org.opencontainers.image.url="https://github.com/Iron-E/winvoice-server"
+LABEL org.opencontainers.image.vendor="Iron-E <code.iron.e@gmail.com>"
+LABEL org.opencontainers.image.version="0.1.0"
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
@@ -87,7 +86,9 @@ USER appuser
 COPY --from=build /bin/$APP_NAME /bin/
 
 # Expose the port that the application listens on.
+ENV HOSTNAME=127.0.0.1
+ENV PORT=3000
 EXPOSE $PORT
 
 # What the container should run when it is started.
-ENTRYPOINT ["sh", "-c", "/bin/$APP_NAME --address $ADDR:$PORT"]
+ENTRYPOINT ["sh", "-c", "/bin/$APP_NAME --address $HOSTNAME:$PORT"]
