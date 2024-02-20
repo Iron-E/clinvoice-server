@@ -79,5 +79,8 @@ USER server-runner
 # Copy the executable from the "build" stage.
 COPY --from=build /bin/winvoice-server /bin/
 
+# make the state dir (for logs)
+RUN mkdir -p ~/.local/state
+
 # What the container should run when it is started.
 ENTRYPOINT ["/bin/winvoice-server"]
