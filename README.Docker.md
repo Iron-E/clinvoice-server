@@ -16,9 +16,11 @@ docker build --build-arg RUST_VERSION=1.75.0 --tag winvoice-server:latest .
 
 #### Arguments
 
-| Name           | Default  | Description                        |
-| :--            | :--      | :--                                |
-| `RUST_VERSION` | `1.76.0` | The Rust version to compile with.  |
+| Name           | Default  | Description                       |
+| :--            | :--      | :--                               |
+| `GID`          | `10001`  | The ID of the created group.      |
+| `RUST_VERSION` | `1.76.0` | The Rust version to compile with. |
+| `UID`          | `$GID`   | The ID of the created user.       |
 
 #### Environment Variables
 

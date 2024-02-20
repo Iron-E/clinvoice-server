@@ -1,0 +1,76 @@
+# This is an EXAMPLE of using winvoice-server with Postgres
+
+'name': 'winvoice'
+
+'configs':
+  'permissions-model': {'file': 'server/model.conf'}
+
+'secrets':
+  'cors-allow-origin': {'file': 'server/cors.txt'}
+  'db-name': {'file': 'db/name.txt'}
+  'db-password': {'file': 'db/password.txt'}
+  'db-user': {'file': 'db/user.txt'}
+  'permissions-policy': {'file': 'server/policy.csv'}
+  'tls-cert': {'file': 'server/cert.pem'}
+  'tls-key': {'file': 'server/key.pem'}
+
+'networks':
+  'backend': null
+  'frontend': null
+
+'volumes':
+  'db-data': null
+  'logs': null
+
+'services':
+  'db':
+    'environment':
+      POSTGRES_DB_FILE: '/run/secrets/db-name'
+      POSTGRES_PASSWORD_FILE: '/run/secrets/db-password'
+      POSTGRES_USER_FILE: '/run/secrets/db-user'
+    'expose': [5432]
+    'healthcheck':
+      'test': ['CMD', 'pg_isready']
+      'interval': '10s'
+      'timeout': '5s'
+      'retries': 5
+    'image': 'postgres'
+    'networks': ['backend']
+    'restart': 'always'
+    'secrets':
+      - 'db-name'
+      - 'db-password'
+      - 'db-user'
+    'user': 'postgres'
+    'volumes':
+      - 'db-data:/var/lib/postgresql/data'
+
+  'server':
+    'build': 'https://github.com/Iron-E/winvoice-server.git#v0.6.0'
+    'command': >-
+        'winvoice-server
+        --certificate /run/secrets/tls-cert --key /run/secrets/tls-key
+        --cors-allow-origin /run/secrets/cors-allow-origin
+        --permissions-model /permissions-model --permissions-policy /run/secrets/permissions-policy
+        postgres
+        --host db --database "$(cat /run/secrets/db-name)"
+        --username "$(cat /run/secrets/db-user)" --password "$(cat /run/secrets/db-password)"
+        '
+    'configs':
+      - 'permissions-model'
+    'depends_on':
+      'db': {'condition': 'service_healthy'}
+    'entrypoint': ['/bin/sh', '-c']
+    'image': 'winvoice/server:v0.6.0'
+    'networks': ['backend', 'frontend']
+    'ports': [3000]
+    'secrets':
+      - 'cors-allow-origin'
+      - 'db-name'
+      - 'db-password'
+      - 'db-user'
+      - 'permissions-policy'
+      - 'tls-cert'
+      - 'tls-key'
+    'volumes':
+      - 'logs:$HOME/.local/state/winvoice-server'
