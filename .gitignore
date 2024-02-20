@@ -20,3 +20,7 @@ policy.csv
 
 # Ignore dotenvy files, since they contain DATABASE_URL
 **/.env
+
+# compose configs
+db/*
+server/*
