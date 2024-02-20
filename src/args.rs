@@ -17,6 +17,7 @@ use clap::{
 };
 use command::Command;
 use futures::TryFutureExt;
+use tokio::fs;
 use tracing::{instrument, level_filters::LevelFilter, Instrument};
 use watchman_client::{
 	expr::{Expr, NameTerm},
@@ -75,9 +76,9 @@ pub struct Args
 	#[arg(long, short = 'S', value_name = "KEY")]
 	cookie_secret: Option<Vec<u8>>,
 
-	/// A list of origins which are allowed in Cross-Origin Resource Sharing.
-	#[arg(long, short = 'O', value_name = "ORIGIN")]
-	cors_allow_origin: Vec<String>,
+	/// A file which contains origins (one per line) that are allowed in Cross-Origin Resource Sharing.
+	#[arg(long, short = 'O', value_name = "FILE")]
+	cors_allow_origin: PathBuf,
 
 	/// The file containing the key to use for TLS. Must be in PEM format.
 	#[arg(long, short, value_name = "FILE")]
@@ -153,16 +154,16 @@ impl Args
 	{
 		init_tracing(self.log_level, self.log_dir, &self.log_rotation)?;
 
-		let origins = self.cors_allow_origin.into_iter().map(|o| o.parse()).collect::<Result<Vec<HeaderValue>, _>>()?;
-
 		let model_path = self.permissions_model.map(|m| -> &'static str { m.leak() });
 		let policy_path: &'static str = self.permissions_policy.leak();
 
-		let (permissions, tls) = futures::try_join!(
-			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into::<DynError>(),
+		let (origins_file, permissions, tls) = futures::try_join!(
+			fs::read_to_string(self.cors_allow_origin).err_into(),
+			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into(),
 			RustlsConfig::from_pem_file(self.certificate, self.key).err_into::<DynError>(),
 		)?;
 
+		let origins = origins_file.lines().into_iter().map(HeaderValue::from_str).collect::<Result<Vec<_>, _>>()?;
 		if let Err(e) = init_watchman(permissions.clone(), model_path, policy_path).await
 		{
 			tracing::error!("Failed to enable hot-reloading permissions: {e}");
@@ -308,7 +309,6 @@ mod tests
 {
 	use std::{fs::OpenOptions, io::Write};
 
-	use tokio::fs;
 	use tracing_test::traced_test;
 
 	use super::*;
