@@ -68,24 +68,16 @@ LABEL org.opencontainers.image.version="0.1.0"
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
+ARG GID=10001
+ARG UID=$GID
 
-USER appuser
+RUN addgroup --system --gid "${GID}" winvoice && \
+    adduser --system --uid "${UID}" server-runner
+
+USER server-runner
 
 # Copy the executable from the "build" stage.
 COPY --from=build /bin/winvoice-server /bin/
-
-# Expose the port that the application listens on.
-ARG PORT=3000
-EXPOSE $PORT
 
 # What the container should run when it is started.
 ENTRYPOINT ["/bin/winvoice-server"]

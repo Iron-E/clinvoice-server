@@ -11,14 +11,13 @@ docker build [--build-arg <arg>=<value> ...] [--tag <tag>] .
 For example:
 
 ```sh
-docker build --build-arg PORT=3000 --build-arg RUST_VERSION=1.75.0 --tag winvoice-server:latest .
+docker build --build-arg RUST_VERSION=1.75.0 --tag winvoice-server:latest .
 ```
 
 #### Arguments
 
 | Name           | Default  | Description                        |
 | :--            | :--      | :--                                |
-| `PORT`         | `3000`   | The port the server will listen to |
 | `RUST_VERSION` | `1.76.0` | The Rust version to compile with.  |
 
 #### Environment Variables
@@ -28,13 +27,13 @@ docker build --build-arg PORT=3000 --build-arg RUST_VERSION=1.75.0 --tag winvoic
 After building, run:
 
 ```sh
-docker run <image-name> [<winvoice-server-arg> ...]
+docker run -p <port> <image-name> [<winvoice-server-arg> ...]
 ```
 
 For example, to print help info, do:
 
 ```sh
-docker run \
+docker run -p 3000 \
 	-t \ # tty
 	--rm \ # remove after executing
 	<image-name> \
