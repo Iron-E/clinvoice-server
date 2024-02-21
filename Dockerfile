@@ -50,10 +50,7 @@ RUN --mount=type=bind,source=src,target=src \
 # image from the build stage where the necessary files are copied from the build
 # stage.
 #
-# The example below uses the alpine image as the foundation for running the app.
-# By specifying the "3.18" tag, it will use version 3.18 of alpine. If
-# reproducability is important, consider using a digest
-# (e.g., alpine@sha256:664888ac9cfd28068e062c991ebcff4b4c7307dc8dd4df9e728bedde5c449d91).
+# FIX: `watchman` is not available as `alpine` package
 FROM alpine:3.18 AS final
 
 LABEL org.opencontainers.image.authors="Iron-E <code.iron.e@gmail.com>"
