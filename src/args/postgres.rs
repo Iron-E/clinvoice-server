@@ -88,8 +88,10 @@ impl Postgres
 	{
 		let mut connect_options = PgConnectOptions::new()
 			.application_name("winvoice-server")
-			.database(&self.database)
 			.host(&self.host)
+			.database(&self.database)
+			.password(&self.password)
+			.username(&self.username)
 			.ssl_mode(self.ssl_mode);
 
 		if let Some(d) = self.float_digits
