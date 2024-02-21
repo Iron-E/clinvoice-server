@@ -24,46 +24,42 @@ volumes:
 
 services:
   db:
-    environment:
-      POSTGRES_DB_FILE: '/run/secrets/db-name'
-      POSTGRES_PASSWORD_FILE: '/run/secrets/db-password'
-      POSTGRES_USER_FILE: '/run/secrets/db-user'
-    expose: [5432]
+    image: 'postgres'
+    user: 'postgres'
+
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready --dbname "$(cat /run/secrets/db-name)" --username "$(cat /run/secrets/db-user)"']
       interval: '10s'
       timeout: '5s'
       retries: 5
-    image: 'postgres'
-    networks: ['backend']
     restart: 'always'
+
+    expose: [5432]
+    networks: ['backend']
+
+    environment:
+      POSTGRES_DB_FILE: '/run/secrets/db-name'
+      POSTGRES_PASSWORD_FILE: '/run/secrets/db-password'
+      POSTGRES_USER_FILE: '/run/secrets/db-user'
     secrets:
       - 'db-name'
       - 'db-password'
       - 'db-user'
-    user: 'postgres'
     volumes:
       - 'db-data:/var/lib/postgresql/data'
 
   server:
-    build: 'https://github.com/Iron-E/winvoice-server.git#v0.6.1'
-    command: >-
-        'winvoice-server
-        --certificate /run/secrets/tls-cert --key /run/secrets/tls-key
-        --cors-allow-origin /run/secrets/cors-allow-origin
-        --permissions-model /permissions-model --permissions-policy /run/secrets/permissions-policy
-        postgres
-        --host db --database "$(cat /run/secrets/db-name)"
-        --username "$(cat /run/secrets/db-user)" --password "$(cat /run/secrets/db-password)"
-        '
-    configs:
-      - 'permissions-model'
+    image: 'winvoice/server:v0.6.2'
+    build: 'https://github.com/Iron-E/winvoice-server.git#v0.6.2'
+
     depends_on:
       db: {condition: 'service_healthy'}
-    entrypoint: ['/bin/sh', '-c']
-    image: 'winvoice/server:v0.6.0'
+
     networks: ['backend', 'frontend']
-    ports: [3000]
+    ports: ["3000:3000"]
+
+    configs:
+      - 'permissions-model'
     secrets:
       - 'cors-allow-origin'
       - 'db-name'
@@ -74,3 +70,13 @@ services:
       - 'tls-key'
     volumes:
       - 'logs:$HOME/.local/state/winvoice-server'
+
+    entrypoint: ['/bin/sh', '-c']
+    command: >-
+        'winvoice-server
+        --certificate /run/secrets/tls-cert --key /run/secrets/tls-key
+        --cors-allow-origin /run/secrets/cors-allow-origin
+        --permissions-model /permissions-model --permissions-policy /run/secrets/permissions-policy
+        postgres
+        --host db --database "$(cat /run/secrets/db-name)"
+        --username "$(cat /run/secrets/db-user)" --password "$(cat /run/secrets/db-password)"'
