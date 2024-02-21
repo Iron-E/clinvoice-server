@@ -63,6 +63,9 @@ LABEL org.opencontainers.image.url="https://github.com/Iron-E/winvoice-server"
 LABEL org.opencontainers.image.vendor="Iron-E <code.iron.e@gmail.com>"
 LABEL org.opencontainers.image.version="0.1.0"
 
+# for healthchecks
+RUN apk add --no-cache curl
+
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 ARG GID=10001

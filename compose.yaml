@@ -16,7 +16,6 @@ secrets:
 
 networks:
   backend: null
-  frontend: null
 
 volumes:
   db-data: null
@@ -54,9 +53,15 @@ services:
 
     depends_on:
       db: {condition: 'service_healthy'}
+    healthcheck:
+      test: ['CMD-SHELL', 'test $(curl -fksw "%{http_code}" https://localhost:3000) -eq 400 && exit 0 || exit 1']
+      interval: '10s'
+      timeout: '5s'
+      retries: 5
+    restart: 'always'
 
-    networks: ['backend', 'frontend']
-    ports: ["3000:3000"]
+    networks: ['backend']
+    ports: ['3000:3000']
 
     configs:
       - 'permissions-model'
