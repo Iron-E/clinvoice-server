@@ -1,7 +1,7 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 name = 'winvoice-server'
-version = '0.6.1'
+version = '0.6.2'
 authors = ['Iron-E <code.iron.e@gmail.com>']
 description = 'HTTPS server to run Winvoice commands on from any frontend'
 

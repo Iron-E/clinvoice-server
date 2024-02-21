@@ -19,6 +19,7 @@ use command::Command;
 use futures::TryFutureExt;
 use tokio::fs;
 use tracing::{instrument, level_filters::LevelFilter, Instrument};
+use tracing_appender::non_blocking::WorkerGuard;
 use watchman_client::{
 	expr::{Expr, NameTerm},
 	fields::NameOnly,
@@ -152,7 +153,7 @@ impl Args
 	/// Run the Winvoice server.
 	pub async fn run(self) -> DynResult<()>
 	{
-		init_tracing(self.log_level, self.log_dir, &self.log_rotation)?;
+		let _guard = init_tracing(self.log_level, self.log_dir, &self.log_rotation)?;
 
 		let model_path = self.permissions_model.map(|m| -> &'static str { m.leak() });
 		let policy_path: &'static str = self.permissions_policy.leak();
@@ -195,7 +196,7 @@ impl Args
 
 /// Initialize [`tracing`] using the [`tracing_appender`] implementation of
 /// [`tracing_subscriber`].
-fn init_tracing(log_level: LevelFilter, log_dir: Option<PathBuf>, log_rotation: &str) -> DynResult<()>
+fn init_tracing(log_level: LevelFilter, log_dir: Option<PathBuf>, log_rotation: &str) -> DynResult<WorkerGuard>
 {
 	let dir = log_dir
 		.or_else(|| {
@@ -206,7 +207,7 @@ fn init_tracing(log_level: LevelFilter, log_dir: Option<PathBuf>, log_rotation: 
 		})
 		.ok_or_else(|| "Could not find suitable `--log-dir`. Please specify it manually.".to_owned())?;
 
-	let (non_blocking, _) = tracing_appender::non_blocking(match log_rotation
+	let (non_blocking, guard) = tracing_appender::non_blocking(match log_rotation
 	{
 		"daily" => tracing_appender::rolling::daily,
 		"hourly" => tracing_appender::rolling::hourly,
@@ -216,7 +217,7 @@ fn init_tracing(log_level: LevelFilter, log_dir: Option<PathBuf>, log_rotation: 
 	}(dir, "server.log"));
 
 	tracing_subscriber::fmt().with_max_level(log_level).with_writer(non_blocking).try_init()?;
-	Ok(())
+	Ok(guard)
 }
 
 /// Watch the `model_path` and `policy_path` for changes, reloading the `permissions` when they are
