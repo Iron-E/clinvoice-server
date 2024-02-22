@@ -45,7 +45,7 @@ services:
 
   server:
     image: 'winvoice/server:v0.6.2'
-    build: 'https://github.com/Iron-E/winvoice-server.git#v0.6.2'
+    build: '.'
 
     depends_on:
       db: {condition: 'service_healthy'}
