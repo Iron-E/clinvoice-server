@@ -3,16 +3,14 @@
 name: 'winvoice'
 
 configs:
-  permissions-model: {file: 'server/model.conf'}
+  permissions-model: {file: 'server/permissions/model.conf'}
 
 secrets:
-  cors-allow-origin: {file: 'server/cors.txt'}
-  db-name: {file: 'db/name.txt'}
-  db-password: {file: 'db/password.txt'}
-  db-user: {file: 'db/user.txt'}
-  permissions-policy: {file: 'server/policy.csv'}
-  tls-cert: {file: 'server/cert.pem'}
-  tls-key: {file: 'server/key.pem'}
+  cors: {file: 'server/cors/'}
+  db: {file: 'db/'}
+  permissions-policy: {file: 'server/permissions/policy.csv'}
+  ssl: {file: 'server/ssl/'}
+  ssl-cadir: {file: 'server/ssl-cadir/'}
 
 networks:
   backend: null
@@ -27,7 +25,7 @@ services:
     user: 'postgres'
 
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready --dbname "$(cat /run/secrets/db-name)" --username "$(cat /run/secrets/db-user)"']
+      test: ['CMD-SHELL', 'pg_isready --dbname "$(cat /run/secrets/db/name.txt)" --username "$(cat /run/secrets/db/user.txt)"']
       interval: '10s'
       timeout: '5s'
       retries: 5
@@ -37,13 +35,11 @@ services:
     networks: ['backend']
 
     environment:
-      POSTGRES_DB_FILE: '/run/secrets/db-name'
-      POSTGRES_PASSWORD_FILE: '/run/secrets/db-password'
-      POSTGRES_USER_FILE: '/run/secrets/db-user'
+      POSTGRES_DB_FILE: '/run/secrets/db/name.txt'
+      POSTGRES_PASSWORD_FILE: '/run/secrets/db/password.txt'
+      POSTGRES_USER_FILE: '/run/secrets/db/user.txt'
     secrets:
-      - 'db-name'
-      - 'db-password'
-      - 'db-user'
+      - 'db'
     volumes:
       - 'db-data:/var/lib/postgresql/data'
 
@@ -54,7 +50,7 @@ services:
     depends_on:
       db: {condition: 'service_healthy'}
     healthcheck:
-      test: ['CMD-SHELL', 'test $(curl -fksw "%{http_code}" https://localhost:3000) -eq 400 && exit 0 || exit 1']
+      test: ['CMD-SHELL', 'test $(curl -fsw "%{http_code}" https://localhost:3000) -eq 400 && exit 0 || exit 1']
       interval: '10s'
       timeout: '5s'
       retries: 5
@@ -66,22 +62,21 @@ services:
     configs:
       - 'permissions-model'
     secrets:
-      - 'cors-allow-origin'
-      - 'db-name'
-      - 'db-password'
-      - 'db-user'
+      - 'cors'
+      - 'db'
       - 'permissions-policy'
-      - 'tls-cert'
-      - 'tls-key'
+      - 'ssl'
+      - source: 'ssl-cadir'
+        target: '/etc/ssl/certs'
     volumes:
       - 'logs:$HOME/.local/state/winvoice-server'
 
     entrypoint: ['/bin/sh', '-c']
     command: >-
         'winvoice-server
-        --certificate /run/secrets/tls-cert --key /run/secrets/tls-key
-        --cors-allow-origin /run/secrets/cors-allow-origin
+        --certificate /run/secrets/ssl/cert.pem --key /run/secrets/ssl/key.pem
+        --cors-allow-origin /run/secrets/cors/allow.txt
         --permissions-model /permissions-model --permissions-policy /run/secrets/permissions-policy
         postgres
-        --host db --database "$(cat /run/secrets/db-name)"
-        --username "$(cat /run/secrets/db-user)" --password "$(cat /run/secrets/db-password)"'
+        --host db --database "$(cat /run/secrets/db/name.txt)"
+        --username "$(cat /run/secrets/db/user.txt)" --password "$(cat /run/secrets/db/password.txt)"'
