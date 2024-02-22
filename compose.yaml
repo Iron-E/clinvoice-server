@@ -44,7 +44,7 @@ services:
       - 'db-data:/var/lib/postgresql/data'
 
   server:
-    image: 'winvoice/server:v0.6.2'
+    image: 'winvoice/server:${WINVOICE_SERVER_TAG:-v0.6.2}'
     build: '.'
 
     depends_on:
@@ -74,7 +74,7 @@ services:
     entrypoint: ['/bin/sh', '-c']
     command: >-
         'winvoice-server
-        --address 0.0.0.0:3000
+        --address ${WINVOICE_SERVER_ADDR:-"0.0.0.0:3000"}
         --certificate /run/secrets/ssl/cert.pem --key /run/secrets/ssl/key.pem
         --cors-allow-origin /run/secrets/cors/allow.txt
         --permissions-model /permissions-model --permissions-policy /run/secrets/permissions-policy
