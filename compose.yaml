@@ -3,21 +3,21 @@
 name: 'winvoice'
 
 configs:
-  permissions-model: {file: 'server/permissions/model.conf'}
+  server-permissions-model: {file: 'config/server/permissions/model.conf'}
 
 secrets:
-  cors: {file: 'server/cors/'}
-  db: {file: 'db/'}
-  permissions-policy: {file: 'server/permissions/policy.csv'}
-  ssl: {file: 'server/ssl/'}
-  ssl-cadir: {file: 'server/ssl-cadir/'}
+  db: {file: 'config/db/'}
+  server-cors: {file: 'config/server/cors/'}
+  server-permissions-policy: {file: 'config/server/permissions/policy.csv'}
+  server-ssl-cadir: {file: 'config/server/ssl-cadir/'}
+  server-ssl: {file: 'config/server/ssl/'}
 
 networks:
   backend: null
 
 volumes:
   db-data: null
-  logs: null
+  server-logs: null
 
 services:
   db:
@@ -60,24 +60,24 @@ services:
     ports: ['3000:3000']
 
     configs:
-      - 'permissions-model'
+      - 'server-permissions-model'
     secrets:
-      - 'cors'
+      - 'server-cors'
       - 'db'
-      - 'permissions-policy'
-      - 'ssl'
-      - source: 'ssl-cadir'
+      - 'server-permissions-policy'
+      - 'server-ssl'
+      - source: 'server-ssl-cadir'
         target: '/etc/ssl/certs'
     volumes:
-      - 'logs:$HOME/.local/state/winvoice-server'
+      - 'server-logs:$HOME/.local/state/winvoice-server'
 
     entrypoint: ['/bin/sh', '-c']
     command: >-
         'winvoice-server
         --address ${WINVOICE_SERVER_ADDR:-"0.0.0.0:3000"}
-        --certificate /run/secrets/ssl/cert.pem --key /run/secrets/ssl/key.pem
-        --cors-allow-origin /run/secrets/cors/allow.txt
-        --permissions-model /permissions-model --permissions-policy /run/secrets/permissions-policy
+        --certificate /run/secrets/server-ssl/cert.pem --key /run/secrets/server-ssl/key.pem
+        --cors-allow-origin /run/secrets/server-cors/allow.txt
+        --permissions-model /server-permissions-model --permissions-policy /run/secrets/server-permissions-policy
         postgres
         --host db --database "$(cat /run/secrets/db/name.txt)"
         --username "$(cat /run/secrets/db/user.txt)" --password "$(cat /run/secrets/db/password.txt)"'
