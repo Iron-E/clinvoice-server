@@ -22,5 +22,4 @@ policy.csv
 **/.env
 
 # compose configs
-db/*
-server/*
+config/*
