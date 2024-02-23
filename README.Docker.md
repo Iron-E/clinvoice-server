@@ -58,9 +58,9 @@ docker compose up
 
 #### Configs
 
-| Name                | Path                            | Description                              |
-| :-                  | :-                              | :-                                       |
-| `permissions-model` | `server/permissions/model.conf` | The `--permissions-model` argument value |
+| Name                       | Path                            | Description                              |
+| :-                         | :-                              | :-                                       |
+| `server-permissions-model` | `server/permissions/model.conf` | The `--permissions-model` argument value |
 
 #### Environment Variables
 
@@ -71,19 +71,13 @@ docker compose up
 
 #### Secrets
 
-| Name                 | Path                            | Description |
-| :-                   | :-                              | :-          |
-| `cors`               | `server/cors/`                  | CORS-related information. See below. |
-| `db`                 | `db/`                           | Databse credentials. See below. |
-| `permissions-policy` | `server/permissions/policy.csv` | The `--permissions-policy` argument value. |
-| `ssl`                | `server/ssl/`                   | SSL certificates. See below. |
-| `ssl-cadir`          | `server/ssl-cadir/`             | Trust authorities to use within the container. Structured like `/etc/ssl/certs/` in `alpine`. |
-
-##### `cors`
-
-| Filename    | Description                                              |
-| :-          | :-                                                       |
-| `allow.txt` | Corresponds to the `--cors-allow-origin` argument value. |
+| Name                        | Path                                   | Description                                                                                   |
+| :-                          | :-                                     | :-                                                                                            |
+| `server-cors`               | `config/server/cors/`                  | CORS-related information. See below.                                                          |
+| `db`                        | `config/db/`                           | Databse credentials. See below.                                                               |
+| `server-permissions-policy` | `config/server/permissions/policy.csv` | The `--permissions-policy` argument value.                                                    |
+| `server-ssl`                | `config/server/ssl/`                   | SSL certificates. See below.                                                                  |
+| `server-ssl-cadir`          | `config/server/ssl-cadir/`             | Trust authorities to use within the container. Structured like `/etc/ssl/certs/` in `alpine`. |
 
 ##### `db`
 
@@ -93,7 +87,13 @@ docker compose up
 | `user.txt`     | The username which `winvoice-server` will use to login to the database.  |
 | `password.txt` | The password which `winvoice-server` will use to login to the database.  |
 
-##### `ssl`
+##### `server-cors`
+
+| Filename    | Description                                              |
+| :-          | :-                                                       |
+| `allow.txt` | Corresponds to the `--cors-allow-origin` argument value. |
+
+##### `server-ssl`
 
 | Filename   | Description                                        |
 | :-         | :-                                                 |
