@@ -1,5 +1,18 @@
 {
   "db": "PostgreSQL",
+  "02cb432de5d320e211ac1485827a0f0404d8649ffec0df2fd8f63ed80402baec": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "DELETE FROM roles WHERE id IN ($1, $2);"
+  },
   "04d541f18e0ece0479bcfcd639d2dbff521cf07b352de6bbc721f9aae80469b0": {
     "describe": {
       "columns": [],
@@ -14,7 +27,7 @@
     },
     "query": "INSERT INTO roles (id, name, password_ttl) VALUES ($1, $2, $3);"
   },
-  "581cc3004d405abed0d3452bc0661d8261b09c87fde7da61de5882bf7e225ae5": {
+  "2598b16caa426a775e5a38deca8abe7300f82322541c45967df63cd762e33918": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -22,17 +35,145 @@
         "Left": []
       }
     },
-    "query": "CREATE TABLE IF NOT EXISTS roles\n\t\t\t(\n\t\t\t\tid uuid PRIMARY KEY,\n\t\t\t\tname text NOT NULL UNIQUE,\n\t\t\t\tpassword_ttl interval\n\t\t\t);"
+    "query": "CREATE TABLE IF NOT EXISTS roles\n(\n\tid uuid PRIMARY KEY,\n\tname text NOT NULL UNIQUE,\n\tpassword_ttl interval\n);\n"
   },
-  "5ba7589561b369c060e857e200df9f5386b0b2f3bd8304dd81041bcfb7d1c9cf": {
+  "2e125123d5046b231581e2a274803ed37dc8bcb48cad002edd13b3dffc64c79a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "password_ttl",
+          "ordinal": 2,
+          "type_info": "Interval"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT * FROM roles WHERE id IN ($1, $2)"
+  },
+  "36676783d648a0cf17b63d72ddd446ea1dc52bded16e13cfec3314155348a738": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
+        "Left": [
+          "UuidArray"
+        ]
+      }
+    },
+    "query": "DELETE FROM users WHERE id = ANY($1)"
+  },
+  "39914fbfd3720a507166d2bdf66476774d7580f5eab6f414a7f8c482d971e677": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "UuidArray"
+        ]
+      }
+    },
+    "query": "DELETE FROM roles WHERE id = ANY($1)"
+  },
+  "5a902085e006e184edc575d7258ad5f7a1b2677f29051e76b1396d246cc74609": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "employee_id",
+          "ordinal": 1,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "password",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "password_set",
+          "ordinal": 3,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "role_id",
+          "ordinal": 4,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "username",
+          "ordinal": 5,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT * FROM users WHERE id IN ($1, $2)"
+  },
+  "79537ff96030c36d614c53b5a1b8eec39365419bcb6657bc69633df8b334b76a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "expiry",
+          "ordinal": 1,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "session",
+          "ordinal": 2,
+          "type_info": "Json"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false
+      ],
+      "parameters": {
         "Left": []
       }
     },
-    "query": "CREATE TABLE IF NOT EXISTS sessions\n\t\t\t(\n\t\t\t\tid text NOT NULL PRIMARY KEY,\n\t\t\t\texpiry timestamp,\n\t\t\t\tsession json NOT NULL\n\t\t\t);"
+    "query": "SELECT * FROM sessions;"
   },
   "7a819be8d4deae151a9f7f72dffce501623d52236cf3117f083d39ac124094e5": {
     "describe": {
@@ -84,6 +225,38 @@
     },
     "query": "INSERT INTO users (id, employee_id, password, password_set, role_id, username) VALUES ($1, $2, $3, $4, $5, $6);"
   },
+  "b61377101cd65dbd8c97702fe3a76f791c43849b84d5e16e4e3d98cbde9f7a17": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "expiry",
+          "ordinal": 1,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "session",
+          "ordinal": 2,
+          "type_info": "Json"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT * FROM sessions WHERE id = $1"
+  },
   "b6666623bae180378d88581f29a030d3c6d5a7802c2e99bfdb0d6db5ea7c0dc6": {
     "describe": {
       "columns": [],
@@ -98,6 +271,16 @@
     },
     "query": "INSERT INTO sessions (id, session, expiry) VALUES ($1, $2, $3) ON CONFLICT(id) DO UPDATE SET expiry = EXCLUDED.expiry, session = EXCLUDED.session"
   },
+  "c4e16d9a86c1991d983781fbdda9b1ce08357bcef0e84a91622463b17b1559b4": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "CREATE TABLE IF NOT EXISTS users\n(\n\tid uuid PRIMARY KEY,\n\temployee_id uuid REFERENCES employees(id),\n\tpassword text NOT NULL,\n\tpassword_set timestamp NOT NULL,\n\trole_id uuid NOT NULL REFERENCES roles(id),\n\tusername text NOT NULL UNIQUE\n);\n"
+  },
   "d0742bac30f0d09b00319c8000f2e83cc71f9e1bd8fe6b81e312f8e54f55b6b3": {
     "describe": {
       "columns": [],
@@ -108,7 +291,7 @@
     },
     "query": "TRUNCATE sessions;"
   },
-  "d43e911075bdcd8e751112f079ef42bfb69ef8816069001a131ee6bfc8b9b4ca": {
+  "d12154355e82cc2dbe3242c0fc54586384fda250b75bea399f32bcce32a51f44": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -116,7 +299,7 @@
         "Left": []
       }
     },
-    "query": "CREATE TABLE IF NOT EXISTS users\n\t\t\t(\n\t\t\t\tid uuid PRIMARY KEY,\n\t\t\t\temployee_id uuid REFERENCES employees(id),\n\t\t\t\tpassword text NOT NULL,\n\t\t\t\tpassword_set timestamp NOT NULL,\n\t\t\t\trole_id uuid NOT NULL REFERENCES roles(id),\n\t\t\t\tusername text NOT NULL UNIQUE\n\t\t\t);"
+    "query": "CREATE TABLE IF NOT EXISTS sessions\n(\n\tid text NOT NULL PRIMARY KEY,\n\texpiry timestamp,\n\tsession json NOT NULL\n);\n"
   },
   "e047e8ddf743a1c88af392d4d7d08274c6b449c8ac1c128e3a42e6e5f02c7d8e": {
     "describe": {
@@ -165,5 +348,18 @@
       }
     },
     "query": "SELECT * FROM users LIMIT 1"
+  },
+  "e6bc94fe7e8b79e5bd78343daf18b785d0455cfa839a457054c15a3488c87fc5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "DELETE FROM users WHERE id IN ($1, $2);"
   }
 }

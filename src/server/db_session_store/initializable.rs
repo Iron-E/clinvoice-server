@@ -15,17 +15,7 @@ impl Initializable for DbSessionStore<sqlx::Postgres>
 		Conn: Acquire<'connection, Database = Self::Db> + Send,
 	{
 		let mut tx = connection.begin().await?;
-		sqlx::query!(
-			"CREATE TABLE IF NOT EXISTS sessions
-			(
-				id text NOT NULL PRIMARY KEY,
-				expiry timestamp,
-				session json NOT NULL
-			);"
-		)
-		.execute(&mut tx)
-		.await?;
-
+		sqlx::query_file!("src/server/db_session_store/initializable/30-db-session-store.sql").execute(&mut tx).await?;
 		tx.commit().await
 	}
 }
