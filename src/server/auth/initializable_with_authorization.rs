@@ -27,30 +27,8 @@ impl InitializableWithAuthorization for winvoice_adapter_postgres::PgSchema
 		let mut tx = pool.begin().await?;
 		Self::init(&mut tx).await?;
 
-		sqlx::query!(
-			"CREATE TABLE IF NOT EXISTS roles
-			(
-				id uuid PRIMARY KEY,
-				name text NOT NULL UNIQUE,
-				password_ttl interval
-			);"
-		)
-		.execute(&mut tx)
-		.await?;
-
-		sqlx::query!(
-			"CREATE TABLE IF NOT EXISTS users
-			(
-				id uuid PRIMARY KEY,
-				employee_id uuid REFERENCES employees(id),
-				password text NOT NULL,
-				password_set timestamp NOT NULL,
-				role_id uuid NOT NULL REFERENCES roles(id),
-				username text NOT NULL UNIQUE
-			);"
-		)
-		.execute(&mut tx)
-		.await?;
+		sqlx::query_file!("src/server/auth/initializable_with_authorization/20-roles.sql").execute(&mut tx).await?;
+		sqlx::query_file!("src/server/auth/initializable_with_authorization/21-users.sql").execute(&mut tx).await?;
 
 		let has_rows = sqlx::query!("SELECT * FROM users LIMIT 1").fetch_optional(&mut tx).await?;
 		if has_rows.is_none()
