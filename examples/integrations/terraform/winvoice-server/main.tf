@@ -9,11 +9,11 @@ terraform {
 
 # postgres
 
-resource "docker_image" "postgres" {
+resource "docker_image" "winvoice-server" {
 	name = "postgres:16.2"
 }
 
-resource "docker_container" "winvoice-db-postgres" {
+resource "docker_container" "winvoice-server" {
 	name = "winvoice-db-postgres"
-	image = docker_image.postgres
+	image = docker_image.winvoice-server
 }
