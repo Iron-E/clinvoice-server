@@ -14,6 +14,6 @@ resource "docker_image" "postgres" {
 }
 
 resource "docker_container" "winvoice-db-postgres" {
-	name = "winvoice-db-postgres"
+	name = "winvoice/db/postgres"
 	image = docker_image.postgres
 }

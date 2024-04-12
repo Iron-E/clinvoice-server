@@ -13,11 +13,13 @@ resource "docker_image" "winvoice-server" {
 	name = "winvoice-server:0.6.2"
 	build {
 		context = "."
-		dockerfile = ""
+		dockerfile = "../../Dockerfile"
+		build_arg = var.build_args
+		platform = var.target-platform
 	}
 }
 
 resource "docker_container" "winvoice-server" {
-	name = "winvoice-db-postgres"
+	name = "winvoice/server"
 	image = docker_image.winvoice-server
 }
