@@ -1,16 +1,16 @@
 terraform {
-  required_providers {
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
-  }
+	required_providers {
+		docker = {
+			source = "kreuzwerker/docker"
+			version = "~> 3.0"
+		}
+	}
 }
 
-provider "docker" { }
+module "postgres" {
+	source = "./postgres"
+}
 
-# postgres
-
-resource "docker_image" "postgres" {
-	name = "postgres"
+module "winvoice-server" {
+	source = "./winvoice-server"
 }
