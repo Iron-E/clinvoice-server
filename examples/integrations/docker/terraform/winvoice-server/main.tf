@@ -21,5 +21,5 @@ resource "docker_image" "winvoice-server" {
 
 resource "docker_container" "winvoice-server" {
 	name = "winvoice/server"
-	image = docker_image.winvoice-server
+	image = docker_image.winvoice-server.image_id
 }
