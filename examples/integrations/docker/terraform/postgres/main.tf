@@ -10,5 +10,5 @@ terraform {
 # postgres
 
 resource "docker_image" "postgres" {
-	name = "postgres:${var.version}"
+	name = "postgres:${var.image-version}"
 }

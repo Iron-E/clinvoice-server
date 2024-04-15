@@ -1,5 +1,5 @@
-variable "version" {
+variable "image-version" {
 	description = "The version of the postgres image to build"
-   type = "type"
-   default = "latest"
+	default = "latest"
+   type = string
 }
