@@ -18,3 +18,8 @@ resource "docker_image" "winvoice-server" {
 		platform = var.target-platform
 	}
 }
+
+resource "docker_container" "winvoice-server" {
+	name = "winvoice/server"
+	image = docker_image.winvoice-server.image_id
+}
