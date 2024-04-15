@@ -14,12 +14,7 @@ resource "docker_image" "winvoice-server" {
 	build {
 		context = "."
 		dockerfile = "../../Dockerfile"
-		build_arg = var.build_args
+		build_arg = var.build-args
 		platform = var.target-platform
 	}
-}
-
-resource "docker_container" "winvoice-server" {
-	name = "winvoice/server"
-	image = docker_image.winvoice-server.image_id
 }

@@ -28,7 +28,7 @@ docker build --build-arg RUST_VERSION=1.75.0 --tag winvoice-server:latest .
 | `RUST_VERSION` | `1.76.0` | The Rust version to compile with. |
 | `UID`          | `$GID`   | The ID of the created user.       |
 
-## `terraform`
+### `terraform`
 
 Optionally, you can use [terraform](https://github.com/hashicorp/terraform) to set up the relevant containers:
 
@@ -38,7 +38,7 @@ module "winvoice-server" {
 	source = "path/to/winvoice-server"
 
 	# optionally, specify build arguments
-	build_args = {
+	build-args = {
 		rust-version = "1.77.0"
 	}
 }

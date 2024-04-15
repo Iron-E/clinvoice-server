@@ -1,4 +1,4 @@
-output "container" {
-   value = docker_container.winvoice-server
-   description = "The winvoice server docker container"
+output "image" {
+   value = docker_image.winvoice-server
+   description = "The winvoice server docker image"
 }

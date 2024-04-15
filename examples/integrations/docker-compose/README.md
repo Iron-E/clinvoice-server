@@ -1,9 +1,5 @@
 # winvoice-server
 
-## Build
-
-### `docker compose`
-
 A [compose file](./compose.yaml) is provided to run the application. A postgres image is included in the configuration.
 
 Run the following command:
@@ -12,20 +8,20 @@ Run the following command:
 docker compose up
 ```
 
-#### Configs
+## Configs
 
 | Name                       | Path                            | Description                              |
 | :-                         | :-                              | :-                                       |
 | `server-permissions-model` | `server/permissions/model.conf` | The `--permissions-model` argument value |
 
-#### Environment Variables
+## Environment Variables
 
 | Name                   | Default        | Description                           |
 | :-                     | :-             | :-                                    |
 | `WINVOICE_SERVER_ADDR` | `0.0.0.0:3000` | The address to host the server on     |
 | `WINVOICE_SERVER_GIT`  | `master`       | The `git` branch or tag to build from |
 
-#### Secrets
+## Secrets
 
 | Name                        | Path                                   | Description                                                                                   |
 | :-                          | :-                                     | :-                                                                                            |
@@ -35,7 +31,7 @@ docker compose up
 | `server-ssl`                | `config/server/ssl/`                   | SSL certificates. See below.                                                                  |
 | `server-ssl-cadir`          | `config/server/ssl-cadir/`             | Trust authorities to use within the container. Structured like `/etc/ssl/certs/` in `alpine`. |
 
-##### `db`
+### `db`
 
 | Filename       | Description                                                              |
 | :-             | :-                                                                       |
@@ -43,13 +39,13 @@ docker compose up
 | `user.txt`     | The username which `winvoice-server` will use to login to the database.  |
 | `password.txt` | The password which `winvoice-server` will use to login to the database.  |
 
-##### `server-cors`
+### `server-cors`
 
 | Filename    | Description                                              |
 | :-          | :-                                                       |
 | `allow.txt` | Corresponds to the `--cors-allow-origin` argument value. |
 
-##### `server-ssl`
+### `server-ssl`
 
 | Filename   | Description                                        |
 | :-         | :-                                                 |

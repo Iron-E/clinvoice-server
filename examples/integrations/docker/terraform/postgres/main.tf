@@ -10,10 +10,5 @@ terraform {
 # postgres
 
 resource "docker_image" "postgres" {
-	name = "postgres:16.2"
-}
-
-resource "docker_container" "winvoice-db-postgres" {
-	name = "winvoice/db/postgres"
-	image = docker_image.postgres.image_id
+	name = "postgres:${var.image-version}"
 }
