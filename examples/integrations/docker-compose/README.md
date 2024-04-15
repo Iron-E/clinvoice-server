@@ -55,3 +55,31 @@ docker compose up
 | :-         | :-                                                 |
 | `cert.pem` | Corresponds to the `--certificate` argument value. |
 | `key.pem`  | Corresponds to the `--key` argument value.         |
+
+### `terraform`
+
+Optionally, you can use [terraform](https://github.com/hashicorp/terraform) to set up the relevant containers:
+
+```terraform
+# main.tf
+module "winvoice-server-service" {
+	source = "path/to/winvoice-server-compose"
+
+	# optionally, specify arguments to `winvoice-server` image
+	image-args = {
+		build-args = {
+			rust-version = "1.77.0"
+		}
+	}
+}
+
+# extra config as necessary…
+```
+
+Then, in a shell of your choice:
+
+```sh
+terraform init # setup
+terraform apply # create winvoice-server containers
+terraform destroy # delete winvoice-server containers
+```

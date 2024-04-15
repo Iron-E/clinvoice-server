@@ -1,4 +1,4 @@
-variable "build_args" {
+variable "build-args" {
 	description = <<-EOT
 		Build arguments for the winvoice-server docker image.
 
