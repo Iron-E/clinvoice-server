@@ -1,31 +1,48 @@
 # winvoice-server
 
-## `kubernetes`
-
 An example kubernetes configuration is provided to run the application. A postgres image is included in the configuration.
 
-### Build
+## Requirements
+
+* `cloudnative-pg`
+* `kubernetes`
+
+> [!NOTE]
+>
+> There is a nix flake which can install these for you. Simply run `nix develop` inside this repository.
+
+Run the following:
+
+```sh
+kubectl cnpg install generate --watch-namespace example | kubectl apply --server-side -f -
+```
+
+> [!NOTE]
+>
+> The argument to `--watch-namespace` depends on the namespace you intend to use. The `example` namespace is used for these examples, and as such is the namespace which should be watched.
+
+## Build
 
 Run the following command:
 
 ```sh
-kubectl apply -f .
+kubectl apply --recursive -f . # or the path to the kubernetes examples
 ```
 
-#### Configs
+### Configs
 
 | Name                       | Path                            | Description                              |
 | :-                         | :-                              | :-                                       |
 | `server-permissions-model` | `server/permissions/model.conf` | The `--permissions-model` argument value |
 
-#### Environment Variables
+### Environment Variables
 
 | Name                   | Default        | Description                           |
 | :-                     | :-             | :-                                    |
 | `WINVOICE_SERVER_ADDR` | `0.0.0.0:3000` | The address to host the server on     |
 | `WINVOICE_SERVER_GIT`  | `master`       | The `git` branch or tag to build from |
 
-#### Secrets
+### Secrets
 
 | Name                        | Path                                   | Description                                                                                   |
 | :-                          | :-                                     | :-                                                                                            |
@@ -35,7 +52,7 @@ kubectl apply -f .
 | `server-ssl`                | `config/server/ssl/`                   | SSL certificates. See below.                                                                  |
 | `server-ssl-cadir`          | `config/server/ssl-cadir/`             | Trust authorities to use within the container. Structured like `/etc/ssl/certs/` in `alpine`. |
 
-##### `db`
+#### `db`
 
 | Filename       | Description                                                              |
 | :-             | :-                                                                       |
@@ -43,13 +60,13 @@ kubectl apply -f .
 | `user.txt`     | The username which `winvoice-server` will use to login to the database.  |
 | `password.txt` | The password which `winvoice-server` will use to login to the database.  |
 
-##### `server-cors`
+#### `server-cors`
 
 | Filename    | Description                                              |
 | :-          | :-                                                       |
 | `allow.txt` | Corresponds to the `--cors-allow-origin` argument value. |
 
-##### `server-ssl`
+#### `server-ssl`
 
 | Filename   | Description                                        |
 | :-         | :-                                                 |
