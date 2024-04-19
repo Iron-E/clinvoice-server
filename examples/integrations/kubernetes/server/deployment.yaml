@@ -1,0 +1,77 @@
+# https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+apiVersion: 'apps/v1'
+kind: 'Deployment'
+metadata: &metadata
+  labels: &labels
+    app.kubernetes.io/name: &appName 'winvoice-server'
+    app.kubernetes.io/version: &appVersion '0.6.2'
+    app.kubernetes.io/component: 'backend'
+    app.kubernetes.io/part-of: &projectName 'winvoice'
+  namespace: &namespace 'example'
+  name: 'winvoice.backend'
+spec:
+  replicas: 3
+  selector:
+    matchLabels: *labels
+  strategy:
+    rollingUpdate:
+      maxSurge: '25%'
+      maxUnavailable: '25%'
+    type: 'RollingUpdate'
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: 'winvoice-server'
+      labels: *labels
+      namespace: *namespace
+    spec:
+      # initContainers:
+        # Init containers are exactly like regular containers, except:
+          # - Init containers always run to completion.
+          # - Each init container must complete successfully before the next one starts.
+      containers:
+        - name: 'winvoice-server'
+          image: 'winvoice-server:0.6.2'
+          imagePullPolicy: 'IfNotPresent'
+          resources:
+            requests:
+              cpu: '100m'
+              memory: '100Mi'
+            limits:
+              cpu: '100m'
+              memory: '100Mi'
+          livenessProbe:
+            tcpSocket:
+              port: 3000
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: '/_status/healthy'
+              port: 3000
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+            periodSeconds: 10
+          env:
+            - name: 'DB_HOST'
+              valueFrom:
+                configMapKeyRef:
+                  name: 'winvoice-server'
+                  key: 'DB_HOST'
+          ports:
+            - containerPort: 3000
+              name: 'winvoice-server'
+          volumeMounts:
+          - name: 'localtime'
+            mountPath: '/etc/localtime'
+      volumes:
+        - name: 'localtime'
+          hostPath:
+            path: '/usr/share/zoneinfo/Asia/Taipei'
+      restartPolicy: 'Always'
+---
