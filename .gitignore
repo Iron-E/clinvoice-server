@@ -210,3 +210,5 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+examples/integrations/kubernetes/database/cnpg.yaml
