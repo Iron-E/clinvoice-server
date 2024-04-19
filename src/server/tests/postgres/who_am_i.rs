@@ -7,7 +7,7 @@ use super::*;
 #[traced_test]
 async fn who_am_i() -> DynResult<()>
 {
-	let TestData { admin, client, grunt, guest, manager, pool } = setup("put").await?;
+	let TestData { admin, client, grunt, guest, manager, pool } = setup("who_ami_i").await?;
 	let users: Vec<_> = [admin, guest, grunt, manager].into_iter().collect();
 
 	for (user, password) in &users
