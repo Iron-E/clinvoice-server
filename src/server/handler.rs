@@ -699,6 +699,15 @@ where
 		})
 	}
 
+	/// The handler for the [`routes::HEALTHY`](crate::api::routes::USER).
+	pub fn healthy(&self) -> MethodRouter<ServerState<A::Db>>
+	{
+		routing::get(|| async move {
+			// NOTE: due to axum_sessions, if the request gets this far, the server is healthy.
+			return StatusCode::OK;
+		})
+	}
+
 	/// The handler for the [`routes::JOB`](crate::api::routes::JOB).
 	pub fn job(&self) -> MethodRouter<ServerState<A::Db>>
 	{

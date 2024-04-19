@@ -170,6 +170,7 @@ where
 			.route(routes::USER, handler.user())
 			.route(routes::WHO_AM_I, handler.who_am_i())
 			.route_layer(RequireAuthLayer::login())
+			.route(routes::HEALTHY, handler.healthy())
 			.route(routes::LOGIN, handler.login());
 
 		if let Some(t) = timeout

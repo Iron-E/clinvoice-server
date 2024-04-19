@@ -1,5 +1,6 @@
 mod delete;
 mod export;
+mod healthy;
 mod patch;
 mod post;
 mod put;
