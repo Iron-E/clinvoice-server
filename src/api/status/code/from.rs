@@ -111,13 +111,13 @@ impl From<&SqlxError> for Code
 		{
 			SqlxError::Configuration(_) => Self::BadArguments,
 
+			SqlxError::ColumnDecode { .. } |
 			SqlxError::ColumnIndexOutOfBounds { .. } |
 			SqlxError::ColumnNotFound(_) |
+			SqlxError::Decode(_) |
 			SqlxError::RowNotFound |
 			SqlxError::TypeNotFound { .. } => Self::SqlError,
 
-			SqlxError::ColumnDecode { .. } |
-			SqlxError::Decode(_) |
 			SqlxError::Io(_) |
 			SqlxError::PoolClosed |
 			SqlxError::PoolTimedOut |

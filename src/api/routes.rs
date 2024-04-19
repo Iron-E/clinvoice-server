@@ -22,6 +22,9 @@ pub const EXPENSE: &str = "/expense";
 /// 'Name' (case-sensitive).
 pub const EXPORT: &str = "/job/export";
 
+/// The API endpoint for checking if the server is capable of receiving requests.
+pub const HEALTHY: &str = "/_status/healthy";
+
 /// The API endpoint for [`winvoice_schema::Job`]
 pub const JOB: &str = "/job";
 
