@@ -56,6 +56,9 @@ pub trait TestClientExt
 	/// Make a DELETE [`RequestBuilder`] on the given `route`.
 	fn delete_builder(&self, route: &str) -> RequestBuilder;
 
+	/// Make a GET [`RequestBuilder`] on the given `route`.
+	fn get_builder(&self, route: &str) -> RequestBuilder;
+
 	/// Make a POST [`RequestBuilder`] on the given `route`.
 	fn post_builder(&self, route: &str) -> RequestBuilder;
 
@@ -136,6 +139,11 @@ impl TestClientExt for TestClient
 	fn delete_builder(&self, route: &str) -> RequestBuilder
 	{
 		self.delete(route).header(api::HEADER, version_req())
+	}
+
+	fn get_builder(&self, route: &str) -> RequestBuilder
+	{
+		self.get(route).header(api::HEADER, version_req())
 	}
 
 	fn post_builder(&self, route: &str) -> RequestBuilder

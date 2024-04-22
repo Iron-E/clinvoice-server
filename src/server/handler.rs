@@ -702,25 +702,9 @@ where
 	/// The handler for the [`routes::WHO_AM_I`](crate::api::routes::USER).
 	pub fn healthy(&self) -> MethodRouter<ServerState<A::Db>>
 	{
-		const UNHEALTHY: StatusCode = StatusCode::SERVICE_UNAVAILABLE;
-		const HEALTHY: StatusCode = StatusCode::OK;
-
-		routing::get(|State(state): State<ServerState<A::Db>>| async move {
-			let pool = state.pool();
-			if pool.is_closed()
-			{
-				return UNHEALTHY;
-			}
-
-			let pool = pool.acquire().await;
-			pool.map_or_else(
-				|e| match Code::from(&e)
-				{
-					Code::Database => UNHEALTHY,
-					c => c.into(),
-				},
-				|_| HEALTHY,
-			)
+		routing::get(|| async move {
+			// NOTE: due to axum_sessions, if the request gets this far, the server is healthy.
+			return StatusCode::OK;
 		})
 	}
 
