@@ -61,7 +61,7 @@ LABEL org.opencontainers.image.source="https://github.com/Iron-E/winvoice-server
 LABEL org.opencontainers.image.title="winvoice-server"
 LABEL org.opencontainers.image.url="https://github.com/Iron-E/winvoice-server"
 LABEL org.opencontainers.image.vendor="Iron-E <code.iron.e@gmail.com>"
-LABEL org.opencontainers.image.version="0.6.2"
+LABEL org.opencontainers.image.version="0.6.3"
 
 # for healthchecks
 RUN apk add --no-cache curl
