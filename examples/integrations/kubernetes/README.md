@@ -22,7 +22,8 @@ kubectl cnpg install generate --watch-namespace example | kubectl apply --server
 Then, create a TLS cert and key (e.g. with [`mkcert`](https://github.com/FiloSottile/mkcert), also included in the flake), and then:
 
 ```sh
-ktl create -n example secret tls winvoice.backend.tls --key key.pem --cert cert.pem
+ktl create -n example secret tls winvoice.backend.tls --key key.pem --cert cert.pem # the certificates
+ktl create -n example secret generic winvoice.backend.tls.cadir --from-file ssl-cadir/ # a CA dir which trusts the certificates
 ```
 
 Finally, apply the configuration:

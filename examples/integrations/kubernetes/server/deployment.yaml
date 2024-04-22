@@ -69,16 +69,16 @@ spec:
           args:
             - >-
               'winvoice-server
-              --certificate /run/secrets/server-ssl/cert.pem
-              --key /run/secrets/server-ssl/key.pem
+              --certificate /run/secrets/server/ssl/tls.cert
+              --key /run/secrets/server/ssl/tls.key
               --cors-allow-origin /run/secrets/server/cors/allow.txt
               --permissions-model /run/mount/server/permissions/model.conf
               --permissions-policy /run/mount/server/permissions/policy.csv
               postgres
               --host winvoice-database-rw
               --database winvoice
-              --username "$(cat /run/secrets/db/user.txt)"
-              --password "$(cat /run/secrets/db/password.txt)"'
+              --username "$(cat /run/secrets/db/username)"
+              --password "$(cat /run/secrets/db/password)"'
 
           volumeMounts:
             - name: 'database-credentials'
@@ -90,28 +90,27 @@ spec:
             - name: 'server-permissions'
               mountPath: '/run/mount/server/permissions'
               readOnly: true
+            - name: 'server-tls'
+              mountPath: '/run/secrets/server/ssl'
+              readOnly: true
+            - name: 'server-tls-cadir'
+              mountPath: '/etc/ssl/certs'
+              readOnly: true
 
       volumes:
         - name: 'server-cors'
           secret:
             secretName: 'winvoice.backend.cors'
-            items:
-              - key: 'allow'
-                path: 'allow.txt'
         - name: 'server-permissions'
           configMap:
             name: 'winvoice.backend.permissions'
-            items:
-              - key: 'model'
-                path: 'model.conf'
-              - key: 'policy'
-                path: 'policy.csv'
+        - name: 'server-tls'
+          secret:
+            secretName: 'winvoice.backend.tls'
+        - name: 'server-tls-cadir'
+          secret:
+            secretName: 'winvoice.backend.tls.cadir'
         - name: 'database-credentials'
           secret:
             secretName: 'winvoice.database.login'
-            items:
-              - key: 'username'
-                path: 'name.txt'
-              - key: 'password'
-                path: 'password.txt'
 ---

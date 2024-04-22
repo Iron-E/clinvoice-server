@@ -10,7 +10,7 @@ metadata: &metadata
   namespace: &namespace 'example'
   name: 'winvoice.backend.permissions'
 data:
-  model: |
+  model.conf: |
     [request_definition]
     r = sub, obj, act
 
@@ -25,7 +25,7 @@ data:
 
     [matchers]
     m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
-  policy: |
+  policy.csv: |
     p,admin,contact,create
     p,admin,contact,delete
     p,admin,contact,retrieve
