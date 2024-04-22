@@ -10,7 +10,7 @@ terraform {
 # postgres
 
 resource "docker_image" "winvoice-server" {
-	name = "winvoice-server:0.6.2"
+	name = "winvoice-server:0.6.3"
 	build {
 		context = "."
 		dockerfile = "../../Dockerfile"
