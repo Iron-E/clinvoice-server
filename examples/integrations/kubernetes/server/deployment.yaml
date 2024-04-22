@@ -29,6 +29,7 @@ spec:
         # Init containers are exactly like regular containers, except:
           # - Init containers always run to completion.
           # - Each init container must complete successfully before the next one starts.
+      restartPolicy: 'Always'
       containers:
         - name: 'winvoice-server'
           image: 'winvoice-server:0.6.2'
@@ -40,6 +41,12 @@ spec:
             limits:
               cpu: '100m'
               memory: '100Mi'
+
+          ports:
+            - containerPort: 3000
+              name: 'winvoice-server'
+              protocol: 'TCP'
+
           livenessProbe:
             tcpSocket:
               port: 3000
@@ -57,21 +64,54 @@ spec:
             successThreshold: 1
             failureThreshold: 3
             periodSeconds: 10
-          env:
-            - name: 'DB_HOST'
-              valueFrom:
-                configMapKeyRef:
-                  name: 'winvoice-server'
-                  key: 'DB_HOST'
-          ports:
-            - containerPort: 3000
-              name: 'winvoice-server'
+
+          command: ['/bin/sh', '-c']
+          args:
+            - >-
+              'winvoice-server
+              --certificate /run/secrets/server-ssl/cert.pem
+              --key /run/secrets/server-ssl/key.pem
+              --cors-allow-origin /run/secrets/server/cors/allow.txt
+              --permissions-model /run/mount/server/permissions/model.conf
+              --permissions-policy /run/mount/server/permissions/policy.csv
+              postgres
+              --host db
+              --database winvoice
+              --username "$(cat /run/secrets/db/user.txt)"
+              --password "$(cat /run/secrets/db/password.txt)"'
+
           volumeMounts:
-          - name: 'localtime'
-            mountPath: '/etc/localtime'
+            - name: 'database-credentials'
+              mountPath: '/run/secrets/db'
+              readOnly: true
+            - name: 'server-cors'
+              mountPath: '/run/secrets/server/cors'
+              readOnly: true
+            - name: 'server-permissions'
+              mountPath: '/run/mount/server/permissions'
+              readOnly: true
+
       volumes:
-        - name: 'localtime'
-          hostPath:
-            path: '/usr/share/zoneinfo/Asia/Taipei'
-      restartPolicy: 'Always'
+        - name: 'server-cors'
+          secret:
+            secretName: 'winvoice.backend.cors'
+            items:
+              - key: 'allow'
+                path: 'allow.txt'
+        - name: 'server-permissions'
+          configMap:
+            name: 'winvoice.backend.permissions'
+            items:
+              - key: 'model'
+                path: 'model.conf'
+              - key: 'policy'
+                path: 'policy.csv'
+        - name: 'database-credentials'
+          secret:
+            secretName: 'winvoice.database.login'
+            items:
+              - key: 'username'
+                path: 'name.txt'
+              - key: 'password'
+                path: 'password.txt'
 ---
