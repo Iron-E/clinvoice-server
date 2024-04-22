@@ -75,7 +75,7 @@ spec:
               --permissions-model /run/mount/server/permissions/model.conf
               --permissions-policy /run/mount/server/permissions/policy.csv
               postgres
-              --host db
+              --host winvoice-database-rw
               --database winvoice
               --username "$(cat /run/secrets/db/user.txt)"
               --password "$(cat /run/secrets/db/password.txt)"'

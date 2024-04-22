@@ -40,6 +40,9 @@
 						sha256 = "sha256-7QfkHty6hSrgNM0fspycYkRcB82eEqYa4CoAJ9qA3tU=";
 					})
 
+					# test
+					mkcert
+
 					# deploy
 					kind
 					kubectl
