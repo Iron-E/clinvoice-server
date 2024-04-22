@@ -11,19 +11,21 @@ An example kubernetes configuration is provided to run the application. A postgr
 >
 > There is a nix flake which can install these for you. Simply run `nix develop` inside this repository.
 
-Run the following:
+## Build
+
+First, initialize cloudnative-pg:
 
 ```sh
 kubectl cnpg install generate --watch-namespace example | kubectl apply --server-side -f -
 ```
 
-> [!NOTE]
->
-> The argument to `--watch-namespace` depends on the namespace you intend to use. The `example` namespace is used for these examples, and as such is the namespace which should be watched.
+Then, create a TLS cert and key (e.g. with [`mkcert`](https://github.com/FiloSottile/mkcert), also included in the flake), and then:
 
-## Build
+```sh
+ktl create -n example secret tls winvoice.backend.tls --key key.pem --cert cert.pem
+```
 
-Run the following command:
+Finally, apply the configuration:
 
 ```sh
 kubectl apply --recursive -f . # or the path to the kubernetes examples
