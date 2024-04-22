@@ -21,7 +21,7 @@ volumes:
 
 services:
   db:
-    image: 'postgres'
+    image: 'postgres:16.2'
     user: 'postgres'
 
     healthcheck:
@@ -44,7 +44,7 @@ services:
     networks: ['backend']
 
   server:
-    image: 'winvoice/server:${WINVOICE_SERVER_TAG:-v0.6.2}'
+    image: 'winvoice-server:${WINVOICE_SERVER_TAG:-0.6.3}'
     build: '../docker'
 
     depends_on:
