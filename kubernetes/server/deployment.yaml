@@ -1,12 +1,12 @@
 # https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
 apiVersion: 'apps/v1'
 kind: 'Deployment'
-metadata: &metadata
+metadata:
   labels: &labels
     app.kubernetes.io/name: &appName 'winvoice-server'
-    app.kubernetes.io/version: &appVersion '0.6.3'
+    app.kubernetes.io/version: '0.6.3'
     app.kubernetes.io/component: 'backend'
-    app.kubernetes.io/part-of: &projectName 'winvoice'
+    app.kubernetes.io/part-of: 'winvoice'
   namespace: &namespace 'example'
   name: 'winvoice-backend'
 spec:
@@ -18,7 +18,7 @@ spec:
     type: 'RollingUpdate'
   template:
     metadata:
-      annotations: { kubectl.kubernetes.io/default-container: 'winvoice-server' }
+      annotations: { kubectl.kubernetes.io/default-container: *appName }
       labels: *labels
       namespace: *namespace
     spec:
@@ -28,7 +28,7 @@ spec:
           # - Each init container must complete successfully before the next one starts.
       restartPolicy: 'Always'
       containers:
-        - name: 'winvoice-server'
+        - name: *appName
           image: 'winvoice-server:0.6.3'
           imagePullPolicy: 'IfNotPresent'
           resources:
@@ -36,17 +36,23 @@ spec:
             limits: { cpu: '100m', memory: '100Mi' }
 
           ports:
-            - { name: 'winvoice-server', containerPort: 3000, protocol: 'TCP' }
+            - { name: *appName, containerPort: 3000, protocol: 'TCP' }
 
           livenessProbe:
-            tcpSocket: { port: 3000 }
+            tcpSocket: { port: *appName }
             initialDelaySeconds: 5
             timeoutSeconds: 5
             successThreshold: 1
             failureThreshold: 3
             periodSeconds: 10
           readinessProbe:
-            httpGet: { path: '/_status/healthy', port: 3000 }
+            httpGet:
+              path: '/_status/healthy'
+              httpHeaders:
+                - name: 'api-version'
+                  value: '^0.5'
+              port: *appName
+              scheme: 'HTTPS'
             initialDelaySeconds: 5
             timeoutSeconds: 2
             successThreshold: 1
@@ -55,29 +61,30 @@ spec:
 
           command: ['/bin/sh', '-c']
           args:
-            - >-
-              'winvoice-server
-              --log-rotation never
-              --certificate /run/secrets/server/ssl/tls.cert
+            - >- # `--log-rotation never` so that kubernetes will know where the one log file is
+              winvoice-server
+              --address 0.0.0.0:3000
+              --certificate /run/secrets/server/ssl/tls.crt
               --key /run/secrets/server/ssl/tls.key
               --cors-allow-origin /run/secrets/server/cors/allow.txt
               --permissions-model /run/mount/server/permissions/model.conf
               --permissions-policy /run/mount/server/permissions/policy.csv
+              --log-rotation never
               postgres
               --host winvoice-database-rw
               --database winvoice
               --username "$(cat /run/secrets/db/username)"
-              --password "$(cat /run/secrets/db/password)"'
+              --password "$(cat /run/secrets/db/password)"
 
           lifecycle:
             postStart:
-              exec:
-                command: # link log file to stdout so that kubernetes will keep logs
+              exec: # link log file to stdout so that kubernetes will keep logs
+                command:
                   - 'sh'
                   - '-c'
                   - >-
-                    'mkdir -p "$HOME/.local/state/winvoice-server" &&
-                    ln -sf /dev/stdout "$HOME/.local/state/winvoice-server/server.log"'
+                    mkdir -p "$HOME/.local/state/winvoice-server" &&
+                    ln -sf /proc/1/fd/1 "$HOME/.local/state/winvoice-server/server.log"
 
           volumeMounts:
             - { name: 'database-credentials', mountPath: '/run/secrets/db',               readOnly: true }
