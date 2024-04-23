@@ -47,6 +47,7 @@
 					kind
 					kubectl
 					kubectl-cnpg
+					kubectx
 					terraform
 				];
 			};
