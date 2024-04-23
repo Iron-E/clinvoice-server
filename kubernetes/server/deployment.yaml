@@ -57,6 +57,7 @@ spec:
           args:
             - >-
               'winvoice-server
+              --log-rotation never
               --certificate /run/secrets/server/ssl/tls.cert
               --key /run/secrets/server/ssl/tls.key
               --cors-allow-origin /run/secrets/server/cors/allow.txt
@@ -68,17 +69,26 @@ spec:
               --username "$(cat /run/secrets/db/username)"
               --password "$(cat /run/secrets/db/password)"'
 
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - 'sh'
+                  - '-c'
+                  - >-
+                    'mkdir -p "$HOME/.local/state/winvoice-server" && ln -s '
+
           volumeMounts:
-            - { name: 'database.credentials', mountPath: '/run/secrets/db',               readOnly: true }
-            - { name: 'server.cors',          mountPath: '/run/secrets/server/cors',      readOnly: true }
-            - { name: 'server.permissions',   mountPath: '/run/mount/server/permissions', readOnly: true }
-            - { name: 'server.tls',           mountPath: '/run/secrets/server/ssl',       readOnly: true }
-            - { name: 'server.tls.cadir',     mountPath: '/etc/ssl/certs',                readOnly: true }
+            - { name: 'database-credentials', mountPath: '/run/secrets/db',               readOnly: true }
+            - { name: 'server-cors',          mountPath: '/run/secrets/server/cors',      readOnly: true }
+            - { name: 'server-permissions',   mountPath: '/run/mount/server/permissions', readOnly: true }
+            - { name: 'server-tls',           mountPath: '/run/secrets/server/ssl',       readOnly: true }
+            - { name: 'server-tls-cadir',     mountPath: '/etc/ssl/certs',                readOnly: true }
 
       volumes:
-        - { name: 'database.credentials', secret: { secretName: 'winvoice.database.login' } }
-        - { name: 'server.cors',          secret: { secretName: 'winvoice.backend.cors' } }
-        - { name: 'server.permissions',   configMap: { name: 'winvoice.backend.permissions' } }
-        - { name: 'server.tls',           secret: { secretName: 'winvoice.backend.tls' } }
-        - { name: 'server.tls.cadir',     secret: { secretName: 'winvoice.backend.tls.cadir' } }
+        - { name: 'database-credentials', secret: { secretName: 'winvoice.database.login' } }
+        - { name: 'server-cors',          secret: { secretName: 'winvoice.backend.cors' } }
+        - { name: 'server-permissions',   configMap: { name: 'winvoice.backend.permissions' } }
+        - { name: 'server-tls',           secret: { secretName: 'winvoice.backend.tls' } }
+        - { name: 'server-tls-cadir',     secret: { secretName: 'winvoice.backend.tls.cadir' } }
 ---

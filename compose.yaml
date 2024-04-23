@@ -45,7 +45,7 @@ services:
 
   server:
     image: 'winvoice-server:${WINVOICE_SERVER_TAG:-0.6.3}'
-    build: '../docker'
+    build: '.'
 
     depends_on:
       db: {condition: 'service_healthy'}
