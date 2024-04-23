@@ -4,7 +4,7 @@ kind: 'ConfigMap'
 metadata: &metadata
   labels: &labels
     app.kubernetes.io/name: &appName 'winvoice-server'
-    app.kubernetes.io/version: &appVersion '0.6.3'
+    app.kubernetes.io/version: &appVersion '0.6.4'
     app.kubernetes.io/component: 'backend'
     app.kubernetes.io/part-of: &projectName 'winvoice'
   namespace: &namespace 'example'
