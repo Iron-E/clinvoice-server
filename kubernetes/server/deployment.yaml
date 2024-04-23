@@ -8,7 +8,7 @@ metadata: &metadata
     app.kubernetes.io/component: 'backend'
     app.kubernetes.io/part-of: &projectName 'winvoice'
   namespace: &namespace 'example'
-  name: 'winvoice.backend'
+  name: 'winvoice-backend'
 spec:
   replicas: 3
   selector:
@@ -75,11 +75,12 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command:
+                command: # link log file to stdout so that kubernetes will keep logs
                   - 'sh'
                   - '-c'
                   - >-
-                    'mkdir -p "$HOME/.local/state/winvoice-server" && ln -s '
+                    'mkdir -p "$HOME/.local/state/winvoice-server" &&
+                    ln -sf /dev/stdout "$HOME/.local/state/winvoice-server/server.log"'
 
           volumeMounts:
             - { name: 'database-credentials', mountPath: '/run/secrets/db',               readOnly: true }
