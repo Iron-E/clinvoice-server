@@ -83,7 +83,7 @@ impl Postgres
 		permissions: Lock<Enforcer>,
 		session_ttl: Duration,
 		timeout: Option<Duration>,
-		tls: RustlsConfig,
+		tls: Option<RustlsConfig>,
 	) -> DynResult<()>
 	{
 		let mut connect_options = PgConnectOptions::new()
