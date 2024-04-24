@@ -44,7 +44,7 @@ services:
     networks: ['backend']
 
   server:
-    image: 'winvoice-server:${WINVOICE_SERVER_TAG:-0.6.3}'
+    image: 'winvoice-server:${WINVOICE_SERVER_TAG:-0.6.4}'
     build: '.'
 
     depends_on:

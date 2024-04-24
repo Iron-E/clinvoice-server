@@ -4,7 +4,7 @@ kind: 'Deployment'
 metadata:
   labels: &labels
     app.kubernetes.io/name: &appName 'winvoice-server'
-    app.kubernetes.io/version: '0.6.3'
+    app.kubernetes.io/version: '0.6.4'
     app.kubernetes.io/component: 'backend'
     app.kubernetes.io/part-of: 'winvoice'
   namespace: &namespace 'example'
@@ -29,7 +29,7 @@ spec:
       restartPolicy: 'Always'
       containers:
         - name: *appName
-          image: 'winvoice-server:0.6.3'
+          image: 'winvoice-server:0.6.4'
           imagePullPolicy: 'IfNotPresent'
           resources:
             requests: { cpu: '100m', memory: '100Mi' }

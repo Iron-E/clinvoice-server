@@ -11,17 +11,17 @@ An example kubernetes configuration is provided to run the application. A postgr
 >
 > There is a nix [flake] which can install the above for you. Simply run `nix develop` inside this repository.
 
-If you don't already have the `winvoice-server:0.6.3` docker image, follow [this guide](../README.Docker.md).
+If you don't already have the `winvoice-server:0.6.4` docker image, follow [this guide](../README.Docker.md).
 
 > [!IMPORTANT]
 >
 > If you are using `kind` (included in the [flake]), there is one extra step:
 >
 > ```sh
-> kind load docker-image --name <your-cluster-name> winvoice-server:0.6.3
+> kind load docker-image --name <your-cluster-name> winvoice-server:0.6.4
 > ```
 >
-> This will bring `winvoice-server:0.6.3` into the scope for your `kind` cluster.
+> This will bring `winvoice-server:0.6.4` into the scope for your `kind` cluster.
 
 ## Build
 
