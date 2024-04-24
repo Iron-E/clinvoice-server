@@ -51,8 +51,8 @@ pub struct Args
 	address: SocketAddr,
 
 	/// The file containing the certificate to use for TLS. Must be in PEM format.
-	#[arg(long, short, value_name = "FILE")]
-	certificate: PathBuf,
+	#[arg(long, short, requires = "key", value_name = "FILE")]
+	certificate: Option<PathBuf>,
 
 	/// The Winvoice adapter which will be used for this server.
 	#[command(subcommand)]
@@ -85,8 +85,8 @@ pub struct Args
 	cors_allow_origin: PathBuf,
 
 	/// The file containing the key to use for TLS. Must be in PEM format.
-	#[arg(long, short, value_name = "FILE")]
-	key: PathBuf,
+	#[arg(long, short, requires = "certificate", value_name = "FILE")]
+	key: Option<PathBuf>,
 
 	/// The directory where the log is stored.
 	///
@@ -161,11 +161,20 @@ impl Args
 		let model_path = self.permissions_model.map(|m| -> &'static str { m.leak() });
 		let policy_path: &'static str = self.permissions_policy.leak();
 
-		let (origins_file, permissions, tls) = futures::try_join!(
+		let (origins_file, permissions) = futures::try_join!(
 			fs::read_to_string(self.cors_allow_origin).err_into(),
-			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into(),
-			RustlsConfig::from_pem_file(self.certificate, self.key).err_into::<DynError>(),
+			Enforcer::new(model_path, policy_path).map_ok(lock::new).err_into::<DynError>(),
 		)?;
+
+		let tls = match (self.certificate, self.key)
+		{
+			(Some(c), Some(k)) =>
+			{
+				let rustls_config = RustlsConfig::from_pem_file(c, k).await?;
+				Some(rustls_config)
+			},
+			_ => None,
+		};
 
 		let origins = origins_file.lines().into_iter().map(HeaderValue::from_str).collect::<Result<Vec<_>, _>>()?;
 

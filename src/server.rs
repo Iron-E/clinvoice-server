@@ -60,7 +60,7 @@ pub struct Server<A>
 	phantom: PhantomData<A>,
 
 	/// The TLS configuration.
-	tls: RustlsConfig,
+	tls: Option<RustlsConfig>,
 }
 
 impl<A> Server<A>
@@ -75,7 +75,7 @@ where
 	for<'connection> &'connection mut <A::Db as Database>::Connection: Executor<'connection, Database = A::Db>,
 {
 	/// Create a new [`Server`]
-	pub const fn new(address: SocketAddr, tls: RustlsConfig) -> Self
+	pub const fn new(address: SocketAddr, tls: Option<RustlsConfig>) -> Self
 	{
 		Self { address, phantom: PhantomData, tls }
 	}
@@ -94,7 +94,14 @@ where
 	) -> DynResult<()>
 	{
 		let router = Self::router(cookie_domain, cookie_secret, cors_allow_origin, state, session_ttl, timeout).await?;
-		axum_server::bind_rustls(self.address, self.tls).serve(router.into_make_service()).await?;
+		let service = router.into_make_service();
+
+		match self.tls
+		{
+			Some(tls) => axum_server::bind_rustls(self.address, tls).serve(service).await,
+			None => axum_server::bind(self.address).serve(service).await,
+		}?;
+
 		Ok(())
 	}
 
