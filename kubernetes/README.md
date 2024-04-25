@@ -48,7 +48,7 @@ ktl create -n example secret generic winvoice.backend.tls.cadir --from-file ssl-
 Finally, apply the configuration:
 
 ```sh
-kubectl apply --recursive -f . # or the path to the kubernetes examples
+ktl apply --recursive -Rf namespace.yaml,database/,server/
 ```
 
 [flake]: ../flake.nix
