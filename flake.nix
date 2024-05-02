@@ -49,7 +49,7 @@
 			pkgs = mkPkgs system;
 			toolchain = mkToolchain pkgs.fenix;
 
-			winvoice-server = (pkgs.makeRustPlatform { cargo = toolchain; rustc = toolchain; }).buildRustPackage {
+			default = (pkgs.makeRustPlatform { cargo = toolchain; rustc = toolchain; }).buildRustPackage {
 				pname = name;
 				version = "0.6.4";
 
@@ -87,10 +87,13 @@
 				};
 			};
 		in {
-			inherit winvoice-server;
-			default = winvoice-server;
+			inherit default;
+			${name} = default;
 		});
 
-		overlays = { };
+		overlays.default = outputs.overlays.${name};
+		overlays.${name} = final: prev: {
+			${name} = outputs.packages.${final.system}.${name};
+		};
 	};
 }
