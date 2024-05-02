@@ -13,9 +13,11 @@
 	let
 		inherit (nixpkgs) lib;
 		inherit (self) outputs;
-		name = "winvoice-server";
-		genSystems = lib.genAttrs ["aarch64-darwin" "aarch64-linux" "i686-linux" "x86_64-darwin" "x86_64-linux"];
 
+		name = "winvoice-server";
+		version = "0.6.4";
+
+		genSystems = lib.genAttrs [ "aarch64-darwin" "aarch64-linux" "i686-linux" "x86_64-darwin" "x86_64-linux" ];
 		mkPkgs = system: import nixpkgs {
 			inherit system;
 			config.allowUnfree = true;
@@ -26,7 +28,7 @@
 
 		mkToolchain = fenix: fenix.fromToolchainFile {
 			file = ./rust-toolchain.toml;
-			sha256 = "sha256-7QfkHty6hSrgNM0fspycYkRcB82eEqYa4CoAJ9qA3tU=";
+			sha256 = "sha256-opUgs6ckUQCyDxcB9Wy51pqhd0MPGHUVbwRKKPGiwZU=";
 		};
 	in {
 		devShells = genSystems (system:
@@ -47,13 +49,20 @@
 		packages = genSystems (system:
 		let
 			pkgs = mkPkgs system;
+			inherit (pkgs) dockerTools;
+
 			toolchain = mkToolchain pkgs.fenix;
-
-			default = (pkgs.makeRustPlatform { cargo = toolchain; rustc = toolchain; }).buildRustPackage {
+			winvoice-server = (pkgs.makeRustPlatform { cargo = toolchain; rustc = toolchain; }).buildRustPackage {
+				inherit version;
 				pname = name;
-				version = "0.6.4";
 
-				src = ./.;
+				buildInputs = with pkgs; [ openssl ];
+				nativeBuildInputs = with pkgs; [ makeWrapper pkg-config ];
+				src = with lib.fileset; (toSource {
+					root = ./.;
+					fileset = unions [ ./Cargo.lock ./Cargo.toml ./sqlx-data.json ./src ];
+				});
+
 				cargoLock = {
 					lockFile = ./Cargo.lock;
 					outputHashes = {
@@ -66,9 +75,6 @@
 					};
 				};
 
-				buildInputs = with pkgs; [ openssl ];
-				nativeBuildInputs = with pkgs; [ makeWrapper pkg-config ];
-
 				checkFlags = [
 					# `preCheck` doesn't work with `buildRustPackage`, so `watchman`'s state dir can't be created before the test
 					"--skip=args::tests::watch_permissions"
@@ -76,7 +82,7 @@
 
 				postFixup = ''
 					wrapProgram "$out/bin/${name}" \
-						--suffix PATH : "${lib.makeBinPath [ pkgs.watchman ]}"
+						--suffix PATH : "${lib.makeBinPath (with pkgs; [ watchman ])}"
 				'';
 
 				meta = {
@@ -86,14 +92,43 @@
 					mainProgram = name;
 				};
 			};
+
+			oci-image =
+			let
+				group = "winvoice";
+				user = "runner";
+			in dockerTools.streamLayeredImage {
+				inherit name;
+				tag = version;
+				created = "2024-05-02T21:25:38+00:00"; # date --iso-8601='seconds' --utc
+
+				enableFakechroot = true;
+				fakeRootCommands = /* sh */ ''
+					${dockerTools.shadowSetup}
+					groupadd --system --gid 1001 ${group}
+					useradd --system --uid 1001 ${user}
+					mkdir -p /home/${user}/.local/state
+				'';
+
+				contents = with pkgs; [ curl ];
+				config = {
+					Entrypoint = [ "${lib.getExe winvoice-server}" ];
+					User = "${user}:${group}";
+				};
+			};
 		in {
-			inherit default;
-			${name} = default;
+			inherit winvoice-server oci-image;
+			default = winvoice-server;
 		});
 
-		overlays.default = outputs.overlays.${name};
-		overlays.${name} = final: prev: {
-			${name} = outputs.packages.${final.system}.${name};
+		overlays =
+		let
+			winvoice-server = final: prev: {
+				${name} = outputs.packages.${final.system}.${name};
+			};
+		in {
+			inherit winvoice-server;
+			default = winvoice-server;
 		};
 	};
 }
