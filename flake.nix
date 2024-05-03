@@ -21,9 +21,7 @@
 		mkPkgs = system: import nixpkgs {
 			inherit system;
 			config.allowUnfree = true;
-			overlays = (builtins.attrValues outputs.overlays) ++ [
-				inputs.fenix.overlays.default
-			];
+			overlays = with inputs; [ fenix.overlays.default ];
 		};
 
 		mkToolchain = fenix: fenix.fromToolchainFile {
